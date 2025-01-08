@@ -1,8 +1,8 @@
 {
-  "name": "obsidian-mcp-tools",
+  "name": "obsidian-advanced-mcp-server",
   "version": "0.2.18",
   "private": true,
-  "description": "A collection of Model Context Protocol (MCP) tools for Obsidian.md",
+  "description": "Add advanced Obsidian integrations like semantic search and custom Templater prompts to Claude or any MCP client.",
   "workspaces": [
     "packages/*"
   ],

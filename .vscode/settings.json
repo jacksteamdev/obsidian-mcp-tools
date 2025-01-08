@@ -5,13 +5,9 @@
     "titleBar.activeForeground": "#FAF9FE"
   },
   "typescript.tsdk": "node_modules/typescript/lib",
-  "logViewer.watch": [
-    "~/Library/Logs/obsidian-mcp-tools/mcp-server.log",
-    "~/Library/Logs/obsidian-mcp-tools/obsidian-plugin.log",
-    "~/Library/Logs/Claude/*.log"
-  ],
+  "logViewer.watch": ["~/Library/Logs/Claude/*.log"],
   "svelte.plugin.svelte.compilerWarnings": {
     "a11y_click_events_have_key_events": "ignore",
-    "a11y_missing_attribute": "ignore",
+    "a11y_missing_attribute": "ignore"
   }
 }

@@ -1,12 +1,12 @@
-# Obsidian MCP Tools
+# Advanced MCP Server for Obsidian
 
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/jacksteamdev/obsidian-mcp-tools)](https://github.com/jacksteamdev/obsidian-mcp-tools/releases/latest)
-[![Build status](https://img.shields.io/github/actions/workflow/status/jacksteamdev/obsidian-mcp-tools/release.yml)](https://github.com/jacksteamdev/obsidian-mcp-tools/actions)
-[![License](https://img.shields.io/github/license/jacksteamdev/obsidian-mcp-tools)](LICENSE)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/jacksteamdev/advanced-mcp-server)](https://github.com/jacksteamdev/advanced-mcp-server/releases/latest)
+[![Build status](https://img.shields.io/github/actions/workflow/status/jacksteamdev/advanced-mcp-server/release.yml)](https://github.com/jacksteamdev/advanced-mcp-server/actions)
+[![License](https://img.shields.io/github/license/jacksteamdev/advanced-mcp-server)](LICENSE)
 
 [Features](#features) | [Installation](#installation) | [Configuration](#configuration) | [Troubleshooting](#troubleshooting) | [Security](#security) | [Development](#development) | [Support](#support)
 
-Obsidian MCP Tools enables AI applications like Claude Desktop to securely access and work with your Obsidian vault through the Model Context Protocol (MCP). MCP is an open protocol that standardizes how AI applications can interact with external data sources and tools while maintaining security and user control. [^2]
+The Advanced MCP Server for Obsidian enables AI applications like Claude Desktop to securely access and work with your Obsidian vault through the Model Context Protocol (MCP). MCP is an open protocol that standardizes how AI applications can interact with external data sources and tools while maintaining security and user control. [^2]
 
 When you install this plugin, it sets up a local MCP server that acts as a secure bridge between your Obsidian vault and MCP-compatible AI applications. This means AI assistants can read your notes, execute templates, and perform semantic searches - but only with your explicit permission and without requiring direct access to your vault. [^3]
 
@@ -53,11 +53,11 @@ Clicking the install button will:
 
 ### Installation Locations
 
-- **Server Binary**: {vault}/.obsidian/plugins/obsidian-mcp-tools/bin/
-- **Log Files**:
-  - macOS: ~/Library/Logs/obsidian-mcp-tools
-  - Windows: %APPDATA%\obsidian-mcp-tools\logs
-  - Linux: ~/.local/share/obsidian-mcp-tools/logs
+- **Server Binary**: {vault}/.obsidian/plugins/advanced-mcp-server/bin/
+- **Server Log Files**:
+  - macOS: ~/Library/Logs/Claude/obsidian-advanced-mcp-server
+  - Windows: %APPDATA%\Claude\logs\obsidian-advanced-mcp-server
+  - Linux: ~/.local/share/Claude/logs/obsidian-advanced-mcp-server
 
 ## Configuration
 
@@ -185,8 +185,8 @@ Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## Support
 
-- [Open an issue](https://github.com/jacksteamdev/obsidian-mcp-tools/issues) for bug reports and feature requests
-- [Start a discussion](https://github.com/jacksteamdev/obsidian-mcp-tools/discussions) for questions and general help
+- [Open an issue](https://github.com/jacksteamdev/obsidian-advanced-mcp-server/issues) for bug reports and feature requests
+- [Start a discussion](https://github.com/jacksteamdev/obsidian-advanced-mcp-server/discussions) for questions and general help
 
 ## Changelog
 

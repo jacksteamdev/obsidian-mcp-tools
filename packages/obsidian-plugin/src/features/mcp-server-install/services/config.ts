@@ -43,7 +43,10 @@ function getConfigPath(): string {
 
   // Expand environment variables on Windows
   if (platform === "win32") {
-    configPath = configPath.replace(/%([^%]+)%/g, (_, n) => process.env[n] || "");
+    configPath = configPath.replace(
+      /%([^%]+)%/g,
+      (_, n) => process.env[n] || "",
+    );
   }
 
   return configPath;
@@ -55,7 +58,7 @@ function getConfigPath(): string {
 export async function updateClaudeConfig(
   plugin: Plugin,
   serverPath: string,
-  apiKey?: string
+  apiKey?: string,
 ): Promise<void> {
   try {
     const configPath = getConfigPath();
@@ -78,7 +81,7 @@ export async function updateClaudeConfig(
     }
 
     // Update config with our server entry
-    config.mcpServers["obsidian-mcp-tools"] = {
+    config.mcpServers["obsidian-advanced"] = {
       command: serverPath,
       env: {
         OBSIDIAN_API_KEY: apiKey,
@@ -93,7 +96,7 @@ export async function updateClaudeConfig(
     throw new Error(
       `Failed to update Claude config: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
     );
   }
 }
@@ -119,8 +122,8 @@ export async function removeFromClaudeConfig(): Promise<void> {
     }
 
     // Remove our server entry if it exists
-    if (config.mcpServers && "obsidian-mcp-tools" in config.mcpServers) {
-      delete config.mcpServers["obsidian-mcp-tools"];
+    if (config.mcpServers && "obsidian-advanced" in config.mcpServers) {
+      delete config.mcpServers["obsidian-advanced"];
       await fsp.writeFile(configPath, JSON.stringify(config, null, 2));
       logger.info("Removed server from Claude config", { configPath });
     }
@@ -129,7 +132,7 @@ export async function removeFromClaudeConfig(): Promise<void> {
     throw new Error(
       `Failed to remove from Claude config: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
     );
   }
 }

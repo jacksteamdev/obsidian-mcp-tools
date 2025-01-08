@@ -53,8 +53,8 @@ export async function uninstallServer(plugin: Plugin): Promise<void> {
       const content = await fsp.readFile(configPath, "utf8");
       const config = JSON.parse(content);
 
-      if (config.mcpServers && config.mcpServers["obsidian-mcp-tools"]) {
-        delete config.mcpServers["obsidian-mcp-tools"];
+      if (config.mcpServers && config.mcpServers["obsidian-advanced"]) {
+        delete config.mcpServers["obsidian-advanced"];
         await fsp.writeFile(configPath, JSON.stringify(config, null, 2));
         logger.info("Removed server from Claude config", { configPath });
       }

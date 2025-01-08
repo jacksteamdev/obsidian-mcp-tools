@@ -18,7 +18,7 @@ The MCP server binary is now published with GitHub artifact attestations, provid
      <p>
        The MCP server binary includes GitHub artifact attestations for security verification.
        <a
-         href="https://github.com/jacksteamdev/obsidian-mcp-tools#binary-verification"
+         href="https://github.com/jacksteamdev/obsidian-advanced-mcp-server#binary-verification"
          target="_blank"
          rel="noopener"
        >

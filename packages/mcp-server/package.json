@@ -1,5 +1,5 @@
 {
-  "name": "@obsidian-mcp-tools/mcp-server",
+  "name": "@obsidian-advanced-mcp-server/server",
   "description": "Chat with your Obsidian notes in Claude Desktop and other MCP Clients. Requires obsidian-local-rest-api and smart-connections plugins.",
   "type": "module",
   "module": "src/index.ts",

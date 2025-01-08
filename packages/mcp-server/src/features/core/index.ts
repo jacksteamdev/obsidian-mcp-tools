@@ -18,7 +18,7 @@ export class ObsidianMcpServer {
   constructor() {
     this.server = new Server(
       {
-        name: "obsidian-mcp-tools",
+        name: "obsidian-advanced",
         version: "0.1.0",
       },
       {

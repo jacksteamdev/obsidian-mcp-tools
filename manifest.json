@@ -1,9 +1,9 @@
 {
-  "id": "mcp-tools",
-  "name": "MCP Tools",
+  "id": "advanced-mcp-server",
+  "name": "Advanced MCP Server",
   "version": "0.2.18",
   "minAppVersion": "0.15.0",
-  "description": "Chat with your notes in Claude Desktop and other Model Context Protocol (MCP) Clients.",
+  "description": "Add advanced Obsidian integrations like semantic search and custom Templater prompts to Claude or any MCP client.",
   "author": "Jack Steam",
   "authorUrl": "https://github.com/jacksteamdev",
   "fundingUrl": "https://github.com/sponsors/jacksteamdev",

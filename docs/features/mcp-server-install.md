@@ -87,9 +87,9 @@ The settings UI is implemented as a Svelte component in `components/SettingsTab.
 2. Installation Locations:
    - Binary: {vault}/.obsidian/plugins/{plugin-id}/bin/
    - Logs:
-     - macOS: ~/Library/Logs/obsidian-mcp-tools
-     - Windows: %APPDATA%\obsidian-mcp-tools\logs
-     - Linux: (platform-specific path)
+      - macOS: ~/Library/Logs/Claude/mcp-server-obsidian-advanced
+      - Windows: %APPDATA%\Claude\mcp-server-obsidian-advanced\logs
+      - Linux: ~/.local/share/Claude/mcp-server-obsidian-advanced/logs
 
 ## Claude Configuration
 
@@ -100,7 +100,7 @@ The settings UI is implemented as a Svelte component in `components/SettingsTab.
      ```json
      {
        "mcpServers": {
-         "obsidian-mcp-tools": {
+         "obsidian-advanced": {
            "command": "(absolute path to executable)",
            "env": {
              "OBSIDIAN_API_KEY": "(stored api key)"

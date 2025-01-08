@@ -138,7 +138,7 @@
 
   <div class="link-item">
     <a
-      href="https://github.com/jacksteamdev/obsidian-mcp-tools"
+      href="https://github.com/jacksteamdev/obsidian-advanced-mcp-server"
       target="_blank"
     >
       GitHub Repository

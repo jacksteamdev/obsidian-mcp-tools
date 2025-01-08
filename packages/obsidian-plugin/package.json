@@ -1,6 +1,6 @@
 {
-	"name": "@obsidian-mcp-tools/obsidian-plugin",
-	"description": "Chat with your Obsidian notes in Claude Desktop and other MCP Clients. Requires obsidian-local-rest-api and smart-connections plugins.",
+	"name": "@obsidian-advanced-mcp-server/plugin",
+	"description": "Add advanced Obsidian integrations like semantic search and custom Templater prompts to Claude or any MCP client.",
 	"keywords": [
 		"MCP",
 		"Claude",
