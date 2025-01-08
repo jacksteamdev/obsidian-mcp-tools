@@ -17,7 +17,7 @@ function main() {
   );
 
   const config = JSON.parse(readFileSync(configPath, "utf-8"));
-  config.mcpServers["obsidian-mcp-server"] = {
+  config.mcpServers["advanced-mcp-server"] = {
     command: which("bun"),
     args: [path.resolve(__dirname, "../src/index.ts")],
     env: {
