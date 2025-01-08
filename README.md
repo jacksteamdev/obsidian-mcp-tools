@@ -8,7 +8,7 @@
 
 The Advanced MCP Server for Obsidian enables AI applications like Claude Desktop to securely access and work with your Obsidian vault through the Model Context Protocol (MCP). MCP is an open protocol that standardizes how AI applications can interact with external data sources and tools while maintaining security and user control. [^2]
 
-When you install this plugin, it sets up a local MCP server that acts as a secure bridge between your Obsidian vault and MCP-compatible AI applications. This means AI assistants can read your notes, execute templates, and perform semantic searches - but only with your explicit permission and without requiring direct access to your vault. [^3]
+When you install this plugin, it connects to a local MCP server that acts as a secure bridge between your Obsidian vault and MCP-compatible AI applications. This means AI assistants can read your notes, execute templates, and perform semantic searches - but only with your explicit permission and without requiring direct access to your vault files. [^3]
 
 > **Privacy Note**: When using Claude Desktop with this plugin, your conversations with Claude are not used to train Anthropic's models by default. [^1]
 
