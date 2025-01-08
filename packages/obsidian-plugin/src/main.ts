@@ -21,7 +21,7 @@ import {
 } from "./shared";
 import { logger } from "./shared/logger";
 
-export default class McpToolsPlugin extends Plugin {
+export default class AdvancedMCPServerPlugin extends Plugin {
   private localRestApi: Dependencies["obsidian-local-rest-api"] = {
     id: "obsidian-local-rest-api",
     name: "Local REST API",
@@ -60,7 +60,7 @@ export default class McpToolsPlugin extends Plugin {
         .addRoute("/templates/execute")
         .post(this.handleTemplateExecution.bind(this));
 
-      logger.info("MCP Tools Plugin loaded");
+      logger.info("Advanced MPC Server plugin loaded");
     });
   }
 

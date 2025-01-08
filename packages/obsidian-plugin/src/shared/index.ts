@@ -12,7 +12,7 @@ import {
   timer,
 } from "rxjs";
 import type { SmartConnections, Templater } from "shared";
-import type McpToolsPlugin from "src/main";
+import type AdvancedMCPServerPlugin from "src/main";
 
 export interface Dependency<ID extends keyof App["plugins"]["plugins"], API> {
   id: keyof Dependencies;
@@ -41,7 +41,7 @@ declare const window: {
   SmartSearch?: SmartConnections.SmartSearch;
 } & Window;
 
-export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
+export const loadSmartSearchAPI = (plugin: AdvancedMCPServerPlugin) =>
   interval(200).pipe(
     takeUntil(timer(5000)),
     map((): Dependencies["smart-connections"] => {
@@ -59,7 +59,7 @@ export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
     distinct(({ installed }) => installed),
   );
 
-export const loadLocalRestAPI = (plugin: McpToolsPlugin) =>
+export const loadLocalRestAPI = (plugin: AdvancedMCPServerPlugin) =>
   interval(200).pipe(
     takeUntil(timer(5000)),
     map((): Dependencies["obsidian-local-rest-api"] => {
@@ -77,7 +77,7 @@ export const loadLocalRestAPI = (plugin: McpToolsPlugin) =>
     distinct(({ installed }) => installed),
   );
 
-export const loadTemplaterAPI = (plugin: McpToolsPlugin) =>
+export const loadTemplaterAPI = (plugin: AdvancedMCPServerPlugin) =>
   interval(200).pipe(
     takeUntil(timer(5000)),
     map((): Dependencies["templater-obsidian"] => {
@@ -95,7 +95,7 @@ export const loadTemplaterAPI = (plugin: McpToolsPlugin) =>
     distinct(({ installed }) => installed),
   );
 
-export const loadDependencies = (plugin: McpToolsPlugin) => {
+export const loadDependencies = (plugin: AdvancedMCPServerPlugin) => {
   const dependencies: Dependencies = {
     "obsidian-local-rest-api": {
       id: "obsidian-local-rest-api",
@@ -136,7 +136,7 @@ export const loadDependencies = (plugin: McpToolsPlugin) => {
   );
 };
 
-export const loadDependenciesArray = (plugin: McpToolsPlugin) =>
+export const loadDependenciesArray = (plugin: AdvancedMCPServerPlugin) =>
   loadDependencies(plugin).pipe(
     map((deps) => Object.values(deps) as Dependencies[keyof Dependencies][]),
   );

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type McpToolsPlugin from "$/main";
+  import type AdvancedMCPServerPlugin from "$/main";
   import { FULL_LOGGER_FILENAME, loadDependenciesArray } from "$/shared";
   import { Notice } from "obsidian";
   import { dirname } from "path";
@@ -14,7 +14,7 @@
   import type { InstallationStatus } from "../types";
   import { openFolder } from "../utils/openFolder";
 
-  export let plugin: McpToolsPlugin;
+  export let plugin: AdvancedMCPServerPlugin;
 
   // Dependencies and API key status
   const deps = loadDependenciesArray(plugin);

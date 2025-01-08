@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-The Obsidian MCP Tools team takes security vulnerabilities seriously. If you discover a security issue, please report it by emailing [jacksteamdev+security@gmail.com]. 
+The Advanced MCP Server for Obsidian team takes security vulnerabilities seriously. If you discover a security issue, please report it by emailing [jacksteamdev+security@gmail.com]. 
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
@@ -24,7 +24,7 @@ When we receive a security bug report, we will:
 
 ## Binary Distribution Security
 
-Obsidian MCP Tools uses several measures to ensure secure binary distribution:
+The Advanced MCP Server for Obsidian uses several measures to ensure secure binary distribution:
 
 1. **SLSA Provenance**: All binaries are built using GitHub Actions with [SLSA Level 3](https://slsa.dev) provenance attestation
 2. **Reproducible Builds**: Our build process is deterministic and can be reproduced from source

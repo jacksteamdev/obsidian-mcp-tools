@@ -30,7 +30,7 @@ export const PromptMetadataSchema = type({
 });
 export type PromptMetadata = typeof PromptMetadataSchema.infer;
 
-export const PromptTemplateTag = type("'mcp-tools-prompt'");
+export const PromptTemplateTag = type("'mcp-server-prompt'");
 export const PromptFrontmatterSchema = type({
   tags: type("string[]").narrow((arr) => arr.some(PromptTemplateTag.allows)),
   "description?": type("string"),

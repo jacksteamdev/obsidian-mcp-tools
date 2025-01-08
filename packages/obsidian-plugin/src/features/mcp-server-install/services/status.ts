@@ -1,4 +1,4 @@
-import type McpToolsPlugin from "$/main";
+import type AdvancedMCPServerPlugin from "$/main";
 import { logger } from "$/shared/logger";
 import { exec } from "child_process";
 import fsp from "fs/promises";
@@ -87,7 +87,7 @@ export async function getInstallPath(plugin: Plugin): Promise<InstallPathInfo> {
  * Gets the current installation status of the MCP server
  */
 export async function getInstallationStatus(
-  plugin: McpToolsPlugin,
+  plugin: AdvancedMCPServerPlugin,
 ): Promise<InstallationStatus> {
   // Verify plugin version is valid
   const pluginVersion = valid(clean(plugin.manifest.version));

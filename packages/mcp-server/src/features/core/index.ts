@@ -36,7 +36,7 @@ export class ObsidianMcpServer {
     // Error handling
     this.server.onerror = (error) => {
       logger.error("Server error", { error });
-      console.error("[MCP Tools Error]", error);
+      console.error("[Advanced MCP Server Error]", error);
     };
     process.on("SIGINT", async () => {
       await this.server.close();

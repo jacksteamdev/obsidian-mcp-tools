@@ -44,7 +44,7 @@ export function setupObsidianPrompts(server: Server) {
             );
 
             // Skip files without the prompt template tag
-            if (!file.tags.includes("mcp-tools-prompt")) {
+            if (!file.tags.includes("mcp-server-prompt")) {
               return [];
             }
 

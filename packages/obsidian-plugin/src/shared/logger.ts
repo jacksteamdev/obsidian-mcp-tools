@@ -8,7 +8,7 @@ const isProd = process.env.NODE_ENV === "production";
 
 export const LOGGER_CONFIG: InputLoggerConfig = {
   appName: "Claude",
-  filename: "obsidian-plugin-mcp-tools.log",
+  filename: "mcp-server-obsidian-advanced-plugin.log",
   level: "DEBUG",
 };
 
