@@ -62,7 +62,7 @@
 
   <div class="setting-item">
     <div class="setting-item-info">
-      <div class="setting-item-name">Enable Source Documents</div>
+      <div class="setting-item-title">Source Documents</div>
       <div class="setting-item-description">
         Create and read web content as paginated Markdown documents
       </div>
@@ -121,7 +121,7 @@
       <div class="setting-item-info">
         <div class="setting-item-name">Maximum Page Size</div>
         <div class="setting-item-description">
-          Characters per page (minimum: ${MINIMUM_PAGE_SIZE})
+          Characters per page (minimum: {MINIMUM_PAGE_SIZE})
         </div>
       </div>
       <div class="setting-item-control">
@@ -161,6 +161,12 @@
   .setting-item-info {
     flex: 1;
     padding-right: 1em;
+  }
+
+  .setting-item-title {
+    font-weight: 500;
+    margin-bottom: 0.3em;
+    font-size: var(--h3-size);
   }
 
   .setting-item-name {
