@@ -20,7 +20,7 @@
 	},
 	"dependencies": {
 		"@types/fs-extra": "^11.0.4",
-		"arktype": "^2.0.0-rc.30",
+		"arktype": "^2.0.0-rc.33",
 		"express": "^4.21.2",
 		"fs-extra": "^11.2.0",
 		"obsidian-local-rest-api": "^2.5.4",
@@ -28,7 +28,7 @@
 		"rxjs": "^7.8.1",
 		"semver": "^7.6.3",
 		"shared": "workspace:*",
-		"svelte": "^5.16.0"
+		"svelte": "5.16.0"
 	},
 	"devDependencies": {
 		"@types/node": "^16.11.6",
@@ -38,6 +38,6 @@
 		"archiver": "^7.0.1",
 		"obsidian": "latest",
 		"tslib": "2.4.0",
-		"typescript": "^5.7.2"
+		"typescript": "5.7.3"
 	}
 }

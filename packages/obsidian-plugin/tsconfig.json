@@ -14,7 +14,7 @@
     "skipLibCheck": true,
     "lib": ["DOM", "ES5", "ES6", "ES7"],
     "useDefineForClassFields": true,
-    "verbatimModuleSyntax": true,
+    // "verbatimModuleSyntax": true,
     "paths": {
       "$/*": ["./src/*"]
     }

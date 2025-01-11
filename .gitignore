@@ -176,6 +176,9 @@ dist
 
 # Scratch pad
 playground/
+docs/planning/
+
+# Obsidian plugin files
 main.js
 bin/
-docs/planning/
+data.json
