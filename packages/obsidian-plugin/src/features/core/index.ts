@@ -22,7 +22,7 @@ import {
 } from "$/shared";
 
 import SettingsContainer from "./components/SettingsContainer.svelte";
-import { McpToolsPluginSettings } from "./types";
+import type { McpToolsPluginSettings } from "./types";
 
 import { setup as setupMcpServerInstall } from "../mcp-server-install";
 import { setup as setupSourceDocument } from "../source-document";
