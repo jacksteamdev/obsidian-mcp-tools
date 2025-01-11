@@ -23,6 +23,6 @@ export class FileSelectionModal extends FuzzySuggestModal<TFile> {
   }
 
   onClose(): void {
-    this.onSelect(null);
+    setTimeout(() => this.onSelect(null), 0);
   }
 }

@@ -4,7 +4,7 @@ export class FolderSelectionModal extends FuzzySuggestModal<TFolder> {
   constructor(
     app: App,
     private folders: TFolder[],
-    private onSelect: (folder: TFolder | null) => void
+    private onSelect: (folder: TFolder | null) => void,
   ) {
     super(app);
     this.setPlaceholder("Select directory");
@@ -23,6 +23,6 @@ export class FolderSelectionModal extends FuzzySuggestModal<TFolder> {
   }
 
   onClose(): void {
-    this.onSelect(null);
+    setTimeout(() => this.onSelect(null), 0);
   }
 }
