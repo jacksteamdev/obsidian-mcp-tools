@@ -17,5 +17,8 @@
   },
   "patchedDependencies": {
     "svelte@5.16.0": "patches/svelte@5.16.0.patch"
-  }
+  },
+  "trustedDependencies": [
+    "svelte-preprocess"
+  ]
 }

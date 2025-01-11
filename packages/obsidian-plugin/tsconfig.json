@@ -1,20 +1,21 @@
 {
   "compilerOptions": {
+    "allowJs": true,
     "baseUrl": ".",
+    "importHelpers": true,
     "inlineSourceMap": true,
     "inlineSources": true,
-    "module": "ESNext",
-    "target": "ES2018",
-    "allowJs": true,
-    "noImplicitAny": true,
-    "moduleResolution": "bundler",
-    "importHelpers": true,
     "isolatedModules": true,
-    "strict": true,
-    "skipLibCheck": true,
     "lib": ["DOM", "ES5", "ES6", "ES7"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "noImplicitAny": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2018",
     "useDefineForClassFields": true,
-    // "verbatimModuleSyntax": true,
+    "verbatimModuleSyntax": true,
     "paths": {
       "$/*": ["./src/*"]
     }
