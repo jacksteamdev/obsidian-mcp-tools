@@ -1,11 +1,12 @@
 import { logger, type ToolRegistry, ToolRegistryClass } from "$/shared";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { registerFetchTool } from "../fetch";
-import { registerLocalRestApiTools } from "../local-rest-api";
-import { setupObsidianPrompts } from "../prompts";
-import { registerSmartConnectionsTools } from "../smart-connections";
-import { registerTemplaterTools } from "../templates";
+import { registerFetchTool as setupFetch } from "../fetch";
+import { setup as setupLocalRestApi } from "../local-rest-api";
+import { setup as setupPrompts } from "../prompts";
+import { setup as setupSmartSearch } from "../smart-connections";
+import { setup as setupTemplates } from "../templates";
+import { setup as setupSourceDocuments } from "../source-document";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -45,12 +46,13 @@ export class ObsidianMcpServer {
   }
 
   private setupHandlers() {
-    setupObsidianPrompts(this.server);
+    setupPrompts(this.server);
 
-    registerFetchTool(this.tools, this.server);
-    registerLocalRestApiTools(this.tools, this.server);
-    registerSmartConnectionsTools(this.tools);
-    registerTemplaterTools(this.tools);
+    setupFetch(this.tools, this.server);
+    setupLocalRestApi(this.tools, this.server);
+    setupSmartSearch(this.tools);
+    setupTemplates(this.tools);
+    setupSourceDocuments(this.tools);
 
     this.server.setRequestHandler(ListToolsRequestSchema, this.tools.list);
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {

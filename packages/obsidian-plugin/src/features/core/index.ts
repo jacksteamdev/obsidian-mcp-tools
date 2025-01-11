@@ -1,14 +1,11 @@
 import { type } from "arktype";
 import type { Request, Response } from "express";
-import { Notice, Plugin, PluginSettingTab, TFile } from "obsidian";
+import { Notice, Plugin, PluginSettingTab } from "obsidian";
 import { shake } from "radash";
-import { lastValueFrom } from "rxjs";
+import { BehaviorSubject, firstValueFrom, lastValueFrom } from "rxjs";
 import {
   jsonSearchRequest,
-  LocalRestAPI,
   searchParameters,
-  Templater,
-  type PromptArgAccessor,
   type SearchResponse,
 } from "shared";
 import { mount, unmount } from "svelte";
@@ -16,7 +13,6 @@ import { mount, unmount } from "svelte";
 import {
   loadLocalRestAPI,
   loadSmartSearchAPI,
-  loadTemplaterAPI,
   logger,
   type Dependencies,
 } from "$/shared";
@@ -25,7 +21,8 @@ import SettingsContainer from "./components/SettingsContainer.svelte";
 import type { McpToolsPluginSettings } from "./types";
 
 import { setup as setupMcpServerInstall } from "../mcp-server-install";
-import { setup as setupSourceDocument } from "../source-document";
+import { setup as setupSourceDocuments } from "../source-documents";
+import { setup as setupTemplates } from "../templates";
 
 export class McpToolsSettingTab extends PluginSettingTab {
   plugin: McpToolsPlugin;
@@ -55,26 +52,22 @@ export class McpToolsSettingTab extends PluginSettingTab {
 }
 
 export class McpToolsPlugin extends Plugin {
-  private localRestApi: Dependencies["obsidian-local-rest-api"] = {
+  localRestApi$ = new BehaviorSubject<Dependencies["obsidian-local-rest-api"]>({
     id: "obsidian-local-rest-api",
     name: "Local REST API",
     required: true,
     installed: false,
-  };
+  });
 
   async onload() {
+    logger.info("Loading MCP Tools Plugin");
+
     // Add settings tab to plugin
     this.addSettingTab(new McpToolsSettingTab(this));
 
-    // Initialize features in order
-    await setupMcpServerInstall(this);
-    await setupSourceDocument(this);
-
     // Check for required dependencies
-    lastValueFrom(loadLocalRestAPI(this)).then((localRestApi) => {
-      this.localRestApi = localRestApi;
-
-      if (!this.localRestApi.api) {
+    lastValueFrom(loadLocalRestAPI(this)).then(async (localRestApi) => {
+      if (!localRestApi.api) {
         new Notice(
           `${this.manifest.name}: Local REST API plugin is required but not found. Please install it from the community plugins and restart Obsidian.`,
           0,
@@ -82,14 +75,17 @@ export class McpToolsPlugin extends Plugin {
         return;
       }
 
+      this.localRestApi$.next(localRestApi);
+
+      // Initialize features in order
+      await setupMcpServerInstall(this);
+      await setupSourceDocuments(this);
+      await setupTemplates(this);
+
       // Register endpoints
-      this.localRestApi.api
+      localRestApi.api
         .addRoute("/search/smart")
         .post(this.handleSearchRequest.bind(this));
-
-      this.localRestApi.api
-        .addRoute("/templates/execute")
-        .post(this.handleTemplateExecution.bind(this));
 
       logger.info("MCP Tools Plugin loaded");
     });
@@ -104,107 +100,9 @@ export class McpToolsPlugin extends Plugin {
   }
 
   async getLocalRestApiKey(): Promise<string | undefined> {
+    const localRestApi = await firstValueFrom(this.localRestApi$);
     // The API key is stored in the plugin's settings
-    return this.localRestApi.plugin?.settings?.apiKey;
-  }
-
-  private async handleTemplateExecution(req: Request, res: Response) {
-    try {
-      const { api: templater } = await lastValueFrom(loadTemplaterAPI(this));
-      if (!templater) {
-        new Notice(
-          `${this.manifest.name}: Templater plugin is not available. Please install it from the community plugins.`,
-          0,
-        );
-        logger.error("Templater plugin is not available");
-        res.status(503).json({
-          error: "Templater plugin is not available",
-        });
-        return;
-      }
-
-      // Validate request body
-      const params = LocalRestAPI.ApiTemplateExecutionParams(req.body);
-
-      if (params instanceof type.errors) {
-        const response = {
-          error: "Invalid request body",
-          body: req.body,
-          summary: params.summary,
-        };
-        logger.debug("Invalid request body", response);
-        res.status(400).json(response);
-        return;
-      }
-
-      // Get prompt content from vault
-      const templateFile = this.app.vault.getAbstractFileByPath(params.name);
-      if (!(templateFile instanceof TFile)) {
-        logger.debug("Template file not found", {
-          params,
-          templateFile,
-        });
-        res.status(404).json({
-          error: `File not found: ${params.name}`,
-        });
-        return;
-      }
-
-      const config = templater.create_running_config(
-        templateFile,
-        templateFile,
-        Templater.RunMode.CreateNewFromTemplate,
-      );
-
-      const prompt: PromptArgAccessor = (argName: string) => {
-        return params.arguments[argName] ?? "";
-      };
-
-      const oldGenerateObject =
-        templater.functions_generator.generate_object.bind(
-          templater.functions_generator,
-        );
-
-      // Override generate_object to inject arg into user functions
-      templater.functions_generator.generate_object = async function (
-        config,
-        functions_mode,
-      ) {
-        const functions = await oldGenerateObject(config, functions_mode);
-        Object.assign(functions, { mcpTools: { prompt } });
-        return functions;
-      };
-
-      // Process template with variables
-      const processedContent = await templater.read_and_parse_template(config);
-
-      // Restore original functions generator
-      templater.functions_generator.generate_object = oldGenerateObject;
-
-      // Create new file if requested
-      if (params.createFile && params.targetPath) {
-        await this.app.vault.create(params.targetPath, processedContent);
-        res.json({
-          message: "Prompt executed and file created successfully",
-          content: processedContent,
-        });
-        return;
-      }
-
-      res.json({
-        message: "Prompt executed without creating a file",
-        content: processedContent,
-      });
-    } catch (error) {
-      logger.error("Prompt execution error:", {
-        error: error instanceof Error ? error.message : error,
-        body: req.body,
-      });
-      res.status(503).json({
-        error: "An error occurred while processing the prompt",
-      });
-      return;
-    }
+    return localRestApi.plugin?.settings?.apiKey;
   }
 
   private async handleSearchRequest(req: Request, res: Response) {
@@ -271,6 +169,8 @@ export class McpToolsPlugin extends Plugin {
   }
 
   onunload() {
-    this.localRestApi.api?.unregister();
+    firstValueFrom(this.localRestApi$).then((localRestApi) => {
+      localRestApi.api?.unregister();
+    });
   }
 }
