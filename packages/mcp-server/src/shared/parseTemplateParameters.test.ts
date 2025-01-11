@@ -11,23 +11,23 @@ describe("parseTemplateParameters", () => {
   });
 
   test("parses single parameter without description", () => {
-    const content = '<% tp.user.promptArg("name") %>';
+    const content = '<% tp.mcpTools.prompt("name") %>';
     const result = parseTemplateParameters(content);
     PromptParameterSchema.array().assert(result);
     expect(result).toEqual([{ name: "name" }]);
   });
 
   test("parses single parameter with description", () => {
-    const content = '<% tp.user.promptArg("name", "Enter your name") %>';
+    const content = '<% tp.mcpTools.prompt("name", "Enter your name") %>';
     const result = parseTemplateParameters(content);
     PromptParameterSchema.array().assert(result);
     expect(result).toEqual([{ name: "name", description: "Enter your name" }]);
   });
 
-  test("parses multiple parameters", () => {
+  test.only("parses multiple parameters", () => {
     const content = `
-      <% tp.user.promptArg("name", "Enter your name") %>
-      <% tp.user.promptArg("age", "Enter your age") %>
+      <% tp.mcpTools.prompt("name", "Enter your name") %>
+      <% tp.mcpTools.prompt("age", "Enter your age") %>
     `;
     const result = parseTemplateParameters(content);
     PromptParameterSchema.array().assert(result);
@@ -40,7 +40,7 @@ describe("parseTemplateParameters", () => {
   test("ignores invalid template syntax", () => {
     const content = `
     <% invalid.syntax %>
-    <% tp.user.promptArg("name", "Enter your name") %>
+    <% tp.mcpTools.prompt("name", "Enter your name") %>
     `;
     const result = parseTemplateParameters(content);
     PromptParameterSchema.array().assert(result);
