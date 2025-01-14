@@ -10,7 +10,7 @@ The source document feature enables users to create and read web content as pagi
    - Feature toggle
    - Template selection
    - Directory configuration
-   - Page size settings
+   - Page size configuration
 
 2. Create
    - Fetch web content
@@ -19,10 +19,10 @@ The source document feature enables users to create and read web content as pagi
    - Create vault document
 
 3. Read
-   - Access documents
-   - Paginate content
-   - Preserve block boundaries
-   - Track progress
+   - Plugin-managed pagination
+   - REST API endpoints
+   - Progress tracking
+   - Block preservation
 
 4. Search
    - Semantic search with Smart Connections
@@ -79,9 +79,9 @@ const results = await tools.execute("source_search", {
    - Template integration
 
 3. Read Stage
-   - Basic pagination
+   - Plugin pagination service
+   - REST API endpoints
    - Progress tracking
-   - Error handling
 
 4. Search Stage
    - Basic text search
@@ -103,7 +103,7 @@ graph TD
     end
     
     subgraph "Read Flow"
-    C1[Load Document] --> C2[Extract Page]
+    C1[Load Document] --> C2[Plugin Pagination]
     C2 --> C3[Return Content]
     end
     
@@ -122,22 +122,25 @@ graph TD
 packages/
 ├── mcp-server/src/features/source-document/
 │   ├── services/
-│   │   ├── markdown.ts
 │   │   └── document.ts
 │   ├── utils/
-│   │   ├── sanitize.ts
-│   │   └── match.ts
+│   │   └── sanitize.ts
 │   ├── constants.ts
 │   ├── types.ts
 │   └── index.ts
-└── obsidian-plugin/src/features/source-document/
-    ├── components/
-    │   └── Settings.svelte
-    ├── services/
-    │   └── settings.ts
-    ├── constants.ts
-    ├── types.ts
-    └── index.ts
+├── obsidian-plugin/src/features/source-documents/
+│   ├── components/
+│   │   └── Settings.svelte
+│   ├── services/
+│   │   ├── settings.ts
+│   │   └── pagination.ts
+│   ├── utils/
+│   │   └── blocks.ts
+│   ├── constants.ts
+│   ├── types.ts
+│   └── index.ts
+└── shared/src/types/
+    └── source-document.ts
 ```
 
 ## Error Handling
@@ -168,8 +171,8 @@ Each stage implements specific error handling:
 
 1. Unit Tests
    - HTML conversion
-   - Title sanitization
    - Block extraction
+   - Pagination service
    - Template processing
 
 2. Integration Tests
