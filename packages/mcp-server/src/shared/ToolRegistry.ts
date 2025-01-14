@@ -88,15 +88,49 @@ export class ToolRegistryClass<
     };
   };
 
+  /**
+   * MCP SDK sends boolean values as "true" or "false". This method coerces the boolean
+   * values in the request parameters to the expected type.
+   *
+   * @param schema Arktype schema
+   * @param params MCP request parameters
+   * @returns MCP request parameters with corrected boolean values
+   */
+  private coerceBooleanParams = <Schema extends TSchema>(
+    schema: Schema,
+    params: Schema["infer"],
+  ): Schema["infer"] => {
+    const args = params.arguments;
+    const argsSchema = schema.get("arguments").exclude("undefined");
+    if (!args || !argsSchema) return params;
+
+    const fixed = { ...params.arguments };
+    for (const [key, value] of Object.entries(args)) {
+      const valueSchema = argsSchema.get(key).exclude("undefined");
+      if (
+        valueSchema.expression === "boolean" &&
+        typeof value === "string" &&
+        ["true", "false"].includes(value)
+      ) {
+        fixed[key] = value === "true";
+      }
+    }
+
+    return { ...params, arguments: fixed };
+  };
+
   dispatch = async <Schema extends TSchema>(
     params: Schema["infer"],
     context: HandlerContext,
   ) => {
     try {
       for (const [schema, handler] of this.entries()) {
-        if (schema.get("name").allows(params.name) && schema.assert(params)) {
-          // return await to handle the error here
-          return await handler(params, context);
+        if (schema.get("name").allows(params.name)) {
+          const validParams = schema.assert(
+            this.coerceBooleanParams(schema, params),
+          );
+          // return await to handle runtime errors here
+          return await handler(validParams, context);
         }
       }
       throw new McpError(
@@ -107,6 +141,8 @@ export class ToolRegistryClass<
       const formattedError = formatMcpError(error);
       logger.error(`Error handling ${params.name}`, {
         ...formattedError,
+        message: formattedError.message,
+        stack: formattedError.stack,
         error,
         params,
       });
