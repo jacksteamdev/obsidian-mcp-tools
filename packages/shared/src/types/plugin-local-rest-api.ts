@@ -299,5 +299,19 @@ export type ApiTemplateExecutionParamsType =
 export type ApiTemplateExecutionResponseType =
   typeof ApiTemplateExecutionResponse.infer;
 
+/**
+ * Response from paginated content endpoints
+ * Content-Type: application/json
+ * GET /sources/{documentId}
+ */
+export const ApiPageResponse = type({
+  content: "string",
+  pageNumber: "number>0",
+  totalPages: "number>0",
+});
+
+export type ApiPageResponseType = typeof ApiPageResponse.infer;
+
 // Additional API response types can be added here
+
 export const MIME_TYPE_OLRAPI_NOTE_JSON = "application/vnd.olrapi.note+json";

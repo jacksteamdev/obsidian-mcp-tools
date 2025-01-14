@@ -1,5 +1,14 @@
-import { formatMcpError, logger, type ToolRegistry } from "$/shared";
+import {
+  formatMcpError,
+  LocalRestAPI,
+  logger,
+  makeRequest,
+  pageResponseSchema,
+  readSourceSchema,
+  type ToolRegistry,
+} from "$/shared";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
+import { type } from "arktype";
 import type { SetupFunctionResult } from "shared";
 import { createDocument } from "./services/document";
 import { convertHtmlToMarkdown, extractMetadata } from "./services/markdown";
@@ -10,6 +19,53 @@ const DEFAULT_USER_AGENT = "Mozilla/5.0 (compatible; McpTools/1.0)";
 
 export async function setup(tools: ToolRegistry): SetupFunctionResult {
   try {
+    // Register source_read tool
+    tools.register(
+      type({ name: "'read_source'", arguments: readSourceSchema }),
+      async ({ arguments: args }) => {
+        const page = args.page || 1;
+
+        try {
+          // Proxy request to plugin REST API
+          const result = await makeRequest(
+            LocalRestAPI.ApiPageResponse,
+            `/sources/${args.documentId}?page=${page}`,
+          );
+
+          // Validate response
+          const response = pageResponseSchema(result);
+          if (response instanceof type.errors) {
+            throw new McpError(
+              ErrorCode.InternalError,
+              `Invalid page response: ${response.summary}`,
+            );
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: response.content,
+              },
+              {
+                type: "text",
+                text: `Page ${response.pageNumber} of ${response.totalPages}`,
+              },
+            ],
+          };
+        } catch (error) {
+          if (error instanceof McpError) {
+            throw error;
+          }
+          throw new McpError(
+            ErrorCode.InternalError,
+            `Failed to read source document: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      },
+    );
+
+    // Register create_source tool
     tools.register(createSourceSchema, async ({ arguments: args }) => {
       try {
         // 1. Fetch content

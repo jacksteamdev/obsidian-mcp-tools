@@ -1,3 +1,4 @@
+export * from "shared";
 export * from "./formatMcpError";
 export * from "./formatString";
 export * from "./logger";
