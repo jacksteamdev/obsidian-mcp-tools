@@ -47,8 +47,15 @@ export async function makeRequest<
 
   if (!response.ok) {
     const error = await response.text();
-    const message = `${init?.method ?? "GET"} ${path} ${response.status}: ${error}`;
-    throw new McpError(ErrorCode.InternalError, message);
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Unexpected response from "${path}": ${error}`,
+      {
+        method: init?.method ?? "GET",
+        status: response.status,
+        data: error,
+      },
+    );
   }
 
   const isJSON = !!response.headers.get("Content-Type")?.includes("json");
@@ -58,7 +65,7 @@ export async function makeRequest<
   if (validated instanceof type.errors) {
     const stackError = new Error();
     Error.captureStackTrace(stackError, makeRequest);
-    logger.error("Invalid response from Obsidian API", {
+    logger.error(`Status ${response.status} from ${path}`, {
       status: response.status,
       error: validated.summary,
       stack: stackError.stack,
@@ -66,7 +73,12 @@ export async function makeRequest<
     });
     throw new McpError(
       ErrorCode.InternalError,
-      `${init?.method ?? "GET"} ${path} ${response.status}: ${validated.summary}`,
+      `Unexpected response from "${path}": ${validated.summary}`,
+      {
+        method: init?.method ?? "GET",
+        status: response.status,
+        data,
+      },
     );
   }
 

@@ -19,7 +19,7 @@ export const ApiError = type({
  */
 export const ApiNoteJson = type({
   content: "string",
-  frontmatter: "Record<string, string>",
+  frontmatter: "Record<string, string | string[]>",
   path: "string",
   stat: {
     ctime: "number",
