@@ -20,6 +20,6 @@
       "$/*": ["./src/*"]
     }
   },
-  "include": ["src/*.ts", "bun.config.ts"],
+  "include": ["src/**/*.ts", "*.ts"],
   "exclude": ["node_modules", "playground"]
 }
