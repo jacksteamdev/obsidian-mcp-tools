@@ -42,5 +42,5 @@ export function sanitizeTitle(title: string): string {
  * documentIdSchema.allows("valid-document-id") // boolean
  */
 export const documentIdSchema = type("0<string<=100").and(
-  /^[^<>:"/\\|?*\x00-\x1F]+$/,
+  /^[^<>:"\\|?*\x00-\x1F]+$/,
 );

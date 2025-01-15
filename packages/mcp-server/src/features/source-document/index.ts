@@ -92,7 +92,7 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
         }
 
         // 3. Generate document ID
-        const documentId = sanitizeTitle(metadata.title);
+        const documentId = `${new URL(args.url).host}/${sanitizeTitle(metadata.title)}`;
         if (!documentId) {
           throw new McpError(
             ErrorCode.InternalError,
