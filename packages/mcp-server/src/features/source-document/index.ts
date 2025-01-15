@@ -12,7 +12,11 @@ import { type } from "arktype";
 import type { SetupFunctionResult } from "shared";
 import { createDocument } from "./services/document";
 import { convertHtmlToMarkdown, extractMetadata } from "./services/markdown";
-import { createSourceSchema } from "./types";
+import {
+  createSourceSchema,
+  searchResultSchema,
+  searchSourceSchema,
+} from "./types";
 import { sanitizeTitle } from "./utils/sanitize";
 
 const DEFAULT_USER_AGENT = "Mozilla/5.0 (compatible; McpTools/1.0)";
@@ -130,6 +134,32 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
         );
       }
     });
+
+    // Register source_search tool
+    tools.register(
+      type({ name: "'source_search'", arguments: searchSourceSchema }),
+      async ({ arguments: args }) => {
+        // Request search from plugin
+        const results = await makeRequest(
+          searchResultSchema.array(),
+          "/sources/search",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: args.query }),
+          },
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(results, null, 2),
+            },
+          ],
+        };
+      },
+    );
 
     return { success: true };
   } catch (error) {

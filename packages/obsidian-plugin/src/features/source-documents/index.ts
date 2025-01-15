@@ -1,6 +1,7 @@
 import type { McpToolsPlugin } from "$/features/core";
 import {
   documentMetadataSchema,
+  loadSmartSearchAPI,
   loadTemplaterAPI,
   logger,
   pageResponseSchema,
@@ -8,6 +9,7 @@ import {
   readSourceSchema,
 } from "$/shared";
 import { extractPage } from "./services/pagination";
+import { searchDocuments } from "./services/search";
 import type { SetupFunctionResult } from "$/shared";
 import { type } from "arktype";
 import { TFile } from "obsidian";
@@ -35,6 +37,46 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
 
     // Add REST API endpoints for source documents
     const route = localRestApi.api.addRoute("/sources/:documentId");
+    const searchRoute = localRestApi.api.addRoute("/sources/search");
+
+    // POST endpoint for searching documents
+    searchRoute.post(async (req, res) => {
+      const { query } = req.body;
+
+      try {
+        // Validate query
+        if (!query?.trim()) {
+          res.status(400).json({
+            error: "Query is required",
+          });
+          return;
+        }
+
+        // Try loading Smart Connections API
+        const { api: smartSearch } = await lastValueFrom(
+          loadSmartSearchAPI(plugin),
+        );
+
+        // Search documents
+        const results = await searchDocuments(
+          plugin.app,
+          query,
+          settings.sourcesDirectory,
+          smartSearch,
+        );
+
+        res.json(results);
+      } catch (error) {
+        logger.error("Search error:", {
+          error: error instanceof Error ? error.message : error,
+          query,
+        });
+        res.status(503).json({
+          error: "Search failed",
+          details: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
 
     // GET endpoint for reading documents
     route.get(async (req, res) => {

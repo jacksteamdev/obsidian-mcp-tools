@@ -2,7 +2,7 @@ import type { McpToolsPlugin } from "$/features/core";
 import { FileSelectionModal } from "$/shared/components/FileSelectionModal";
 import { FolderSelectionModal } from "$/shared/components/FolderSelectionModal";
 import { type } from "arktype";
-import { Notice, TFolder } from "obsidian";
+import { App, Notice, TFile, TFolder } from "obsidian";
 import { Templater } from "shared";
 import { DEFAULT_SETTINGS } from "../constants";
 import {
@@ -103,5 +103,21 @@ export class SettingsManager {
       new Notice(`Failed to create sources directory: ${message}`);
       console.error("Failed to create sources directory:", error);
     }
+  }
+
+  /**
+   * Get metadata from a file's frontmatter
+   */
+  static async getMetadata(
+    app: App,
+    path: string,
+  ): Promise<Record<string, unknown>> {
+    const file = app.vault.getAbstractFileByPath(path);
+    if (!(file instanceof TFile)) {
+      return {};
+    }
+
+    const cache = app.metadataCache.getFileCache(file);
+    return cache?.frontmatter || {};
   }
 }
