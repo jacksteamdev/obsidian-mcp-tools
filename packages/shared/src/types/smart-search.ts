@@ -1,7 +1,7 @@
 import { type } from "arktype";
 import { SmartConnections } from "shared";
 
-const searchRequest = type({
+export const searchRequest = type({
   query: type("string>0").describe("A search phrase for semantic search"),
   "filter?": {
     "folders?": type("string[]").describe(
@@ -17,7 +17,7 @@ const searchRequest = type({
 });
 export const jsonSearchRequest = type("string.json.parse").to(searchRequest);
 
-const searchResponse = type({
+export const searchResponse = type({
   results: type({
     path: "string",
     text: "string",
