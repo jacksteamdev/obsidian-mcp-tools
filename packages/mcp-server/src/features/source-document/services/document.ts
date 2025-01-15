@@ -1,9 +1,7 @@
-import { type } from "arktype";
-import { documentIdSchema } from "../utils/sanitize";
+import { LocalRestAPI, makeRequest } from "$/shared";
+import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import type { DocumentMetadata } from "../types";
-import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
-import { makeRequest } from "../../../shared/makeRequest";
-import { LocalRestAPI } from "shared";
+import { documentIdSchema } from "../utils/sanitize";
 
 /**
  * Creates a new document in the vault using the provided content and metadata.
