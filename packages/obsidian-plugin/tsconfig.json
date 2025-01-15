@@ -1,25 +1,37 @@
 {
   "compilerOptions": {
+    // Enable language features
+    "lib": ["DOM", "ES5", "ES6", "ES7"],
+    "target": "ES2018",
+    "module": "ESNext",
     "allowJs": true,
+
+    // Bundler mode
     "baseUrl": ".",
-    "importHelpers": true,
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "isolatedModules": true,
     "inlineSourceMap": true,
     "inlineSources": true,
-    "isolatedModules": true,
-    "lib": ["DOM", "ES5", "ES6", "ES7"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "noEmit": true,
-    "noImplicitAny": true,
-    "skipLibCheck": true,
+    "importHelpers": true,
+
+    // Best practices
     "strict": true,
-    "target": "ES2018",
+    "skipLibCheck": true,
+
+    // Some stricter flags
+    "noImplicitAny": true,
     "useDefineForClassFields": true,
-    "verbatimModuleSyntax": true,
+
+    // Developer experience
+    "noErrorTruncation": true,
+
+    // Path aliases
     "paths": {
       "$/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "*.ts"],
+  "include": ["*.ts", "src/**/*.ts"],
   "exclude": ["node_modules", "playground"]
 }
