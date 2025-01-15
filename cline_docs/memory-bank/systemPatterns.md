@@ -2,6 +2,25 @@
 
 ## Architecture Overview
 
+### Documentation Structure
+```
+docs/
+├── features/          # Feature-specific requirements and implementation guides
+│   ├── source-document/  # Source document feature documentation
+│   ├── mcp-server-install.md  # Server installation feature guide
+│   └── prompt-requirements.md  # Prompt feature requirements
+└── project-architecture.md  # Core architectural guidelines
+```
+
+### Feature Documentation
+Each feature in docs/features/ should include:
+- Overview and purpose
+- Implementation requirements
+- Component structure
+- API specifications
+- Error handling
+- Testing strategy
+
 ### Monorepo Structure
 ```
 packages/
@@ -61,6 +80,12 @@ feature/
 
 ## Development Practices
 
+### Import Patterns
+- Always import from $/shared for:
+  - Components from the shared package
+  - Items from src/shared directory
+  - Never import directly from long paths or specific files
+
 ### Code Style
 - Functional programming preferred
 - Pure functions when possible
@@ -68,6 +93,17 @@ feature/
 - Descriptive, action-oriented naming
 - Shared code in shared package
 - Small, focused components
+
+### Import Examples
+```typescript
+// ✅ Correct: Import from $/shared
+import { logger, type SmartConnections } from "$/shared";
+import { FileSelectionModal } from "$/shared/components";
+
+// ❌ Incorrect: Don't import from specific paths
+import { logger } from "../../../shared/logger";
+import { SmartConnections } from "shared/types/plugin-smart-connections";
+```
 
 ### Testing
 - Unit tests for business logic
