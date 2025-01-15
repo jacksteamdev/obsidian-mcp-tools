@@ -2,14 +2,20 @@ import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { type, type Type } from "arktype";
 import { logger } from "./logger";
 
+declare global {
+  interface RequestInit {
+    /** This is a Bun-specific feature and not available in the NodeJS runtime */
+    tls?: {
+      rejectUnauthorized: boolean;
+    };
+  }
+}
+
 // Default to HTTPS port, fallback to HTTP if specified
 const USE_HTTP = process.env.OBSIDIAN_USE_HTTP === "true";
 const PORT = USE_HTTP ? 27123 : 27124;
 const PROTOCOL = USE_HTTP ? "http" : "https";
 export const BASE_URL = `${PROTOCOL}://127.0.0.1:${PORT}`;
-
-// Disable TLS certificate validation for local self-signed certificates
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 /**
  * Makes a request to the Obsidian Local REST API with the provided path and optional request options.
@@ -42,6 +48,10 @@ export async function makeRequest<
       Authorization: `Bearer ${API_KEY}`,
       "Content-Type": "text/markdown",
       ...init?.headers,
+    },
+    tls: {
+      rejectUnauthorized: false,
+      ...init?.tls,
     },
   });
 
