@@ -56,7 +56,7 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
 
         // Process template through Templater plugin
         const response = await makeRequest(
-          LocalRestAPI.ApiTemplateExecutionResponse,
+          LocalRestAPI.ApiResult,
           "/templates/execute",
           {
             method: "POST",

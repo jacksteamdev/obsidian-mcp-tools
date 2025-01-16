@@ -1,6 +1,10 @@
 import { sourceDocumentSearchResult } from "$/features/source-documents/types";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { pageResponseSchema, type DocumentMetadata } from "shared";
+import {
+  LocalRestAPI,
+  pageResponseSchema,
+  type DocumentMetadata,
+} from "shared";
 import { fetchLocalApi } from "./utils";
 import { type } from "arktype";
 
@@ -56,10 +60,7 @@ describe.if(process.env.NODE_ENV === "test-api")("Obsidian REST API", () => {
 
     const data = await response.json();
 
-    const { message, content: result } = type({
-      message: "string",
-      content: "string",
-    }).assert(data);
+    const { message, content: result } = LocalRestAPI.ApiResult.assert(data);
 
     expect(message).toBe("Source document created successfully");
     Object.values({ ...metadata, content }).forEach((value) => {

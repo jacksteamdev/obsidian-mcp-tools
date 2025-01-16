@@ -102,7 +102,7 @@ export async function setup(server: Server): SetupFunctionResult {
 
         // Process template through Templater plugin
         const { content } = await makeRequest(
-          LocalRestAPI.ApiTemplateExecutionResponse,
+          LocalRestAPI.ApiResult,
           "/templates/execute",
           {
             method: "POST",

@@ -269,12 +269,13 @@ export const ApiTemplateExecutionParams = type({
 });
 
 /**
- * Response from executing a template
+ * Generic response with content and message
  * Content-Type: application/json
  * POST /templates/execute/
- * @property message - A message describing the result of the template execution
+ * @property message - A message describing the result of the API call
+ * @property content - The content returned by the API call
  */
-export const ApiTemplateExecutionResponse = type({
+export const ApiResult = type({
   message: "string",
   content: "string",
 });
@@ -296,8 +297,7 @@ export type ApiSearchParametersType = typeof ApiSearchParameters.infer;
 export type ApiNoContentResponseType = typeof ApiNoContentResponse.infer;
 export type ApiTemplateExecutionParamsType =
   typeof ApiTemplateExecutionParams.infer;
-export type ApiTemplateExecutionResponseType =
-  typeof ApiTemplateExecutionResponse.infer;
+export type ApiResultType = typeof ApiResult.infer;
 
 /**
  * Response from paginated content endpoints
