@@ -25,7 +25,9 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
   try {
     // Register source_read tool
     tools.register(
-      type({ name: "'read_source'", arguments: readSourceSchema }),
+      type({ name: "'read_source'", arguments: readSourceSchema }).describe(
+        "Read a source document incrementally",
+      ),
       async ({ arguments: args }) => {
         const page = args.page || 1;
 
@@ -70,86 +72,96 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
     );
 
     // Register create_source tool
-    tools.register(createSourceSchema, async ({ arguments: args }) => {
-      try {
-        // 1. Fetch content
-        const response = await fetch(args.url, {
-          headers: { "User-Agent": DEFAULT_USER_AGENT },
-        });
+    tools.register(
+      type({
+        name: "'create_source'",
+        arguments: createSourceSchema,
+      }).describe("Create a source document from a URL"),
+      async ({ arguments: args }) => {
+        try {
+          // 1. Fetch content
+          const response = await fetch(args.url, {
+            headers: { "User-Agent": DEFAULT_USER_AGENT },
+          });
 
-        if (!response.ok) {
-          throw new McpError(
-            ErrorCode.InternalError,
-            `Failed to fetch ${args.url}: ${response.status} ${response.statusText}`,
-          );
-        }
+          if (!response.ok) {
+            throw new McpError(
+              ErrorCode.InternalError,
+              `Failed to fetch ${args.url}: ${response.status} ${response.statusText}`,
+            );
+          }
 
-        const html = await response.text();
+          const html = await response.text();
 
-        // 2. Extract metadata
-        const metadata = extractMetadata(html, args.url);
-        if (!metadata.title) {
-          throw new McpError(
-            ErrorCode.InternalError,
-            "Could not determine document title",
-          );
-        }
+          // 2. Extract metadata
+          const metadata = extractMetadata(html, args.url);
+          if (!metadata.title) {
+            throw new McpError(
+              ErrorCode.InternalError,
+              "Could not determine document title",
+            );
+          }
 
-        // 3. Generate document ID
-        const documentId = sanitizeTitle(metadata.title);
-        if (!documentIdSchema.allows(documentId)) {
-          throw new McpError(
-            ErrorCode.InvalidParams,
-            `Invalid document ID: ${documentId}`,
-          );
-        }
+          // 3. Generate document ID
+          const sanitizedDocumentTitle = sanitizeTitle(metadata.title);
+          const documentId = `${new URL(metadata.canonicalUrl).host}/${encodeURIComponent(sanitizedDocumentTitle)}`;
+          if (!documentIdSchema.allows(documentId)) {
+            throw new McpError(
+              ErrorCode.InvalidParams,
+              `Invalid document ID: ${documentId}`,
+            );
+          }
 
-        // 4. Convert to markdown
-        const markdown = convertHtmlToMarkdown(html, args.url);
+          // 4. Convert to markdown
+          const markdown = convertHtmlToMarkdown(html, args.url);
 
-        // 5. Create document
-        const result = await makeRequest(
-          LocalRestAPI.ApiNoContentResponse,
-          `/sources/${new URL(metadata.canonicalUrl).host}/${encodeURIComponent(documentId)}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              content: markdown,
-              metadata,
-              update: args.update ?? false,
-            }),
-          },
-        );
-
-        return {
-          content: [
+          // 5. Create document
+          await makeRequest(
+            LocalRestAPI.ApiResult,
+            `/sources/${documentId}`,
             {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                content: markdown,
+                metadata,
+                update: args.update ?? false,
+              }),
             },
-          ],
-        };
-      } catch (error) {
-        logger.error("Source creation error:", {
-          error: error instanceof Error ? error.message : error,
-          url: args.url,
-        });
+          );
 
-        if (error instanceof McpError) {
-          throw error;
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({ documentId }, null, 2),
+              },
+            ],
+          };
+        } catch (error) {
+          logger.error("Source creation error:", {
+            error: error instanceof Error ? error.message : error,
+            url: args.url,
+          });
+
+          if (error instanceof McpError) {
+            throw error;
+          }
+
+          throw new McpError(
+            ErrorCode.InternalError,
+            error instanceof Error ? error.message : String(error),
+          );
         }
-
-        throw new McpError(
-          ErrorCode.InternalError,
-          error instanceof Error ? error.message : String(error),
-        );
-      }
-    });
+      },
+    );
 
     // Register source_search tool
     tools.register(
-      type({ name: "'source_search'", arguments: searchSourceSchema }),
+      type({
+        name: "'search_sources'",
+        arguments: searchSourceSchema,
+      }).describe("Semantic search for source documents"),
       async ({ arguments: args }) => {
         // Request search from plugin
         const results = await makeRequest(

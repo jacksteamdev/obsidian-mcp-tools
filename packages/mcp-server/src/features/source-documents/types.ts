@@ -25,12 +25,9 @@ export type CreateSourceError = {
 };
 
 export const createSourceSchema = type({
-  name: "'create_source'",
-  arguments: {
-    url: type("string>0").describe("URL to fetch content from"),
-    "update?": type("boolean").describe("Overwrite existing document"),
-  },
-}).describe("Create a source document from a URL");
+  url: type("string>0").describe("URL to fetch content from"),
+  "update?": type("boolean").describe("Overwrite existing document"),
+});
 
 export const searchSourceSchema = type({
   query: type("string>0").describe("Search query text"),
