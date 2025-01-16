@@ -117,6 +117,7 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
             body: JSON.stringify({
               content: markdown,
               metadata,
+              update: args.update ?? false,
             }),
           },
         );

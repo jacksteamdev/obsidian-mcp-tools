@@ -147,7 +147,7 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
     route.put(async (req, res): Promise<void> => {
       const { origin, id } = req.params;
       const documentId = `${origin}/${id}`;
-      const { content, metadata } = req.body;
+      const { content, metadata, update } = req.body;
 
       try {
         // 1. Validate metadata
@@ -182,13 +182,19 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
           return;
         }
 
-        // 4. Get target file
+        // 4. Check target file
         const targetPath = `${settings.sourcesDirectory}/${documentId}.md`;
-        const targetFile = await createFileWithPath(
-          plugin.app.vault,
-          targetPath,
-          "", // Stub content prior to processing
-        );
+        const existingFile = plugin.app.vault.getFileByPath(targetPath);
+        if (existingFile && !update) {
+          res.status(409).json({
+            error: "Document already exists",
+          });
+          return;
+        }
+
+        const targetFile =
+          existingFile ??
+          (await createFileWithPath(plugin.app.vault, targetPath));
 
         // 5. Process template
         const processedContent = await processTemplate(
@@ -207,7 +213,7 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
         await plugin.app.vault.modify(targetFile, processedContent);
 
         res.json({
-          message: "Source document created successfully",
+          message: existingFile ? "Document updated" : "Document created",
           content: processedContent,
         });
       } catch (error) {
