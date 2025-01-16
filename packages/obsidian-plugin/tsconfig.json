@@ -32,6 +32,6 @@
       "$/*": ["./src/*"]
     }
   },
-  "include": ["*.ts", "src/**/*.ts"],
+  "include": ["*.ts", "src"],
   "exclude": ["node_modules", "playground"]
 }
