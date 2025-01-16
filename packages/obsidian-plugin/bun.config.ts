@@ -18,21 +18,21 @@ const isProd = args.includes("--prod");
 
 // Svelte plugin implementation
 const sveltePlugin: BunPlugin = {
-	name: "svelte",
-	setup(build) {
-		build.onLoad({ filter: /\.svelte$/ }, async ({ path }) => {
-			try {
+  name: "svelte",
+  setup(build) {
+    build.onLoad({ filter: /\.svelte$/ }, async ({ path }) => {
+      try {
         const parsed = parse(path);
-				const source = await Bun.file(path).text();
+        const source = await Bun.file(path).text();
         const preprocessed = await preprocess(source, svelteConfig.preprocess, {
           filename: parsed.base,
         });
         const result = compile(preprocessed.code, {
           filename: parsed.base,
-					generate: "client",
-					css: "injected",
-					dev: isProd,
-				});
+          generate: "client",
+          css: "injected",
+          dev: isProd,
+        });
 
         return {
           loader: "js",
@@ -46,40 +46,40 @@ const sveltePlugin: BunPlugin = {
 };
 
 const config: BuildConfig = {
-	entrypoints: ["./src/main.ts"],
-	outdir: "../..",
-	minify: isProd,
-	plugins: [sveltePlugin],
-	external: [
-		"obsidian",
-		"electron",
-		"@codemirror/autocomplete",
-		"@codemirror/collab",
-		"@codemirror/commands",
-		"@codemirror/language",
-		"@codemirror/lint",
-		"@codemirror/search",
-		"@codemirror/state",
-		"@codemirror/view",
-		"@lezer/common",
-		"@lezer/highlight",
-		"@lezer/lr",
-	],
-	target: "node",
-	format: "cjs",
-  conditions: ["browser"],
-	sourcemap: isProd ? "none" : "inline",
-	define: {
-		"process.env.NODE_ENV": JSON.stringify(
-			isProd ? "production" : "development",
-		),
-		"import.meta.filename": JSON.stringify(import.meta.file),
-	},
-	naming: {
-		entry: "main.js", // Match original output name
-	},
-	// Add banner to output
-	banner,
+  entrypoints: ["./src/main.ts"],
+  outdir: "../..",
+  minify: isProd,
+  plugins: [sveltePlugin],
+  external: [
+    "obsidian",
+    "electron",
+    "@codemirror/autocomplete",
+    "@codemirror/collab",
+    "@codemirror/commands",
+    "@codemirror/language",
+    "@codemirror/lint",
+    "@codemirror/search",
+    "@codemirror/state",
+    "@codemirror/view",
+    "@lezer/common",
+    "@lezer/highlight",
+    "@lezer/lr",
+  ],
+  target: "node",
+  format: "cjs",
+  conditions: ["browser", isProd ? "production" : "development"],
+  sourcemap: isProd ? "none" : "inline",
+  define: {
+    "process.env.NODE_ENV": JSON.stringify(
+      isProd ? "production" : "development",
+    ),
+    "import.meta.filename": JSON.stringify(import.meta.file),
+  },
+  naming: {
+    entry: "main.js", // Match original output name
+  },
+  // Add banner to output
+  banner,
 };
 
 async function build() {
