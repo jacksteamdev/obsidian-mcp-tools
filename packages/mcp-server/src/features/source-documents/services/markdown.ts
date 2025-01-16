@@ -155,12 +155,12 @@ export function extractMetadata(html: string, url: string): DocumentMetadata {
 
   // Extract title (with fallbacks)
   metadata.title =
-    doc.querySelector("title")?.textContent?.trim() ||
-    doc.querySelector("h1")?.textContent?.trim() ||
     doc
       .querySelector('meta[property="og:title"]')
       ?.getAttribute("content")
       ?.trim() ||
+    doc.querySelector("title")?.textContent?.trim() ||
+    doc.querySelector("h1")?.textContent?.trim() ||
     "";
 
   // Extract canonical URL
