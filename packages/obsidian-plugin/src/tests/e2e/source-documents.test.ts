@@ -62,7 +62,7 @@ describe.if(process.env.NODE_ENV === "test-api")("Obsidian REST API", () => {
 
     const { message, content: result } = LocalRestAPI.ApiResult.assert(data);
 
-    expect(message).toBe("Source document created successfully");
+    expect(message).toBe("Document created");
     Object.values({ ...metadata, content }).forEach((value) => {
       expect(result).toInclude(value);
     });
