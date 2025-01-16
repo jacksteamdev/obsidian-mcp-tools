@@ -8,6 +8,12 @@ export async function processTemplate(
   params: LocalRestAPI.ApiTemplateExecutionParamsType,
   templater: Templater.ITemplater,
 ) {
+  const { path } = target;
+
+  // Start template task
+  templater.start_templater_task?.(path);
+
+  try {
   const config = templater.create_running_config(
     template,
     target,
@@ -18,7 +24,8 @@ export async function processTemplate(
     return params.arguments[argName] ?? "";
   };
 
-  const oldGenerateObject = templater.functions_generator.generate_object.bind(
+    const oldGenerateObject =
+      templater.functions_generator.generate_object.bind(
     templater.functions_generator,
   );
 
@@ -39,4 +46,8 @@ export async function processTemplate(
   templater.functions_generator.generate_object = oldGenerateObject;
 
   return processedContent;
+  } finally {
+    // Always end template task
+    await templater.end_templater_task?.(path);
+  }
 }

@@ -204,6 +204,8 @@ export interface ITemplater {
   get_new_file_template_for_folder(folder: TFolder): string | undefined;
   get_new_file_template_for_file(file: TFile): string | undefined;
   execute_startup_scripts(): Promise<void>;
+  start_templater_task?(path: string): void;
+  end_templater_task?(path: string): void;
 
   on_file_creation(
     templater: ITemplater,
