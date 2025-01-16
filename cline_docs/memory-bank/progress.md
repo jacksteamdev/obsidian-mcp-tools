@@ -51,7 +51,6 @@
 All planned features have been implemented. Ready for:
 1. Testing
    - Unit tests for search functionality
-   - End-to-end testing with MCP tools
    ✅ Integration tests for API endpoints completed:
      * Source documents: search, create, read
      * Templates: execute
