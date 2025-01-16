@@ -29,11 +29,6 @@ Source document feature implementation is complete. Moving on to testing and doc
      * Test fuzzy search matching
      * Test block extraction
      * Test metadata handling
-   
-   - Add integration tests
-     * Test REST API endpoints
-     * Test Smart Connections integration
-     * Test error handling
 
 2. Documentation
    - Update API documentation
