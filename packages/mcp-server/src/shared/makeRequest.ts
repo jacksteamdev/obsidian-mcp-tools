@@ -2,14 +2,20 @@ import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { type, type Type } from "arktype";
 import { logger } from "./logger";
 
+declare global {
+  interface RequestInit {
+    /** This is a Bun-specific feature and not available in the NodeJS runtime */
+    tls?: {
+      rejectUnauthorized: boolean;
+    };
+  }
+}
+
 // Default to HTTPS port, fallback to HTTP if specified
 const USE_HTTP = process.env.OBSIDIAN_USE_HTTP === "true";
 const PORT = USE_HTTP ? 27123 : 27124;
 const PROTOCOL = USE_HTTP ? "http" : "https";
 export const BASE_URL = `${PROTOCOL}://127.0.0.1:${PORT}`;
-
-// Disable TLS certificate validation for local self-signed certificates
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 /**
  * Makes a request to the Obsidian Local REST API with the provided path and optional request options.
@@ -43,12 +49,23 @@ export async function makeRequest<
       "Content-Type": "text/markdown",
       ...init?.headers,
     },
+    tls: {
+      rejectUnauthorized: false,
+      ...init?.tls,
+    },
   });
 
   if (!response.ok) {
     const error = await response.text();
-    const message = `${init?.method ?? "GET"} ${path} ${response.status}: ${error}`;
-    throw new McpError(ErrorCode.InternalError, message);
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Unexpected response from "${path}": ${error}`,
+      {
+        method: init?.method ?? "GET",
+        status: response.status,
+        data: error,
+      },
+    );
   }
 
   const isJSON = !!response.headers.get("Content-Type")?.includes("json");
@@ -58,7 +75,7 @@ export async function makeRequest<
   if (validated instanceof type.errors) {
     const stackError = new Error();
     Error.captureStackTrace(stackError, makeRequest);
-    logger.error("Invalid response from Obsidian API", {
+    logger.error(`Status ${response.status} from ${path}`, {
       status: response.status,
       error: validated.summary,
       stack: stackError.stack,
@@ -66,7 +83,12 @@ export async function makeRequest<
     });
     throw new McpError(
       ErrorCode.InternalError,
-      `${init?.method ?? "GET"} ${path} ${response.status}: ${validated.summary}`,
+      `Unexpected response from "${path}": ${validated.summary}`,
+      {
+        method: init?.method ?? "GET",
+        status: response.status,
+        data,
+      },
     );
   }
 

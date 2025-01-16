@@ -24,8 +24,10 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
 
+    // Developer experience
     "noErrorTruncation": true,
 
+    // Path aliases
     "paths": {
       "$/*": ["./src/*"]
     }

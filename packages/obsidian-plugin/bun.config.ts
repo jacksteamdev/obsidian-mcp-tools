@@ -34,15 +34,15 @@ const sveltePlugin: BunPlugin = {
 					dev: isProd,
 				});
 
-				return {
-					loader: "js",
-					contents: result.js.code,
-				};
-			} catch (error) {
-				throw new Error(`Error compiling Svelte component: ${error}`);
-			}
-		});
-	},
+        return {
+          loader: "js",
+          contents: result.js.code,
+        };
+      } catch (error) {
+        throw new Error(`Error compiling Svelte component: ${error}`);
+      }
+    });
+  },
 };
 
 const config: BuildConfig = {
@@ -83,45 +83,45 @@ const config: BuildConfig = {
 };
 
 async function build() {
-	try {
-		const result = await Bun.build(config);
+  try {
+    const result = await Bun.build(config);
 
-		if (!result.success) {
-			console.error("Build failed");
-			for (const message of result.logs) {
-				console.error(message);
-			}
-			process.exit(1);
-		}
+    if (!result.success) {
+      console.error("Build failed");
+      for (const message of result.logs) {
+        console.error(message);
+      }
+      process.exit(1);
+    }
 
-		console.log("Build successful");
-	} catch (error) {
-		console.error("Build failed:", error);
-		process.exit(1);
-	}
+    console.log("Build successful");
+  } catch (error) {
+    console.error("Build failed:", error);
+    process.exit(1);
+  }
 }
 
 async function watch() {
-	const watcher = fsp.watch(join(import.meta.dir, "src"), {
-		recursive: true,
-	});
-	console.log("Watching for changes...");
-	for await (const event of watcher) {
-		console.log(`Detected ${event.eventType} in ${event.filename}`);
-		await build();
-	}
+  const watcher = fsp.watch(join(import.meta.dir, "src"), {
+    recursive: true,
+  });
+  console.log("Watching for changes...");
+  for await (const event of watcher) {
+    console.log(`Detected ${event.eventType} in ${event.filename}`);
+    await build();
+  }
 }
 
 async function main() {
-	if (isWatch) {
-		await build();
-		return watch();
-	} else {
-		return build();
-	}
+  if (isWatch) {
+    await build();
+    return watch();
+  } else {
+    return build();
+  }
 }
 
 main().catch((err) => {
-	console.error(err);
-	process.exit(1);
+  console.error(err);
+  process.exit(1);
 });

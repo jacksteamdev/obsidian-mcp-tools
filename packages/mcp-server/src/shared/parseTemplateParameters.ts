@@ -35,8 +35,8 @@ export function parseTemplateParameters(content: string): PromptParameter[] {
    * The tags are in the format `<% tp.mcpTools.prompt("name", "description") %>`
    * and may contain additional modifiers.
    */
-  const TEMPLATER_START_TAG = /<%[*-_]*/g;
-  const TEMPLATER_END_TAG = /[-_]*%>/g;
+  const TEMPLATER_START_TAG = /<%[*-_]*/;
+  const TEMPLATER_END_TAG = /[-_]*%>/;
 
   // Split content by template tags
   const parts = content.split(TEMPLATER_START_TAG);

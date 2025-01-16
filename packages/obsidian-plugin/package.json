@@ -16,11 +16,12 @@
 		"dev": "bun --watch run bun.config.ts --watch",
 		"link": "bun scripts/link.ts",
 		"release": "run-s build zip",
-		"zip": "bun scripts/zip.ts"
+		"zip": "bun scripts/zip.ts",
+		"test:api": "NODE_ENV=test-obsidian bun test ./src/tests/e2e/api.test.ts"
 	},
 	"dependencies": {
 		"@types/fs-extra": "^11.0.4",
-		"arktype": "^2.0.0-rc.30",
+		"arktype": "^2.0.0-rc.33",
 		"express": "^4.21.2",
 		"fs-extra": "^11.2.0",
 		"obsidian-local-rest-api": "^2.5.4",
@@ -39,6 +40,6 @@
 		"archiver": "^7.0.1",
 		"obsidian": "latest",
 		"tslib": "2.4.0",
-		"typescript": "^5.7.2"
+		"typescript": "5.7.3"
 	}
 }

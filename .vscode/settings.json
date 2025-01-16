@@ -6,8 +6,6 @@
   },
   "typescript.tsdk": "node_modules/typescript/lib",
   "logViewer.watch": [
-    "~/Library/Logs/obsidian-mcp-tools/mcp-server.log",
-    "~/Library/Logs/obsidian-mcp-tools/obsidian-plugin.log",
     "~/Library/Logs/Claude/*.log"
   ],
   "svelte.plugin.svelte.compilerWarnings": {

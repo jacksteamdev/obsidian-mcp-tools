@@ -14,6 +14,9 @@ import {
 import type { SmartConnections, Templater } from "shared";
 import type McpToolsPlugin from "src/main";
 
+export * from "shared";
+export * from "./utils";
+
 export interface Dependency<ID extends keyof App["plugins"]["plugins"], API> {
   id: keyof Dependencies;
   name: string;

@@ -20,7 +20,8 @@
     "@modelcontextprotocol/sdk": "1.0.4",
     "acorn": "^8.14.0",
     "acorn-walk": "^8.3.4",
-    "arktype": "2.0.0-rc.30",
+    "arktype": "^2.0.0-rc.33",
+    "jsdom": "^26.0.0",
     "radash": "^12.1.0",
     "shared": "workspace:*",
     "turndown": "^7.2.0",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/jsdom": "^21.1.7",
     "@types/turndown": "^5.0.5",
     "prettier": "^3.4.2",
     "typescript": "^5.3.3"
