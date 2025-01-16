@@ -10,14 +10,13 @@ import {
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { type } from "arktype";
 import type { SetupFunctionResult } from "shared";
-import { createDocument } from "./services/document";
 import { convertHtmlToMarkdown, extractMetadata } from "./services/markdown";
 import {
   createSourceSchema,
   searchResultSchema,
   searchSourceSchema,
 } from "./types";
-import { sanitizeTitle } from "./utils/sanitize";
+import { documentIdSchema, sanitizeTitle } from "./utils/sanitize";
 
 const DEFAULT_USER_AGENT = "Mozilla/5.0 (compatible; McpTools/1.0)";
 
@@ -96,11 +95,11 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
         }
 
         // 3. Generate document ID
-        const documentId = `${new URL(args.url).host}/${sanitizeTitle(metadata.title)}`;
-        if (!documentId) {
+        const documentId = sanitizeTitle(metadata.title);
+        if (!documentIdSchema.allows(documentId)) {
           throw new McpError(
-            ErrorCode.InternalError,
-            "Could not generate valid document ID from title",
+            ErrorCode.InvalidParams,
+            `Invalid document ID: ${documentId}`,
           );
         }
 
@@ -108,7 +107,18 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
         const markdown = convertHtmlToMarkdown(html, args.url);
 
         // 5. Create document
-        const result = await createDocument(documentId, markdown, metadata);
+        const result = await makeRequest(
+          LocalRestAPI.ApiNoContentResponse,
+          `/sources/${new URL(args.url).host}/${encodeURIComponent(documentId)}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              content: markdown,
+              metadata,
+            }),
+          },
+        );
 
         return {
           content: [
