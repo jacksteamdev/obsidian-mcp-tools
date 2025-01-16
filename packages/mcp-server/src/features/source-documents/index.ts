@@ -10,7 +10,8 @@ import {
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { type } from "arktype";
 import type { SetupFunctionResult } from "shared";
-import { convertHtmlToMarkdown, extractMetadata } from "./services/markdown";
+import { convertHtmlToMarkdown } from "./services/markdown";
+import { extractMetadata } from "./services/metadata";
 import {
   createSourceSchema,
   searchResultSchema,
