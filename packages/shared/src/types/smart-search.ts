@@ -15,7 +15,6 @@ export const searchRequest = type({
     ),
   },
 });
-export const jsonSearchRequest = type("string.json.parse").to(searchRequest);
 
 export const searchResponse = type({
   results: type({

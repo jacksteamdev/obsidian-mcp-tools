@@ -1,8 +1,8 @@
 import {
-  jsonSearchRequest,
   loadSmartSearchAPI,
   logger,
   searchParameters,
+  searchRequest,
 } from "$/shared";
 import { type } from "arktype";
 import type { Request, Response } from "express";
@@ -27,10 +27,9 @@ export function handleSearchRequest(plugin: McpToolsPlugin) {
         });
         return;
       }
-      console.log("validating req.body", req.params, req.body);
 
       // Validate request body
-      const requestBody = jsonSearchRequest
+      const requestBody = searchRequest
         .pipe(({ query, filter = {} }) => ({
           query,
           filter: shake({
