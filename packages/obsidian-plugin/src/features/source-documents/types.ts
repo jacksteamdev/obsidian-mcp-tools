@@ -11,3 +11,12 @@ export const sourceDocumentSettingsSchema = type({
 
 // Svelte VSCode extension >= 109 can't handle arktype inferred types
 export type SourceDocumentSettings = typeof sourceDocumentSettingsSchema.infer;
+
+export const sourceDocumentSearchResult = type({
+  documentId: "string",
+  metadata: "Record<string, unknown>",
+  matchingBlock: "string",
+});
+
+export type SourceDocumentSearchResult =
+  typeof sourceDocumentSearchResult.infer;

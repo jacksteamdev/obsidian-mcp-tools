@@ -15,6 +15,7 @@ import { type } from "arktype";
 import { TFile } from "obsidian";
 import { firstValueFrom, lastValueFrom } from "rxjs";
 import { SettingsManager } from "./services/settings";
+import { createFileWithPath } from "./utils/vault";
 
 export { default as Settings } from "./components/Settings.svelte";
 export * from "./constants";
@@ -36,8 +37,8 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
     }
 
     // Add REST API endpoints for source documents
-    const route = localRestApi.api.addRoute("/sources/:documentId");
     const searchRoute = localRestApi.api.addRoute("/sources/search");
+    const route = localRestApi.api.addRoute("/sources/:origin/:id");
 
     // POST endpoint for searching documents
     searchRoute.post(async (req, res) => {
@@ -80,7 +81,8 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
 
     // GET endpoint for reading documents
     route.get(async (req, res) => {
-      const { documentId } = req.params;
+      const { id, origin } = req.params;
+      const documentId = `${origin}/${id}`;
       const page = Number(req.query.page) || 1;
 
       const params = readSourceSchema({ documentId, page });
@@ -143,8 +145,9 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
 
     // PUT endpoint for document creation
     route.put(async (req, res): Promise<void> => {
-      const { documentId } = req.params;
-      const { body, metadata } = req.body;
+      const { origin, id } = req.params;
+      const documentId = `${origin}/${id}`;
+      const { content, metadata } = req.body;
 
       try {
         // 1. Validate metadata
@@ -168,6 +171,7 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
           return;
         }
 
+        // 3. Get template file
         const templateFile = plugin.app.vault.getAbstractFileByPath(
           settings.templatePath,
         );
@@ -178,22 +182,28 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
           return;
         }
 
-        // 3. Process template
+        // 4. Get target file
         const targetPath = `${settings.sourcesDirectory}/${documentId}.md`;
-        const targetFile = await plugin.app.vault.create(targetPath, "");
+        const targetFile = await createFileWithPath(
+          plugin.app.vault,
+          targetPath,
+          "", // Stub content prior to processing
+        );
+
+        // 5. Process template
         const processedContent = await processTemplate(
           templateFile,
           targetFile,
           {
             name: documentId,
-            arguments: { ...metadataResult, body },
+            arguments: { ...metadataResult, content },
             createFile: true,
             targetPath,
           },
           templater,
         );
 
-        // Create new file
+        // 6. Update target file with processed content
         await plugin.app.vault.modify(targetFile, processedContent);
 
         res.json({
