@@ -109,7 +109,7 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
         // 5. Create document
         const result = await makeRequest(
           LocalRestAPI.ApiNoContentResponse,
-          `/sources/${new URL(args.url).host}/${encodeURIComponent(documentId)}`,
+          `/sources/${new URL(metadata.canonicalUrl).host}/${encodeURIComponent(documentId)}`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
