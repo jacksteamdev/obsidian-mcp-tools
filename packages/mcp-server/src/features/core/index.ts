@@ -6,7 +6,7 @@ import { setup as setupLocalRestApi } from "../local-rest-api";
 import { setup as setupPrompts } from "../prompts";
 import { setup as setupSmartSearch } from "../smart-search";
 import { setup as setupTemplates } from "../templates";
-import { setup as setupSourceDocuments } from "../source-document";
+import { setup as setupSourceDocuments } from "../source-documents";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
