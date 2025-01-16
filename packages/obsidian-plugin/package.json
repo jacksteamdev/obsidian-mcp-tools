@@ -16,7 +16,8 @@
 		"dev": "bun --watch run bun.config.ts --watch",
 		"link": "bun scripts/link.ts",
 		"release": "run-s build zip",
-		"zip": "bun scripts/zip.ts"
+		"zip": "bun scripts/zip.ts",
+		"test:api": "NODE_ENV=test-obsidian bun test ./src/tests/e2e/api.test.ts"
 	},
 	"dependencies": {
 		"@types/fs-extra": "^11.0.4",
