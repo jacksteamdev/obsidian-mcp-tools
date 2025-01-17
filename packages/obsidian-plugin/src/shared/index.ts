@@ -16,6 +16,7 @@ import type McpToolsPlugin from "src/main";
 
 export * from "shared";
 export * from "./utils";
+export * from "./components";
 
 export interface Dependency<ID extends keyof App["plugins"]["plugins"], API> {
   id: keyof Dependencies;

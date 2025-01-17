@@ -104,7 +104,9 @@
   <h3>Dependencies</h3>
 
   {#each $deps as dep (dep.id)}
-    <div class="dependency-item">
+    <div
+      class={`dependency-item ${dep.installed ? "installed" : "not-installed"}`}
+    >
       {#if dep.installed}
         ✅ {dep.name} (Installed)
       {:else}
@@ -122,7 +124,7 @@
 
   {#if status.path}
     <div class="link-item">
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <!-- svelte-ignore a11y_no_static_element_interactions, a11y_missing_attribute, a11y_click_events_have_key_events -->
       <a on:click={() => status.dir && openFolder(status.dir)}>
         Server Install Folder
       </a>
@@ -130,7 +132,7 @@
   {/if}
 
   <div class="link-item">
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_no_static_element_interactions, a11y_missing_attribute, a11y_click_events_have_key_events -->
     <a on:click={() => openFolder(dirname(FULL_LOGGER_FILENAME))}>
       Server Log Folder
     </a>
