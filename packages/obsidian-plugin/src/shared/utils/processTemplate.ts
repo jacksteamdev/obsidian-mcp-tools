@@ -54,20 +54,24 @@ export async function processTemplate(
     // Restore original functions generator
     templater.functions_generator.generate_object = oldGenerateObject;
 
-    // Write processed content to target file if it exists
-    if (path !== template.path) target?.vault.modify(target, processedContent);
+    // Exit early if no target file is provided
+    if (!target) return processedContent;
+
+    // Write processed content to target file
+    await target.vault.modify(target, processedContent);
 
     // Wait for all templates to be executed and return processed content
     return new Promise<string>((resolve, reject) => {
       setTimeout(() => {
         reject(new Error(`Template processing timed out: ${path}`));
       }, 10000);
+      // Some templates may be updated by on_all_templates_executed
       templater.current_functions_object.hooks.on_all_templates_executed(() => {
-        // Some templates may be updated by on_all_templates_executed
+        // Wait for a short period to allow for any updates
         setTimeout(() => {
           // Return cached content if target file is not provided
-          resolve(target?.vault.cachedRead(target) ?? processedContent);
-        }, 10);
+          resolve(target.vault.cachedRead(target) ?? processedContent);
+        }, 50);
       });
     });
   } finally {
