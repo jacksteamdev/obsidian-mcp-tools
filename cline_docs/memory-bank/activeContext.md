@@ -1,41 +1,52 @@
 # Active Context
 
 ## Current Focus
-Source document feature implementation is complete. Moving on to testing and documentation.
+
+Refactoring source document feature implementation to improve type organization and add related content functionality.
 
 ## Recent Changes
-1. Completed search functionality implementation:
-   - MCP server-side implementation
-     * Search service with error handling
-     * Text matching utilities
-     * Type definitions and validation
-     * MCP tool registration
-   
-   - Obsidian plugin implementation
-     * Search service with Smart Connections
-     * Fuzzy search fallback
-     * Block-level result extraction
-     * REST API endpoint
+
+1. Moved types to shared package:
+
+   - Consolidated all source document types in shared/types/source-documents.ts
+   - Renamed schemas for clarity and consistency
+   - Added new types for related content functionality
+
+2. Enhanced read functionality:
+
+   - Added related content support using Smart Connections
+   - Updated response schema to include related documents
+   - Improved error handling for related content
+
+3. Improved code organization:
+
+   - Moved feature-specific types to shared package
+   - Standardized type naming conventions
+   - Updated imports to use new type organization
+
+4. Added accessibility improvements:
+   - Enhanced Svelte component accessibility
+   - Added missing ARIA attributes
+   - Improved keyboard navigation support
 
 ## Implementation Status
+
 - ✅ Settings stage complete (docs/features/source-document/settings.md)
 - ✅ Create stage complete (docs/features/source-document/create.md)
-- ✅ Read stage complete (docs/features/source-document/read.md)
+- ✅ Read stage enhanced with related content (docs/features/source-document/read.md)
 - ✅ Search stage complete (docs/features/source-document/search.md)
 
 ## Next Steps
+
 1. Testing
-   - Write unit tests for search functionality
-     * Test fuzzy search matching
-     * Test block extraction
-     * Test metadata handling
+
+   - Update unit tests for new type organization
+   - Add tests for related content functionality
+   - Verify accessibility improvements
+   - Test edge cases with large documents
 
 2. Documentation
-   - Update API documentation
-     * Document search endpoint
-     * Add request/response examples
-   
-   - Add usage examples
-     * Basic search usage
-     * Smart Connections integration
-     * Error handling
+   - Update API documentation for related content
+   - Document new type organization
+   - Add examples for related content usage
+   - Update accessibility guidelines
