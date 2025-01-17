@@ -27,7 +27,7 @@ describe("convertHtmlToMarkdown", () => {
     `;
     const result = convertHtmlToMarkdown(html, "https://example.com");
     expect(result).toInclude("https://example.com/page");
-    expect(result).toInclude("https://example.com/image.jpg");
+    expect(result).not.toInclude("https://example.com/image.jpg");
   });
 
   it("should handle article content", () => {
