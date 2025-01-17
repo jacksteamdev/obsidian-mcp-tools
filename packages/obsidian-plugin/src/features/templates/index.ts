@@ -71,10 +71,9 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
           }
 
           const processedContent = await processTemplate(
-            templateFile,
-            templateFile,
-            params,
             templater,
+            params,
+            templateFile,
           );
 
           // Create new file if requested

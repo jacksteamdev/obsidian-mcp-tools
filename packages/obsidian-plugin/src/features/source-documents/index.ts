@@ -198,19 +198,16 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
 
         // 5. Process template
         const processedContent = await processTemplate(
-          templateFile,
-          targetFile,
+          templater,
           {
             name: documentId,
             arguments: { ...metadataResult, content },
             createFile: true,
             targetPath,
           },
-          templater,
+          templateFile,
+          targetFile,
         );
-
-        // 6. Update target file with processed content
-        await plugin.app.vault.modify(targetFile, processedContent);
 
         res.json({
           message: existingFile ? "Document updated" : "Document created",
