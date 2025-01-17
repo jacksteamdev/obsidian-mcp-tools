@@ -12,7 +12,7 @@
 	"main": "main.js",
 	"scripts": {
 		"build": "bun run check && bun bun.config.ts --prod",
-		"check": "tsc --noEmit",
+		"check": "tsc --noEmit && svelte-check",
 		"dev": "bun --watch run bun.config.ts --watch",
 		"link": "bun scripts/link.ts",
 		"release": "run-s build zip",
@@ -39,6 +39,7 @@
 		"@typescript-eslint/parser": "5.29.0",
 		"archiver": "^7.0.1",
 		"obsidian": "latest",
+		"svelte-check": "^4.1.4",
 		"tslib": "2.4.0",
 		"typescript": "5.7.3"
 	}

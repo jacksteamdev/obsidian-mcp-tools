@@ -49,6 +49,7 @@
         "@typescript-eslint/parser": "5.29.0",
         "archiver": "^7.0.1",
         "obsidian": "latest",
+        "svelte-check": "^4.1.4",
         "tslib": "2.4.0",
         "typescript": "5.7.3",
       },
@@ -229,7 +230,7 @@
 
     "@obsidian-mcp-tools/mcp-server": ["@obsidian-mcp-tools/mcp-server@workspace:packages/mcp-server", { "dependencies": { "@modelcontextprotocol/sdk": "1.0.4", "acorn": "^8.14.0", "acorn-walk": "^8.3.4", "arktype": "^2.0.0-rc.33", "jsdom": "^26.0.0", "radash": "^12.1.0", "shared": "packages/shared", "turndown": "^7.2.0", "zod": "^3.24.1" }, "devDependencies": { "@types/bun": "latest", "@types/jsdom": "^21.1.7", "@types/turndown": "^5.0.5", "prettier": "^3.4.2", "typescript": "^5.3.3" } }],
 
-    "@obsidian-mcp-tools/obsidian-plugin": ["@obsidian-mcp-tools/obsidian-plugin@workspace:packages/obsidian-plugin", { "dependencies": { "@types/fs-extra": "^11.0.4", "arktype": "^2.0.0-rc.33", "express": "^4.21.2", "fs-extra": "^11.2.0", "obsidian-local-rest-api": "^2.5.4", "radash": "^12.1.0", "rxjs": "^7.8.1", "semver": "^7.6.3", "shared": "packages/shared", "svelte": "^5.17.5", "svelte-preprocess": "^6.0.3" }, "devDependencies": { "@types/node": "^16.11.6", "@types/semver": "^7.5.8", "@typescript-eslint/eslint-plugin": "5.29.0", "@typescript-eslint/parser": "5.29.0", "archiver": "^7.0.1", "obsidian": "latest", "tslib": "2.4.0", "typescript": "5.7.3" } }],
+    "@obsidian-mcp-tools/obsidian-plugin": ["@obsidian-mcp-tools/obsidian-plugin@workspace:packages/obsidian-plugin", { "dependencies": { "@types/fs-extra": "^11.0.4", "arktype": "^2.0.0-rc.33", "express": "^4.21.2", "fs-extra": "^11.2.0", "obsidian-local-rest-api": "^2.5.4", "radash": "^12.1.0", "rxjs": "^7.8.1", "semver": "^7.6.3", "shared": "packages/shared", "svelte": "^5.17.5", "svelte-preprocess": "^6.0.3" }, "devDependencies": { "@types/node": "^16.11.6", "@types/semver": "^7.5.8", "@typescript-eslint/eslint-plugin": "5.29.0", "@typescript-eslint/parser": "5.29.0", "archiver": "^7.0.1", "obsidian": "latest", "svelte-check": "^4.1.4", "tslib": "2.4.0", "typescript": "5.7.3" } }],
 
     "@pkgjs/parseargs": ["@pkgjs/parseargs@0.11.0", "", {}, "sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg=="],
 
@@ -283,7 +284,7 @@
 
     "@types/body-parser": ["@types/body-parser@1.19.5", "", { "dependencies": { "@types/connect": "*", "@types/node": "*" } }, "sha512-fB3Zu92ucau0iQ0JMCFQE7b/dv8Ot07NI3KaZIkIUNXq82k4eBAqUaneXfleGY9JWskeS9y+u0nXMyspcuQrCg=="],
 
-    "@types/bun": ["@types/bun@1.1.16", "", { "dependencies": { "bun-types": "1.1.43" } }, "sha512-E+ue6NMcn4FXC5bDRE1W/BXUVs01h5Mt02qH8/8HGCox9akuh8KNOFdwvaQS9TDgT2RmUyJYFRRqA60WtTnm2g=="],
+    "@types/bun": ["@types/bun@1.1.17", "", { "dependencies": { "bun-types": "1.1.44" } }, "sha512-zZt0Kao/8hAwNOXh4bmt8nKbMEd4QD8n7PeTGF+NZTVY5ouXhU/TX7jUj4He1p7mgY+WdplnU1B6MB1j17vdzg=="],
 
     "@types/codemirror": ["@types/codemirror@5.60.8", "", { "dependencies": { "@types/tern": "*" } }, "sha512-VjFgDF/eB+Aklcy15TtOTLQeMjTo07k7KAjql8OK5Dirr7a6sJY4T1uVBDuTVG9VEmn1uUsohOpYnVfgC6/jyw=="],
 
@@ -425,7 +426,7 @@
 
     "buffer-crc32": ["buffer-crc32@1.0.0", "", {}, "sha512-Db1SbgBS/fg/392AblrMJk97KggmvYhr4pB5ZIMTWtaivCPMWLkmb7m21cJvpvgK+J3nsU2CmmixNBZx4vFj/w=="],
 
-    "bun-types": ["bun-types@1.1.43", "", { "dependencies": { "@types/node": "~20.12.8", "@types/ws": "~8.5.10" } }, "sha512-W0wCtVH+bwFp7p3Zgs03CqxEDmXxEvmmUM/FBKgWIv9T8gyeotvIjIbHzuDScc2DphhRNtr7hJLCR5PspYL5qw=="],
+    "bun-types": ["bun-types@1.1.44", "", { "dependencies": { "@types/node": "~20.12.8", "@types/ws": "~8.5.10" } }, "sha512-jtcekoZeSINgEcHSISzhR13w/cyE+Fankw2Cpl4c0fN3lRmKVAX0i9ay4FyK4lOxUK1HG4HkuIlrPvXKz4Y7sw=="],
 
     "bytes": ["bytes@3.1.2", "", {}, "sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg=="],
 
