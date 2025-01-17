@@ -1,6 +1,6 @@
-import type { SourceDocumentSettings } from "./types";
+import type { SourceDocuments } from "shared";
 
-export const DEFAULT_SETTINGS: SourceDocumentSettings = {
+export const DEFAULT_SETTINGS: SourceDocuments.Settings = {
   enabled: false,
   templatePath: "",
   sourcesDirectory: "Sources",

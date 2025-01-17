@@ -1,12 +1,10 @@
 import type { McpToolsPlugin } from "$/features/core";
 import {
-  documentMetadataSchema,
   loadSmartSearchAPI,
   loadTemplaterAPI,
   logger,
-  pageResponseSchema,
   processTemplate,
-  readSourceSchema,
+  SourceDocuments,
 } from "$/shared";
 import { extractPage } from "./services/pagination";
 import { searchDocuments } from "./services/search";
@@ -19,7 +17,6 @@ import { createFileWithPath } from "./utils/vault";
 
 export { default as Settings } from "./components/Settings.svelte";
 export * from "./constants";
-export * from "./types";
 
 export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
   try {
@@ -81,11 +78,11 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
 
     // GET endpoint for reading documents
     route.get(async (req, res) => {
-      const { id, origin } = req.params;
+      const { id, origin, related } = req.params;
       const documentId = `${origin}/${id}`;
       const page = Number(req.query.page) || 1;
 
-      const params = readSourceSchema({ documentId, page });
+      const params = SourceDocuments.readParams({ documentId, page });
       if (params instanceof type.errors) {
         res.status(400).json({
           error: "Invalid request parameters",
@@ -118,7 +115,7 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
         );
 
         // Validate response
-        const response = pageResponseSchema({
+        const response = SourceDocuments.readResponse({
           content: pageContent,
           pageNumber,
           totalPages,
@@ -151,11 +148,11 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
 
       try {
         // 1. Validate metadata
-        const metadataResult = documentMetadataSchema(metadata);
-        if (metadataResult instanceof type.errors) {
+        const validMetadata = SourceDocuments.metadata(metadata);
+        if (validMetadata instanceof type.errors) {
           res.status(400).json({
             error: "Invalid metadata",
-            details: metadataResult.summary,
+            details: validMetadata.summary,
           });
           return;
         }
@@ -201,7 +198,7 @@ export async function setup(plugin: McpToolsPlugin): SetupFunctionResult {
           templater,
           {
             name: documentId,
-            arguments: { ...metadataResult, content },
+            arguments: { ...validMetadata, content },
             createFile: true,
             targetPath,
           },

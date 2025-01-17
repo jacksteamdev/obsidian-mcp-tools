@@ -1,12 +1,6 @@
-import { sourceDocumentSearchResult } from "$/features/source-documents/types";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import {
-  LocalRestAPI,
-  pageResponseSchema,
-  type DocumentMetadata,
-} from "shared";
+import { LocalRestAPI, SourceDocuments } from "shared";
 import { fetchLocalApi } from "./utils";
-import { type } from "arktype";
 
 const DOCUMENT_ID = "test.com/test-document";
 
@@ -29,7 +23,7 @@ describe.if(process.env.NODE_ENV === "test-api")("Obsidian REST API", () => {
   afterAll(deleteTestDocument);
 
   test("PUT /sources/:origin/:id", async () => {
-    const metadata: DocumentMetadata = {
+    const metadata: SourceDocuments.Metadata = {
       canonicalUrl: "https://superb-starlight-b5acb5.netlify.app/",
       title: "Understanding Express Routes A Complete Guide",
       author: "Jane Doe",
@@ -78,7 +72,7 @@ describe.if(process.env.NODE_ENV === "test-api")("Obsidian REST API", () => {
     }
 
     const data = await response.json();
-    pageResponseSchema.assert(data);
+    SourceDocuments.readResponse.assert(data);
   });
 
   test("POST /sources/search", async () => {
@@ -99,6 +93,6 @@ describe.if(process.env.NODE_ENV === "test-api")("Obsidian REST API", () => {
     }
 
     const data = await response.json();
-    sourceDocumentSearchResult.array().assert(data);
+    SourceDocuments.searchResult.array().assert(data);
   });
 });

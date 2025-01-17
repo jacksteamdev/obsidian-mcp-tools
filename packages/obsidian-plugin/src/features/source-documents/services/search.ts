@@ -1,8 +1,7 @@
-import { logger, type SmartConnections } from "$/shared";
+import { logger, type SmartConnections, SourceDocuments } from "$/shared";
 import { App, prepareFuzzySearch } from "obsidian";
 import { findMatchingBlock } from "../utils/blocks";
 import { SettingsManager } from "./settings";
-import type { SourceDocumentSearchResult } from "../types";
 
 /**
  * Search source documents using Smart Connections if available,
@@ -13,7 +12,7 @@ export async function searchDocuments(
   searchTerm: string,
   sourcesDirectory: string,
   smartSearch?: SmartConnections.SmartSearch,
-): Promise<SourceDocumentSearchResult[]> {
+): Promise<SourceDocuments.SearchResult[]> {
   try {
     // Try Smart Connections first if available
     if (smartSearch) {
@@ -34,7 +33,7 @@ export async function searchDocuments(
     // Fall back to fuzzy search
     logger.info("Smart Connections not available, using fuzzy search");
     const fuzzySearch = prepareFuzzySearch(searchTerm);
-    const results: SourceDocumentSearchResult[] = [];
+    const results: SourceDocuments.SearchResult[] = [];
 
     // Get all files in source directory
     const files = app.vault

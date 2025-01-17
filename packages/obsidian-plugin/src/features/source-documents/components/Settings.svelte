@@ -1,10 +1,9 @@
 <script lang="ts">
+  import type { McpToolsPlugin } from "$/features/core";
+  import { SourceDocuments, Toggle } from "$/shared";
   import { onMount } from "svelte";
-  import type { McpToolsPlugin } from "../../core";
   import { DEFAULT_SETTINGS, MINIMUM_PAGE_SIZE } from "../constants";
   import { SettingsManager } from "../services/settings";
-  import type { SourceDocumentSettings } from "../types";
-  import Toggle from "$/shared/components/Toggle.svelte";
 
   interface Props {
     plugin: McpToolsPlugin;
@@ -12,7 +11,7 @@
 
   let { plugin }: Props = $props();
 
-  let settings: SourceDocumentSettings = $state(DEFAULT_SETTINGS);
+  let settings: SourceDocuments.Settings = $state(DEFAULT_SETTINGS);
   let settingsManager: SettingsManager;
   let templaterInstalled = $state(false);
 

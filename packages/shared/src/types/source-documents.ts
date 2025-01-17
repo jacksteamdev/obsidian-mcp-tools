@@ -1,5 +1,33 @@
 import { type } from "arktype";
 
+// Obsidian plugin feature settings
+
+export const settings = type({
+  enabled: "boolean",
+  templatePath: type("string").describe("Path to Templater template file"),
+  sourcesDirectory: type("string").describe(
+    "Directory to store source documents",
+  ),
+  maxPageSize: type("number>0").describe("Maximum characters per page"),
+});
+
+export type Settings = typeof settings.infer;
+
+// search_source schemas
+
+export const searchParams = type({
+  query: type("string>0").describe("Search query text"),
+}).describe("Search for source documents");
+
+export const searchResult = type({
+  documentId: "string",
+  metadata: "Record<string, unknown>",
+  matchingBlock: "string",
+});
+
+export type SearchParams = typeof searchParams.infer;
+export type SearchResult = typeof searchResult.infer;
+
 // read_source schemas
 
 /**
@@ -8,9 +36,12 @@ import { type } from "arktype";
  * @property {string} documentId - The unique identifier of the document to read.
  * @property {number>0} [page] - The page number to retrieve (defaults to 1).
  */
-export const readSourceSchema = type({
+export const readParams = type({
   documentId: "string",
   "page?": type("number>0").describe("Page number (defaults to 1)"),
+  "related?": type("boolean").describe(
+    "Search for semantically related vault content",
+  ),
 });
 
 /**
@@ -20,18 +51,19 @@ export const readSourceSchema = type({
  * @property {number>0} pageNumber - The number of the current page (must be greater than 0).
  * @property {number>0} totalPages - The total number of pages (must be greater than 0).
  */
-export const pageResponseSchema = type({
+export const readResponse = type({
   content: "string",
   pageNumber: "number>0",
   totalPages: "number>0",
+  "related?": searchResult.array(),
 });
 
-export type ReadSourceParams = typeof readSourceSchema.infer;
-export type PageResponse = typeof pageResponseSchema.infer;
+export type ReadParams = typeof readParams.infer;
+export type ReadResponse = typeof readResponse.infer;
 
 // create_source schemas
 
-export const documentMetadataSchema = type({
+export const metadata = type({
   canonicalUrl: "string",
   title: "string",
   "dateModified?": "string",
@@ -40,15 +72,17 @@ export const documentMetadataSchema = type({
   "siteName?": "string",
 });
 
-export type DocumentMetadata = typeof documentMetadataSchema.infer;
+export const createParams = type({
+  url: type("string>0").describe("URL to fetch content from"),
+  "update?": type("boolean").describe("Overwrite existing document"),
+});
 
-export type CreateSourceResponse = {
-  documentId: string;
-  metadata: DocumentMetadata;
-  path: string;
-};
+export const createResponse = type({
+  documentId: "string",
+  metadata: metadata,
+  path: "string",
+});
 
-export type CreateSourceError = {
-  error: string;
-  details?: string;
-};
+export type Metadata = typeof metadata.infer;
+export type CreateParams = typeof createParams.infer;
+export type CreateResponse = typeof createResponse.infer;

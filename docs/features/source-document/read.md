@@ -23,19 +23,23 @@ packages/shared/src/types/
 // packages/shared/src/types/source-document.ts
 import { type } from "arktype";
 
-export const readSourceSchema = type({
+export const readParams = type({
   documentId: "string",
-  page: type("number>0?").describe("Page number (defaults to 1)"),
+  "page?": type("number>0").describe("Page number (defaults to 1)"),
+  "related?": type("boolean").describe(
+    "Search for semantically related vault content",
+  ),
 });
 
-export const pageResponseSchema = type({
+export const readResponse = type({
   content: "string",
   pageNumber: "number>0",
   totalPages: "number>0",
+  "related?": searchResult.array(),
 });
 
-export type ReadSourceParams = typeof readSourceSchema.infer;
-export type PageResponse = typeof pageResponseSchema.infer;
+export type ReadParams = typeof readParams.infer;
+export type ReadResponse = typeof readResponse.infer;
 ```
 
 ## MCP Tool Implementation
@@ -43,56 +47,75 @@ export type PageResponse = typeof pageResponseSchema.infer;
 ```typescript
 // packages/mcp-server/src/features/source-document/index.ts
 import { type } from "arktype";
-import { readSourceSchema, pageResponseSchema } from "shared";
+import { SourceDocuments } from "shared";
 
-tools.register(readSourceSchema, async ({ arguments: args }) => {
-  const page = args.page || 1;
+tools.register(
+  type({
+    name: "'read_source'",
+    arguments: SourceDocuments.readParams,
+  }).describe("Read a source document incrementally"),
+  async ({ arguments: args }) => {
+    const page = args.page || 1;
 
-  // Proxy request to plugin REST API
-  const result = await makeRequest(
-    LocalRestAPI.ApiPageResponse,
-    `/sources/${args.documentId}`,
-    {
-      method: "GET",
-      params: { page },
-    },
-  );
-
-  // Validate response
-  const response = pageResponseSchema(result);
-  if (response instanceof type.errors) {
-    throw new McpError(
-      ErrorCode.InternalError,
-      `Invalid page response: ${response.summary}`,
+    // Proxy request to plugin REST API
+    const result = await makeRequest(
+      LocalRestAPI.ApiPageResponse,
+      `/sources/${args.documentId}`,
+      {
+        method: "GET",
+        params: { page },
+      },
     );
-  }
 
-  return {
-    content: [
-      {
-        type: "text",
-        text: response.content,
-      },
-      {
-        type: "text",
-        text: `Page ${response.pageNumber} of ${response.totalPages}`,
-      },
-    ],
-  };
-});
+    // Validate response
+    const response = SourceDocuments.readResponse(result);
+    if (response instanceof type.errors) {
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Invalid page response: ${response.summary}`,
+      );
+    }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: response.content,
+        },
+        {
+          type: "text",
+          text: `Page ${response.pageNumber} of ${response.totalPages}`,
+        },
+        ...(response.related
+          ? [
+              {
+                type: "text",
+                text: "Related Content:",
+              },
+              ...response.related.map((result) => ({
+                type: "text",
+                text: `${result.documentId}: ${result.matchingBlock}`,
+              })),
+            ]
+          : []),
+      ],
+    };
+  },
+);
 ```
 
 ## REST API Implementation
 
 ```typescript
 // packages/obsidian-plugin/src/features/source-documents/index.ts
-import { pageResponseSchema } from "shared";
+import { SourceDocuments } from "shared";
 import { extractPage } from "./services/pagination";
 
 // Plugin endpoint
 this.localRestApi.addRoute("/sources/:documentId").get(async (req, res) => {
   const { documentId } = req.params;
   const page = Number(req.query.page) || 1;
+  const related = req.query.related === "true";
 
   try {
     // 1. Get document
@@ -116,11 +139,26 @@ this.localRestApi.addRoute("/sources/:documentId").get(async (req, res) => {
       this.settings.maxPageSize,
     );
 
-    // 4. Validate response
-    const response = pageResponseSchema({
+    // 4. Find related content if requested
+    let relatedContent;
+    if (related) {
+      const { api: smartSearch } = await lastValueFrom(
+        loadSmartSearchAPI(this),
+      );
+      if (smartSearch) {
+        relatedContent = await smartSearch.search(pageContent, {
+          key_starts_with_any: [this.settings.sourcesDirectory],
+          exclude: [file.path],
+        });
+      }
+    }
+
+    // 5. Validate response
+    const response = SourceDocuments.readResponse({
       content: pageContent,
       pageNumber,
       totalPages,
+      ...(relatedContent && { related: relatedContent }),
     });
     if (response instanceof type.errors) {
       throw new Error(`Invalid page response: ${response.summary}`);
@@ -229,9 +267,16 @@ export function splitIntoBlocks(content: string): string[] {
    - Show clear error messages
 
 3. Content Processing:
+
    - Handle malformed content
    - Handle edge cases
    - Handle memory limits
+   - Show clear error messages
+
+4. Related Content:
+   - Handle Smart Connections availability
+   - Handle search errors
+   - Handle large result sets
    - Show clear error messages
 
 ## Implementation Steps
@@ -248,14 +293,17 @@ export function splitIntoBlocks(content: string): string[] {
    - Add block handling
    - Add REST API endpoint
    - Add error handling
+   - Add related content support
 
 3. Update MCP Server:
 
    - Update tool to proxy requests
    - Add validation
    - Add error handling
+   - Add related content handling
 
 4. Add Tests:
    - Test block splitting
    - Test page extraction
    - Test edge cases
+   - Test related content

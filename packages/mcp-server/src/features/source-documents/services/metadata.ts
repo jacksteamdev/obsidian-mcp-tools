@@ -1,5 +1,5 @@
 import { JSDOM } from "jsdom";
-import type { DocumentMetadata } from "../types";
+import type { SourceDocuments } from "shared";
 
 /**
  * Extracts metadata from HTML content.
@@ -9,11 +9,14 @@ import type { DocumentMetadata } from "../types";
  * @returns The extracted metadata.
  */
 
-export function extractMetadata(html: string, url: string): DocumentMetadata {
+export function extractMetadata(
+  html: string,
+  url: string,
+): SourceDocuments.Metadata {
   const dom = new JSDOM(html);
   const doc = dom.window.document;
 
-  const metadata: DocumentMetadata = {
+  const metadata: SourceDocuments.Metadata = {
     canonicalUrl: url,
     title: "",
   };

@@ -3,20 +3,16 @@ import { FileSelectionModal } from "$/shared/components/FileSelectionModal";
 import { FolderSelectionModal } from "$/shared/components/FolderSelectionModal";
 import { type } from "arktype";
 import { App, Notice, TFile, TFolder } from "obsidian";
-import { Templater } from "shared";
+import { SourceDocuments, Templater } from "shared";
 import { DEFAULT_SETTINGS } from "../constants";
-import {
-  sourceDocumentSettingsSchema,
-  type SourceDocumentSettings,
-} from "../types";
 
 export class SettingsManager {
   constructor(
     private plugin: McpToolsPlugin,
-    private settings: SourceDocumentSettings = DEFAULT_SETTINGS,
+    private settings: SourceDocuments.Settings = DEFAULT_SETTINGS,
   ) {}
 
-  async loadSettings(): Promise<SourceDocumentSettings> {
+  async loadSettings(): Promise<SourceDocuments.Settings> {
     const loaded = await this.plugin.loadData();
     const sourceSettings = loaded?.sourceDocument;
 
@@ -24,7 +20,7 @@ export class SettingsManager {
       return DEFAULT_SETTINGS;
     }
 
-    const result = sourceDocumentSettingsSchema(sourceSettings);
+    const result = SourceDocuments.settings(sourceSettings);
 
     if (result instanceof type.errors) {
       new Notice("Invalid source document settings, using defaults");
@@ -35,8 +31,8 @@ export class SettingsManager {
     return { ...DEFAULT_SETTINGS, ...result };
   }
 
-  async saveSettings(settings: SourceDocumentSettings): Promise<boolean> {
-    const result = sourceDocumentSettingsSchema(settings);
+  async saveSettings(settings: SourceDocuments.Settings): Promise<boolean> {
+    const result = SourceDocuments.settings(settings);
 
     if (result instanceof type.errors) {
       new Notice("Invalid settings, changes not saved");
@@ -53,7 +49,7 @@ export class SettingsManager {
     return true;
   }
 
-  getSettings(): SourceDocumentSettings {
+  getSettings(): SourceDocuments.Settings {
     return this.settings;
   }
 

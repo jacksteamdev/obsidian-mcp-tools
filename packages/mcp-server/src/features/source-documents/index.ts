@@ -3,8 +3,7 @@ import {
   LocalRestAPI,
   logger,
   makeRequest,
-  pageResponseSchema,
-  readSourceSchema,
+  SourceDocuments,
   type ToolRegistry,
 } from "$/shared";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
@@ -12,11 +11,6 @@ import { type } from "arktype";
 import type { SetupFunctionResult } from "shared";
 import { convertHtmlToMarkdown } from "./services/markdown";
 import { extractMetadata } from "./services/metadata";
-import {
-  createSourceSchema,
-  searchResultSchema,
-  searchSourceSchema,
-} from "./types";
 import { documentIdSchema, sanitizeTitle } from "./utils/sanitize";
 
 const DEFAULT_USER_AGENT = "Mozilla/5.0 (compatible; McpTools/1.0)";
@@ -25,9 +19,10 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
   try {
     // Register source_read tool
     tools.register(
-      type({ name: "'read_source'", arguments: readSourceSchema }).describe(
-        "Read a source document incrementally",
-      ),
+      type({
+        name: "'read_source'",
+        arguments: SourceDocuments.readParams,
+      }).describe("Read a source document incrementally"),
       async ({ arguments: args }) => {
         const page = args.page || 1;
 
@@ -39,7 +34,7 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
           );
 
           // Validate response
-          const response = pageResponseSchema(result);
+          const response = SourceDocuments.readResponse(result);
           if (response instanceof type.errors) {
             throw new McpError(
               ErrorCode.InternalError,
@@ -75,7 +70,7 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
     tools.register(
       type({
         name: "'create_source'",
-        arguments: createSourceSchema,
+        arguments: SourceDocuments.createParams,
       }).describe("Create a source document from a URL"),
       async ({ arguments: args }) => {
         try {
@@ -116,19 +111,15 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
           const markdown = convertHtmlToMarkdown(html, args.url);
 
           // 5. Create document
-          await makeRequest(
-            LocalRestAPI.ApiResult,
-            `/sources/${documentId}`,
-            {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                content: markdown,
-                metadata,
-                update: args.update ?? false,
-              }),
-            },
-          );
+          await makeRequest(LocalRestAPI.ApiResult, `/sources/${documentId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              content: markdown,
+              metadata,
+              update: args.update ?? false,
+            }),
+          });
 
           return {
             content: [
@@ -160,12 +151,12 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
     tools.register(
       type({
         name: "'search_sources'",
-        arguments: searchSourceSchema,
+        arguments: SourceDocuments.searchParams,
       }).describe("Semantic search for source documents"),
       async ({ arguments: args }) => {
         // Request search from plugin
         const results = await makeRequest(
-          searchResultSchema.array(),
+          SourceDocuments.searchResult.array(),
           "/sources/search",
           {
             method: "POST",
