@@ -78,7 +78,21 @@ export function convertHtmlToMarkdown(html: string, baseUrl: string): string {
       "meta",
       "template",
       "link",
+      "img",
     ],
+    replacement: () => "",
+  });
+
+  turndownService.addRule("removeEmpty", {
+    filter: (el) =>
+      (el.textContent
+        ?.replace(/[\s\u200B-\u206F\u2E00-\u2E7F\p{P}\p{S}]+/gu, "")
+        .trim().length ?? 0) === 0,
+    replacement: () => "",
+  });
+
+  turndownService.addRule("removeHidden", {
+    filter: (el) => el.style.display === "none",
     replacement: () => "",
   });
 
@@ -100,18 +114,14 @@ export function convertHtmlToMarkdown(html: string, baseUrl: string): string {
   });
 
   turndownService.addRule("resolveUrls", {
-    filter: ["a", "img"],
+    filter: "a",
     replacement: function (content, node) {
-      const element = node as HTMLElement;
+      const element = node as HTMLAnchorElement;
       if (element.tagName === "A") {
+        if (!element.textContent) return "";
         const href = element.getAttribute("href");
-        if (!href) return content;
+        if (!href || href.startsWith("http") || href.startsWith("#")) return "";
         return `[${content}](${resolveUrl(baseUrl, href)})`;
-      } else if (element.tagName === "IMG") {
-        const src = element.getAttribute("src");
-        const alt = element.getAttribute("alt") || "";
-        if (!src || src.startsWith("data:")) return "";
-        return `![${alt}](${resolveUrl(baseUrl, src)})`;
       }
       return content;
     },
@@ -134,5 +144,3 @@ export function convertHtmlToMarkdown(html: string, baseUrl: string): string {
     .replace(/\n+\]/g, "]")
     .trim();
 }
-
-
