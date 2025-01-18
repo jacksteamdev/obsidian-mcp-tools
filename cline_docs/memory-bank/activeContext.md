@@ -1,52 +1,51 @@
 # Active Context
 
 ## Current Focus
-
-Refactoring source document feature implementation to improve type organization and add related content functionality.
+Implementing related content functionality for source document feature, using existing Smart Connections integration pattern from search implementation.
 
 ## Recent Changes
+1. Prepared types for related content:
+   - Added "related?" parameter to readParams
+   - Added "related?" field to readResponse
+   - Using searchResult.array() for related content type
 
-1. Moved types to shared package:
+2. Analyzed existing Smart Connections integration:
+   - Search endpoint already implements Smart Connections
+   - Pattern available for loading and using Smart Connections API
+   - Error handling and fallback logic established
 
-   - Consolidated all source document types in shared/types/source-documents.ts
+3. Consolidated types in shared package:
+   - Moved all source document types to shared/types/source-documents.ts
    - Renamed schemas for clarity and consistency
-   - Added new types for related content functionality
-
-2. Enhanced read functionality:
-
-   - Added related content support using Smart Connections
-   - Updated response schema to include related documents
-   - Improved error handling for related content
-
-3. Improved code organization:
-
-   - Moved feature-specific types to shared package
-   - Standardized type naming conventions
    - Updated imports to use new type organization
 
-4. Added accessibility improvements:
-   - Enhanced Svelte component accessibility
-   - Added missing ARIA attributes
-   - Improved keyboard navigation support
-
 ## Implementation Status
-
 - ✅ Settings stage complete (docs/features/source-document/settings.md)
 - ✅ Create stage complete (docs/features/source-document/create.md)
-- ✅ Read stage enhanced with related content (docs/features/source-document/read.md)
+- ⏳ Read stage in progress:
+  - ✅ Base pagination functionality
+  - ✅ Type definitions for related content
+  - 📋 Related content implementation:
+    * Use searchRoute pattern for Smart Connections
+    * Update GET /sources/:origin/:id endpoint
+    * Add related content to response
+    * Reuse existing error handling
 - ✅ Search stage complete (docs/features/source-document/search.md)
 
 ## Next Steps
+1. Update Read Endpoint:
+   - Add related parameter handling (like search endpoint)
+   - Use loadSmartSearchAPI pattern from search implementation
+   - Add related content to response using searchDocuments service
+   - Maintain existing error handling pattern
 
-1. Testing
+2. Testing:
+   - Follow search endpoint testing pattern
+   - Test with and without Smart Connections
+   - Verify error handling matches search endpoint
+   - Test response format
 
-   - Update unit tests for new type organization
-   - Add tests for related content functionality
-   - Verify accessibility improvements
-   - Test edge cases with large documents
-
-2. Documentation
-   - Update API documentation for related content
-   - Document new type organization
-   - Add examples for related content usage
-   - Update accessibility guidelines
+3. Documentation:
+   - Document related content similar to search
+   - Add examples showing both features
+   - Update API documentation
