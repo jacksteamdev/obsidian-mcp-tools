@@ -41,15 +41,15 @@ describe("documentIdSchema", () => {
   it("should allow valid document IDs", () => {
     expect(documentIdSchema.allows("valid-document")).toBe(true);
     expect(documentIdSchema.allows("测试文档")).toBe(true);
-    expect(documentIdSchema.allows("a".repeat(100))).toBe(true);
+    expect(documentIdSchema.allows("a".repeat(200))).toBe(true);
+    expect(documentIdSchema.allows("medium.com/True Agentic RAG- How I Taught Claude to Talk to My PDFs using Model Context Protocol (MCP)")).toBe(true);
   });
 
   it("should reject invalid document IDs", () => {
     expect(documentIdSchema.allows("")).toBe(false);
-    expect(documentIdSchema.allows("a".repeat(101))).toBe(false);
+    expect(documentIdSchema.allows("a".repeat(201))).toBe(false);
     expect(documentIdSchema.allows("invalid:name")).toBe(false);
     expect(documentIdSchema.allows("???")).toBe(false);
     expect(documentIdSchema.allows("test:file")).toBe(false);
-    expect(documentIdSchema.allows("a".repeat(105))).toBe(false);
   });
 });

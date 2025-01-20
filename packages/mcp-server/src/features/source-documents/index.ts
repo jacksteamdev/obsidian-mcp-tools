@@ -9,11 +9,10 @@ import {
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { type } from "arktype";
 import type { SetupFunctionResult } from "shared";
+import { DEFAULT_USER_AGENT } from "./constants";
 import { convertHtmlToMarkdown } from "./services/markdown";
 import { extractMetadata } from "./services/metadata";
-import { documentIdSchema, sanitizeTitle } from "./utils/sanitize";
-
-const DEFAULT_USER_AGENT = "Mozilla/5.0 (compatible; McpTools/1.0)";
+import { createDocumentId } from "./utils/sanitize";
 
 export async function setup(tools: ToolRegistry): SetupFunctionResult {
   try {
@@ -74,21 +73,19 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
       }).describe("Create a source document from a URL"),
       async ({ arguments: args }) => {
         try {
-          // 1. Fetch content
+          // 1. Fetch source content
           const response = await fetch(args.url, {
             headers: { "User-Agent": DEFAULT_USER_AGENT },
           });
-
           if (!response.ok) {
             throw new McpError(
               ErrorCode.InternalError,
               `Failed to fetch ${args.url}: ${response.status} ${response.statusText}`,
             );
           }
-
           const html = await response.text();
 
-          // 2. Extract metadata
+          // 2. Process source content
           const metadata = extractMetadata(html, args.url);
           if (!metadata.title) {
             throw new McpError(
@@ -96,30 +93,23 @@ export async function setup(tools: ToolRegistry): SetupFunctionResult {
               "Could not determine document title",
             );
           }
-
-          // 3. Generate document ID
-          const sanitizedDocumentTitle = sanitizeTitle(metadata.title);
-          const documentId = `${new URL(metadata.canonicalUrl).host}/${encodeURIComponent(sanitizedDocumentTitle)}`;
-          if (!documentIdSchema.allows(documentId)) {
-            throw new McpError(
-              ErrorCode.InvalidParams,
-              `Invalid document ID: ${documentId}`,
-            );
-          }
-
-          // 4. Convert to markdown
+          const documentId = createDocumentId(args.url, metadata.title);
           const markdown = convertHtmlToMarkdown(html, args.url);
 
-          // 5. Create document
-          await makeRequest(LocalRestAPI.ApiResult, `/sources/${documentId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              content: markdown,
-              metadata,
-              update: args.update ?? false,
-            }),
-          });
+          // 3. Create source document
+          await makeRequest(
+            LocalRestAPI.ApiResult,
+            `/sources/${encodeURI(documentId)}`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                content: markdown,
+                metadata,
+                update: args.update ?? false,
+              }),
+            },
+          );
 
           return {
             content: [
