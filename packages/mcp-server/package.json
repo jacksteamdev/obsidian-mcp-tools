@@ -21,7 +21,7 @@
     "acorn": "^8.14.0",
     "acorn-walk": "^8.3.4",
     "arktype": "^2.0.0-rc.33",
-    "jsdom": "^26.0.0",
+    "cheerio": "^1.0.0",
     "radash": "^12.1.0",
     "shared": "workspace:*",
     "turndown": "^7.2.0",

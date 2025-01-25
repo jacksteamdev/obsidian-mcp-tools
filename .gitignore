@@ -182,3 +182,4 @@ docs/planning/
 main.js
 bin/
 data.json
+release/manifest.json
