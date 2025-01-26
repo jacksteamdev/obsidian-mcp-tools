@@ -1,4 +1,4 @@
-import { makeRequest, type ToolRegistry } from "$/shared";
+import { f, makeRequest, type ToolRegistry } from "$/shared";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { type } from "arktype";
 import { LocalRestAPI } from "shared";
@@ -190,6 +190,54 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
         args.queryType === "dataview"
           ? "application/vnd.olrapi.dataview.dql+txt"
           : "application/vnd.olrapi.jsonlogic+json";
+
+      const data = await makeRequest(
+        LocalRestAPI.ApiSearchResponse,
+        "/search/",
+        {
+          method: "POST",
+          headers: { "Content-Type": contentType },
+          body: args.query,
+        },
+      );
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+      };
+    },
+  );
+
+  // POST Search via Dataview
+  tools.register(
+    type({
+      name: '"search_dql"',
+      arguments: {
+        query: "string",
+      },
+    }).describe(f`Search vault documents using Dataview TABLE queries.
+                  - Find docs with multiple tags:
+                      TABLE file.path
+                      FROM #tag-a AND #tag-b
+                  - Find docs with any of multiple tags:
+                      TABLE file.path
+                      FROM #tag-a OR #tag-b
+                  - Search in specific folders:
+                      TABLE file.path
+                      FROM "Sources" AND #tag-a AND #tag-b
+                  - Exclude specific folders:
+                      TABLE file.path 
+                      FROM #tag-a AND #tag-b
+                      WHERE !contains(file.path, "Sources/")
+                  - With metadata:
+                      TABLE
+                        file.path as "Path",
+                        status as "Status",
+                        rating as "Rating"
+                      FROM #book
+                      SORT rating DESC
+                  Results include requested fields in tabular format.`),
+    async ({ arguments: args }) => {
+      const contentType = "application/vnd.olrapi.dataview.dql+txt";
 
       const data = await makeRequest(
         LocalRestAPI.ApiSearchResponse,
