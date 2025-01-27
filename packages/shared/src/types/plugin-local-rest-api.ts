@@ -76,7 +76,7 @@ export const ApiStatusResponse = type({
  */
 export const ApiSearchResponse = type({
   filename: "string",
-  result: "string|number|string[]|object|boolean",
+  result: "Record<string, undefined | null | string | string[]>",
 }).array();
 
 /**
