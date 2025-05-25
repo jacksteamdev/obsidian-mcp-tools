@@ -1,6 +1,7 @@
 import { type } from "arktype";
 import type { Request, Response } from "express";
-import { Notice, Plugin, TFile } from "obsidian";
+// Import Plugin from 'obsidian' to ensure augmented types are recognized
+import { Notice, Plugin, TFile, type McpToolsPluginSettings } from "obsidian"; 
 import { shake } from "radash";
 import { lastValueFrom } from "rxjs";
 import {
@@ -21,7 +22,15 @@ import {
 } from "./shared";
 import { logger } from "./shared/logger";
 
+// Define DEFAULT_SETTINGS according to the McpToolsPluginSettings interface
+// McpToolsPluginSettings should now be available via the 'obsidian' import
+const DEFAULT_SETTINGS: McpToolsPluginSettings = {
+  version: "", // Initialize with current plugin version or leave empty
+  vaults: [], // Initialize vaults as an empty array
+};
+
 export default class McpToolsPlugin extends Plugin {
+  settings!: McpToolsPluginSettings; // Add settings property
   private localRestApi: Dependencies["obsidian-local-rest-api"] = {
     id: "obsidian-local-rest-api",
     name: "Local REST API",
@@ -35,6 +44,9 @@ export default class McpToolsPlugin extends Plugin {
   }
 
   async onload() {
+    // Load settings
+    await this.loadSettings();
+
     // Initialize features in order
     await setupCore(this);
     await setupMcpServerInstall(this);
@@ -228,5 +240,13 @@ export default class McpToolsPlugin extends Plugin {
 
   onunload() {
     this.localRestApi.api?.unregister();
+  }
+
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
   }
 }

@@ -1,21 +1,34 @@
 import { makeRequest, type ToolRegistry } from "$/shared";
-import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+// Import ObsidianMcpServer to access its getVaultConfig method
+import type { ObsidianMcpServer } from "$/features/core";
 import { type } from "arktype";
 import { LocalRestAPI } from "shared";
 
-export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
+// Modify function to accept obsidianServer instance
+export function registerLocalRestApiTools(tools: ToolRegistry, obsidianServer: ObsidianMcpServer) {
+  const vaultConfigProvider = obsidianServer.getVaultConfig.bind(obsidianServer);
+
   // GET Status
   tools.register(
     type({
       name: '"get_server_info"',
-      arguments: "Record<string, unknown>",
+      // Add vaultId to arguments
+      arguments: { vaultId: "string>0" },
     }).describe(
-      "Returns basic details about the Obsidian Local REST API and authentication status. This is the only API request that does not require authentication.",
+      "Returns basic details about the Obsidian Local REST API and authentication status for a specific vault. This is the only API request that does not require authentication with the vault's API key, but vaultId is needed to target the correct Local REST API instance.",
     ),
-    async () => {
-      const data = await makeRequest(LocalRestAPI.ApiStatusResponse, "/");
+    async ({ arguments: args }) => {
+      // Extract vaultId
+      const { vaultId } = args;
+      // Call makeRequest with vaultId and vaultConfigProvider
+      // Note: get_server_info might not strictly need the API key from vaultConfig for its specific endpoint,
+      // but it needs the correct localRestApiBaseUrl from the vault's config.
+      const data = await makeRequest(vaultId, LocalRestAPI.ApiStatusResponse, "/", vaultConfigProvider);
       return {
-        content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        content: [
+          { type: "text", text: JSON.stringify(data, null, 2) },
+          { type: "text", text: `Vault used: ${vaultId}` }
+        ],
       };
     },
   );
@@ -25,19 +38,23 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"get_active_file"',
       arguments: {
+        vaultId: "string>0", // Added vaultId
         format: type('"markdown" | "json"').optional(),
       },
     }).describe(
-      "Returns the content of the currently active file in Obsidian. Can return either markdown content or a JSON representation including parsed tags and frontmatter.",
+      "Returns the content of the currently active file in the specified Obsidian vault. Can return either markdown content or a JSON representation including parsed tags and frontmatter.",
     ),
     async ({ arguments: args }) => {
+      const { vaultId } = args; // Extract vaultId
       const format =
         args?.format === "json"
           ? "application/vnd.olrapi.note+json"
           : "text/markdown";
       const data = await makeRequest(
+        vaultId, // Pass vaultId
         LocalRestAPI.ApiNoteJson.or("string"),
         "/active/",
+        vaultConfigProvider, // Pass vaultConfigProvider
         {
           headers: { Accept: format },
         },
@@ -53,14 +70,22 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"update_active_file"',
       arguments: {
+        vaultId: "string>0", // Added vaultId
         content: "string",
       },
-    }).describe("Update the content of the active file open in Obsidian."),
+    }).describe("Update the content of the active file open in the specified Obsidian vault."),
     async ({ arguments: args }) => {
-      await makeRequest(LocalRestAPI.ApiNoContentResponse, "/active/", {
-        method: "PUT",
-        body: args.content,
-      });
+      const { vaultId, content } = args; // Extract vaultId
+      await makeRequest(
+        vaultId, // Pass vaultId
+        LocalRestAPI.ApiNoContentResponse,
+        "/active/",
+        vaultConfigProvider, // Pass vaultConfigProvider
+        {
+          method: "PUT",
+          body: content,
+        },
+      );
       return {
         content: [{ type: "text", text: "File updated successfully" }],
       };
@@ -72,14 +97,22 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"append_to_active_file"',
       arguments: {
+        vaultId: "string>0", // Added vaultId
         content: "string",
       },
-    }).describe("Append content to the end of the currently-open note."),
+    }).describe("Append content to the end of the currently-open note in the specified vault."),
     async ({ arguments: args }) => {
-      await makeRequest(LocalRestAPI.ApiNoContentResponse, "/active/", {
-        method: "POST",
-        body: args.content,
-      });
+      const { vaultId, content } = args; // Extract vaultId
+      await makeRequest(
+        vaultId, // Pass vaultId
+        LocalRestAPI.ApiNoContentResponse,
+        "/active/",
+        vaultConfigProvider, // Pass vaultConfigProvider
+        {
+          method: "POST",
+          body: content,
+        },
+      );
       return {
         content: [{ type: "text", text: "Content appended successfully" }],
       };
@@ -90,41 +123,47 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
   tools.register(
     type({
       name: '"patch_active_file"',
-      arguments: LocalRestAPI.ApiPatchParameters,
+      // Add vaultId to the existing ApiPatchParameters
+      arguments: type({ vaultId: "string>0" }).and(LocalRestAPI.ApiPatchParameters),
     }).describe(
-      "Insert or modify content in the currently-open note relative to a heading, block reference, or frontmatter field.",
+      "Insert or modify content in the currently-open note in the specified vault, relative to a heading, block reference, or frontmatter field.",
     ),
     async ({ arguments: args }) => {
+      const { vaultId, ...patchArgs } = args; // Extract vaultId, rest are patchArgs
       const headers: Record<string, string> = {
-        Operation: args.operation,
-        "Target-Type": args.targetType,
-        Target: args.target,
+        Operation: patchArgs.operation,
+        "Target-Type": patchArgs.targetType,
+        Target: patchArgs.target,
         "Create-Target-If-Missing": "true",
       };
 
-      if (args.targetDelimiter) {
-        headers["Target-Delimiter"] = args.targetDelimiter;
+      if (patchArgs.targetDelimiter) {
+        headers["Target-Delimiter"] = patchArgs.targetDelimiter;
       }
-      if (args.trimTargetWhitespace !== undefined) {
-        headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
+      if (patchArgs.trimTargetWhitespace !== undefined) {
+        headers["Trim-Target-Whitespace"] = String(patchArgs.trimTargetWhitespace);
       }
-      if (args.contentType) {
-        headers["Content-Type"] = args.contentType;
+      if (patchArgs.contentType) {
+        headers["Content-Type"] = patchArgs.contentType;
       }
 
       const response = await makeRequest(
+        vaultId, // Pass vaultId
         LocalRestAPI.ApiContentResponse,
         "/active/",
+        vaultConfigProvider, // Pass vaultConfigProvider
         {
           method: "PATCH",
           headers,
-          body: args.content,
+          body: patchArgs.content,
         },
       );
+      // Ensure 'response' is a string before returning. If it's an object, stringify it.
+      const responseText = typeof response === 'string' ? response : JSON.stringify(response);
       return {
         content: [
           { type: "text", text: "File patched successfully" },
-          { type: "text", text: response },
+          { type: "text", text: responseText },
         ],
       };
     },
@@ -134,12 +173,19 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
   tools.register(
     type({
       name: '"delete_active_file"',
-      arguments: "Record<string, unknown>",
-    }).describe("Delete the currently-active file in Obsidian."),
-    async () => {
-      await makeRequest(LocalRestAPI.ApiNoContentResponse, "/active/", {
-        method: "DELETE",
-      });
+      arguments: { vaultId: "string>0" }, // Added vaultId
+    }).describe("Delete the currently-active file in the specified Obsidian vault."),
+    async ({ arguments: args }) => {
+      const { vaultId } = args; // Extract vaultId
+      await makeRequest(
+        vaultId, // Pass vaultId
+        LocalRestAPI.ApiNoContentResponse,
+        "/active/",
+        vaultConfigProvider, // Pass vaultConfigProvider
+        {
+          method: "DELETE",
+        },
+      );
       return {
         content: [{ type: "text", text: "File deleted successfully" }],
       };
@@ -151,18 +197,22 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"show_file_in_obsidian"',
       arguments: {
+        vaultId: "string>0", // Added vaultId
         filename: "string",
         "newLeaf?": "boolean",
       },
     }).describe(
-      "Open a document in the Obsidian UI. Creates a new document if it doesn't exist. Returns a confirmation if the file was opened successfully.",
+      "Open a document in the Obsidian UI for the specified vault. Creates a new document if it doesn't exist. Returns a confirmation if the file was opened successfully.",
     ),
     async ({ arguments: args }) => {
+      const { vaultId, filename } = args; // Extract vaultId and filename
       const query = args.newLeaf ? "?newLeaf=true" : "";
 
       await makeRequest(
+        vaultId, // Pass vaultId
         LocalRestAPI.ApiNoContentResponse,
-        `/open/${encodeURIComponent(args.filename)}${query}`,
+        `/open/${encodeURIComponent(filename)}${query}`,
+        vaultConfigProvider, // Pass vaultConfigProvider
         {
           method: "POST",
         },
@@ -179,25 +229,29 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"search_vault"',
       arguments: {
+        vaultId: "string>0", // Added vaultId
         queryType: '"dataview" | "jsonlogic"',
         query: "string",
       },
     }).describe(
-      "Search for documents matching a specified query using either Dataview DQL or JsonLogic.",
+      "Search for documents in the specified vault matching a query using either Dataview DQL or JsonLogic.",
     ),
     async ({ arguments: args }) => {
+      const { vaultId, queryType, query } = args; // Extract vaultId
       const contentType =
-        args.queryType === "dataview"
+        queryType === "dataview"
           ? "application/vnd.olrapi.dataview.dql+txt"
           : "application/vnd.olrapi.jsonlogic+json";
 
       const data = await makeRequest(
+        vaultId, // Pass vaultId
         LocalRestAPI.ApiSearchResponse,
         "/search/",
+        vaultConfigProvider, // Pass vaultConfigProvider
         {
           method: "POST",
           headers: { "Content-Type": contentType },
-          body: args.query,
+          body: query,
         },
       );
 
@@ -212,23 +266,27 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"search_vault_simple"',
       arguments: {
+        vaultId: "string>0", // Added vaultId
         query: "string",
         "contextLength?": "number",
       },
-    }).describe("Search for documents matching a text query."),
+    }).describe("Search for documents in the specified vault matching a text query."),
     async ({ arguments: args }) => {
-      const query = new URLSearchParams({
-        query: args.query,
-        ...(args.contextLength
+      const { vaultId, ...searchArgs } = args; // Extract vaultId
+      const queryParams = new URLSearchParams({
+        query: searchArgs.query,
+        ...(searchArgs.contextLength
           ? {
-              contextLength: String(args.contextLength),
+              contextLength: String(searchArgs.contextLength),
             }
           : {}),
       });
 
       const data = await makeRequest(
+        vaultId, // Pass vaultId
         LocalRestAPI.ApiSimpleSearchResponse,
-        `/search/simple/?${query}`,
+        `/search/simple/?${queryParams}`,
+        vaultConfigProvider, // Pass vaultConfigProvider
         {
           method: "POST",
         },
@@ -245,18 +303,22 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"list_vault_files"',
       arguments: {
+        vaultId: "string>0", // Added vaultId
         "directory?": "string",
       },
     }).describe(
-      "List files in the root directory or a specified subdirectory of your vault.",
+      "List files in the root directory or a specified subdirectory of the specified vault.",
     ),
     async ({ arguments: args }) => {
-      const path = args.directory ? `${args.directory}/` : "";
+      const { vaultId, directory } = args; // Extract vaultId
+      const path = directory ? `${directory}/` : "";
       const data = await makeRequest(
+        vaultId, // Pass vaultId
         LocalRestAPI.ApiVaultFileResponse.or(
           LocalRestAPI.ApiVaultDirectoryResponse,
         ),
         `/vault/${path}`,
+        vaultConfigProvider, // Pass vaultConfigProvider
       );
       return {
         content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
@@ -269,20 +331,24 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"get_vault_file"',
       arguments: {
+        vaultId: "string>0", // Added vaultId
         filename: "string",
         "format?": '"markdown" | "json"',
       },
-    }).describe("Get the content of a file from your vault."),
+    }).describe("Get the content of a file from the specified vault."),
     async ({ arguments: args }) => {
-      const isJson = args.format === "json";
-      const format = isJson
+      const { vaultId, filename, format: argFormat } = args; // Extract vaultId
+      const isJson = argFormat === "json";
+      const acceptHeader = isJson
         ? "application/vnd.olrapi.note+json"
         : "text/markdown";
       const data = await makeRequest(
+        vaultId, // Pass vaultId
         isJson ? LocalRestAPI.ApiNoteJson : LocalRestAPI.ApiContentResponse,
-        `/vault/${encodeURIComponent(args.filename)}`,
+        `/vault/${encodeURIComponent(filename)}`,
+        vaultConfigProvider, // Pass vaultConfigProvider
         {
-          headers: { Accept: format },
+          headers: { Accept: acceptHeader },
         },
       );
       return {
@@ -302,17 +368,21 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"create_vault_file"',
       arguments: {
+        vaultId: "string>0", // Added vaultId
         filename: "string",
         content: "string",
       },
-    }).describe("Create a new file in your vault or update an existing one."),
+    }).describe("Create a new file in the specified vault or update an existing one."),
     async ({ arguments: args }) => {
+      const { vaultId, filename, content } = args; // Extract vaultId
       await makeRequest(
+        vaultId, // Pass vaultId
         LocalRestAPI.ApiNoContentResponse,
-        `/vault/${encodeURIComponent(args.filename)}`,
+        `/vault/${encodeURIComponent(filename)}`,
+        vaultConfigProvider, // Pass vaultConfigProvider
         {
           method: "PUT",
-          body: args.content,
+          body: content,
         },
       );
       return {
@@ -326,17 +396,21 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"append_to_vault_file"',
       arguments: {
+        vaultId: "string>0", // Added vaultId
         filename: "string",
         content: "string",
       },
-    }).describe("Append content to a new or existing file."),
+    }).describe("Append content to a new or existing file in the specified vault."), // Updated description
     async ({ arguments: args }) => {
+      const { vaultId, filename, content } = args; // Extract vaultId
       await makeRequest(
+        vaultId, // Pass vaultId
         LocalRestAPI.ApiNoContentResponse,
-        `/vault/${encodeURIComponent(args.filename)}`,
+        `/vault/${encodeURIComponent(filename)}`,
+        vaultConfigProvider, // Pass vaultConfigProvider
         {
           method: "POST",
-          body: args.content,
+          body: content,
         },
       );
       return {
@@ -349,44 +423,47 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
   tools.register(
     type({
       name: '"patch_vault_file"',
-      arguments: type({
-        filename: "string",
-      }).and(LocalRestAPI.ApiPatchParameters),
+      // Add vaultId to the existing arguments
+      arguments: type({ vaultId: "string>0", filename: "string" }).and(LocalRestAPI.ApiPatchParameters),
     }).describe(
-      "Insert or modify content in a file relative to a heading, block reference, or frontmatter field.",
+      "Insert or modify content in a file in the specified vault, relative to a heading, block reference, or frontmatter field.", // Updated description
     ),
     async ({ arguments: args }) => {
-      const headers: HeadersInit = {
-        Operation: args.operation,
-        "Target-Type": args.targetType,
-        Target: args.target,
+      const { vaultId, filename, ...patchArgs } = args; // Extract vaultId and filename, rest are patchArgs
+      const headers: Record<string, string> = { // Changed HeadersInit to Record<string, string> for consistency
+        Operation: patchArgs.operation,
+        "Target-Type": patchArgs.targetType,
+        Target: patchArgs.target,
         "Create-Target-If-Missing": "true",
       };
 
-      if (args.targetDelimiter) {
-        headers["Target-Delimiter"] = args.targetDelimiter;
+      if (patchArgs.targetDelimiter) {
+        headers["Target-Delimiter"] = patchArgs.targetDelimiter;
       }
-      if (args.trimTargetWhitespace !== undefined) {
-        headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
+      if (patchArgs.trimTargetWhitespace !== undefined) {
+        headers["Trim-Target-Whitespace"] = String(patchArgs.trimTargetWhitespace);
       }
-      if (args.contentType) {
-        headers["Content-Type"] = args.contentType;
+      if (patchArgs.contentType) {
+        headers["Content-Type"] = patchArgs.contentType;
       }
 
       const response = await makeRequest(
+        vaultId, // Pass vaultId
         LocalRestAPI.ApiContentResponse,
-        `/vault/${encodeURIComponent(args.filename)}`,
+        `/vault/${encodeURIComponent(filename)}`, // Use filename
+        vaultConfigProvider, // Pass vaultConfigProvider
         {
           method: "PATCH",
           headers,
-          body: args.content,
+          body: patchArgs.content,
         },
       );
-
+      // Ensure 'response' is a string before returning. If it's an object, stringify it.
+      const responseText = typeof response === 'string' ? response : JSON.stringify(response);
       return {
         content: [
           { type: "text", text: "File patched successfully" },
-          { type: "text", text: response },
+          { type: "text", text: responseText },
         ],
       };
     },
@@ -397,13 +474,17 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"delete_vault_file"',
       arguments: {
+        vaultId: "string>0", // Added vaultId
         filename: "string",
       },
-    }).describe("Delete a file from your vault."),
+    }).describe("Delete a file from the specified vault."), // Updated description
     async ({ arguments: args }) => {
+      const { vaultId, filename } = args; // Extract vaultId
       await makeRequest(
+        vaultId, // Pass vaultId
         LocalRestAPI.ApiNoContentResponse,
-        `/vault/${encodeURIComponent(args.filename)}`,
+        `/vault/${encodeURIComponent(filename)}`,
+        vaultConfigProvider, // Pass vaultConfigProvider
         {
           method: "DELETE",
         },

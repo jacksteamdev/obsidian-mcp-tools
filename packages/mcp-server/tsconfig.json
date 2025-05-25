@@ -12,7 +12,10 @@
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
-    "noEmit": true,
+    // "noEmit": true, // Remove or set to false to allow .d.ts file generation
+    "declaration": true, // Enable .d.ts file generation
+    "declarationDir": "./dist/types", // Output directory for .d.ts files
+    "emitDeclarationOnly": true, // Only emit .d.ts files, bun will handle JS compilation
 
     // Best practices
     "strict": true,

@@ -1,11 +1,13 @@
 import { logger, type ToolRegistry } from "$/shared";
-import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+// Import ObsidianMcpServer to match the updated signature from core/index.ts
+import type { ObsidianMcpServer } from "../core"; 
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { type } from "arktype";
 import { DEFAULT_USER_AGENT } from "./constants";
 import { convertHtmlToMarkdown } from "./services/markdown";
 
-export function registerFetchTool(tools: ToolRegistry, server: Server) {
+// Signature updated to accept ObsidianMcpServer instance, though it's not used in this tool's current logic.
+export function registerFetchTool(tools: ToolRegistry, obsServer: ObsidianMcpServer) { 
   tools.register(
     type({
       name: '"fetch"',

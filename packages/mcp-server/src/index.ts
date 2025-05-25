@@ -5,11 +5,8 @@ import { getVersion } from "./features/version" with { type: "macro" };
 
 async function main() {
   try {
-    // Verify required environment variables
-    const API_KEY = process.env.OBSIDIAN_API_KEY;
-    if (!API_KEY) {
-      throw new Error("OBSIDIAN_API_KEY environment variable is required");
-    }
+    // Environment variable check for OBSIDIAN_API_KEY removed.
+    // Configuration is now handled by ObsidianMcpServer loading vaults.json.
 
     logger.debug("Starting MCP Tools for Obsidian server...");
     const server = new ObsidianMcpServer();
