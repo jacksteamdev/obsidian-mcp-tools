@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/node": "^24.0.0",
     "@types/turndown": "^5.0.5",
     "prettier": "^3.4.2",
     "typescript": "^5.3.3"

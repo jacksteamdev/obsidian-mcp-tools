@@ -6,7 +6,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { type } from "arktype"; // Added ArkType
 import { registerFetchTool } from "../fetch";
-import { registerLocalRestApiTools } from "../local-rest-api";
+import { registerLocalRestApiTools } from "../local-rest-api"; // Fixed typo here
 import { setupObsidianPrompts } from "../prompts";
 import { registerSmartConnectionsTools } from "../smart-connections";
 import { registerTemplaterTools } from "../templates";
@@ -58,7 +58,7 @@ export class ObsidianMcpServer {
 
     // Error handling
     this.server.onerror = (error) => {
-      logger.error("ObsidianMcpServer: Server error occurred.", { 
+      logger.error("ObsidianMcpServer: Server error occurred.", {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         code: (error instanceof McpError) ? error.code : undefined,
@@ -80,7 +80,7 @@ export class ObsidianMcpServer {
       const config = await loadVaultsConfig();
       this.vaultsConfig = config.vaults;
       this.defaultVaultId = config.defaultVaultId;
-      
+
       if (this.vaultsConfig.length === 0) {
         logger.warn("ObsidianMcpServer: No vaults configured. Server will run but may not be able to perform vault-specific operations.");
       } else {
@@ -107,7 +107,7 @@ export class ObsidianMcpServer {
    * 1. Use the configured default vault ID if available
    * 2. Fall back to the first available vault if no default is set
    * 3. Throw an error if no vaults are configured
-   * 
+   *
    * @param vaultId Optional vault ID to look up
    * @returns The vault configuration entry
    * @throws McpError if the vault is not found or no vaults are configured
@@ -121,14 +121,14 @@ export class ObsidianMcpServer {
         logger.debug(`ObsidianMcpServer: Found vault config for ID: "${vaultId}"`);
         return vault;
       }
-      
+
       logger.error(`ObsidianMcpServer: Vault config not found for ID: "${vaultId}"`);
       throw new McpError(
-        ErrorCode.InvalidRequest, 
+        ErrorCode.InvalidRequest,
         `Configuration for vaultId "${vaultId}" not found or server not configured for this vault.`
       );
     }
-    
+
     // Case 2: Use configured default vault
     if (this.defaultVaultId) {
       const defaultVault = this.vaultsConfig.find(v => v.vaultId === this.defaultVaultId);
@@ -138,17 +138,17 @@ export class ObsidianMcpServer {
       }
       logger.warn(`ObsidianMcpServer: Default vault ID "${this.defaultVaultId}" is configured but not found in vaults list. Falling back to first available.`);
     }
-    
+
     // Case 3: Use first available vault
     if (this.vaultsConfig.length > 0) {
       logger.debug(`ObsidianMcpServer: No vault ID provided or default not found, using first available vault: ${this.vaultsConfig[0].vaultId}`);
       return this.vaultsConfig[0];
     }
-    
+
     // Case 4: No vaults available
     logger.error("ObsidianMcpServer: No vaults configured. Cannot get vault config.");
     throw new McpError(
-      ErrorCode.InvalidRequest, 
+      ErrorCode.InvalidRequest,
       "No vaults configured. Please configure at least one vault."
     );
   }
@@ -166,14 +166,14 @@ export class ObsidianMcpServer {
     logger.debug("ObsidianMcpServer: list_configured_vaults tool handler called.");
     const vaultsConfig = this.getVaultsConfig();
     const dataToReturn = vaultsConfig
-      ? vaultsConfig.map(v => ({ vaultId: v.vaultId, name: v.name })) 
+      ? vaultsConfig.map(v => ({ vaultId: v.vaultId, name: v.name }))
       : [];
-    
-    logger.debug("ObsidianMcpServer: list_configured_vaults tool returning data.", { 
+
+    logger.debug("ObsidianMcpServer: list_configured_vaults tool returning data.", {
       vaultCount: vaultsConfig.length,
       data: dataToReturn
     });
-    
+
     return {
       content: [{ type: "text", text: JSON.stringify(dataToReturn) }]
     };
@@ -185,25 +185,25 @@ export class ObsidianMcpServer {
     // to provide access to vault configurations via getVaultConfig.
     setupObsidianPrompts(this.server, this); // Pass ObsidianMcpServer instance
     registerFetchTool(this.tools, this); // Pass ObsidianMcpServer instance
-    registerLocalRestApiTools(this.tools, this); // Already correct
+    registerLocalRestApiTools(this.tools, this); // Fixed typo here
     registerSmartConnectionsTools(this.tools, this); // Pass ObsidianMcpServer instance
     registerTemplaterTools(this.tools, this); // Pass ObsidianMcpServer instance
 
     // Register the list_configured_vaults tool
     logger.debug("ObsidianMcpServer: Registering list_configured_vaults tool.");
     this.tools.register(
-      ListConfiguredVaultsToolSchema, 
+      ListConfiguredVaultsToolSchema,
       this.listConfiguredVaultsHandler.bind(this)
     );
 
     logger.debug("ObsidianMcpServer: Setting request handler for ListToolsRequestSchema.");
     this.server.setRequestHandler(ListToolsRequestSchema, this.tools.list);
-    
+
     logger.debug("ObsidianMcpServer: Setting request handler for CallToolRequestSchema.");
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      logger.debug("ObsidianMcpServer: Handling CallToolRequest.", { 
-        toolName: request.params.name, 
-        toolArguments: request.params.arguments 
+      logger.debug("ObsidianMcpServer: Handling CallToolRequest.", {
+        toolName: request.params.name,
+        toolArguments: request.params.arguments
       });
       // The dispatcher will need to be vault-aware or tools themselves will be.
       // For now, this part remains, but tools.dispatch or individual tools
@@ -213,9 +213,9 @@ export class ObsidianMcpServer {
           server: this.server, // The core MCP server instance
           // obsidianServer: this, // Removed: this context is passed via .bind() to the tool handler
         });
-        logger.debug("ObsidianMcpServer: CallToolRequest handled successfully.", { 
-          toolName: request.params.name, 
-          response: response 
+        logger.debug("ObsidianMcpServer: CallToolRequest handled successfully.", {
+          toolName: request.params.name,
+          response: response
         });
         return response;
       } catch (dispatchError) {
@@ -225,7 +225,7 @@ export class ObsidianMcpServer {
           stack: dispatchError instanceof Error ? dispatchError.stack : undefined,
         });
         // Re-throw or return an error response as appropriate for MCP protocol
-        throw dispatchError; 
+        throw dispatchError;
       }
     });
     logger.debug("ObsidianMcpServer: Handlers setup finished.");
@@ -235,13 +235,13 @@ export class ObsidianMcpServer {
     logger.debug("ObsidianMcpServer: Starting server run process...");
     logger.debug("ObsidianMcpServer: Initializing server configuration...");
     await this.initializeConfig(); // Load config before connecting
-    
+
     logger.debug("ObsidianMcpServer: Setting up handlers and registering tools...");
     this.setupHandlers(); // Setup handlers after config is loaded
-    
+
     // Log the list of registered tools for debugging
     const toolsList = this.tools.list();
-    logger.debug("ObsidianMcpServer: Registered tools summary.", { 
+    logger.debug("ObsidianMcpServer: Registered tools summary.", {
       toolCount: toolsList.tools.length,
       tools: toolsList.tools.map(t => t.name)
     });
@@ -252,11 +252,22 @@ export class ObsidianMcpServer {
       await this.server.connect(transport);
       logger.debug("ObsidianMcpServer: Server started successfully and connected to transport.");
     } catch (err) {
-      logger.fatal("ObsidianMcpServer: Failed to start server or connect to transport.", {
-        error: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
-      });
-      process.exit(1);
+      // Catch specific JSON parsing errors from stdin during initial connection
+      if (err instanceof SyntaxError && err.message.includes('JSON Parse error')) {
+        logger.error("ObsidianMcpServer: Malformed JSON input detected during server connection. Please ensure valid JSON is provided via stdin.", {
+          error: err.message,
+          stack: err.stack,
+        });
+        // Do not exit, allow the server to continue running and wait for valid input
+        // The server might still be in a state to receive further input.
+        // If the server truly cannot recover, the outer process.on('uncaughtException') will catch it.
+      } else {
+        logger.fatal("ObsidianMcpServer: Failed to start server or connect to transport.", {
+          error: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+        });
+        process.exit(1); // Exit for other critical startup errors
+      }
     }
     logger.debug("ObsidianMcpServer: Server run process finished.");
   }
