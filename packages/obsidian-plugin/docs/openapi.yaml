@@ -315,7 +315,7 @@ paths:
 
         - `Operation`: `replace`
         - `TargetType`: `frontmatter`
-        - `Target`: `beep`
+        - `Target`: `alpha`
         - with the request body `2`
 
         If you're setting a frontmatter field that might not already exist
@@ -326,7 +326,7 @@ paths:
         You may find using a `Content-Type` of `application/json` to be
         particularly useful in the case of frontmatter since frontmatter
         fields' values are JSON data, and the API can be smarter about
-        interpreting yoru `prepend` or `append` requests if you specify
+        interpreting your `prepend` or `append` requests if you specify
         your data as JSON (particularly when appending, for example,
         list items).
       parameters:
