@@ -36,7 +36,7 @@ export interface Dependencies {
   "templater-obsidian": Dependency<"templater-obsidian", Templater.ITemplater>;
 }
 
-// The Smart Connections plugin exposes a global variable `window.SmartSearch` but it's not guaranteed to be available.
+// Smart Connections v3.0+ uses a Smart Environment architecture instead of window.SmartSearch
 declare const window: {
   SmartSearch?: SmartConnections.SmartSearch;
 } & Window;
@@ -45,14 +45,73 @@ export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
   interval(200).pipe(
     takeUntil(timer(5000)),
     map((): Dependencies["smart-connections"] => {
-      const api = window.SmartSearch;
+      const smartConnectionsPlugin = plugin.app.plugins.plugins["smart-connections"] as any;
+      
+      // Check for Smart Connections v3.0+ (uses smart environment)
+      if (smartConnectionsPlugin?.env?.smart_sources) {
+        const smartEnv = smartConnectionsPlugin.env;
+        
+        // Create a compatibility wrapper that matches the old SmartSearch interface
+        const api: SmartConnections.SmartSearch = {
+          search: async (search_text: string, filter?: any) => {
+            try {
+              // Use the new v3.0 lookup API
+              const results = await smartEnv.smart_sources.lookup({
+                hypotheticals: [search_text],
+                filter: {
+                  limit: filter?.limit,
+                  key_starts_with_any: filter?.key_starts_with_any,
+                  exclude_key_starts_with_any: filter?.exclude_key_starts_with_any,
+                  exclude_key: filter?.exclude_key,
+                  exclude_keys: filter?.exclude_keys,
+                  exclude_key_starts_with: filter?.exclude_key_starts_with,
+                  exclude_key_includes: filter?.exclude_key_includes,
+                  key_ends_with: filter?.key_ends_with,
+                  key_starts_with: filter?.key_starts_with,
+                  key_includes: filter?.key_includes,
+                },
+              });
+              
+              // Transform results to match expected format
+              return results.map((result: any) => ({
+                item: {
+                  path: result.item.path,
+                  name: result.item.name || result.item.key?.split('/').pop() || result.item.key,
+                  breadcrumbs: result.item.breadcrumbs || result.item.path,
+                  read: () => result.item.read(),
+                  key: result.item.key,
+                  file_path: result.item.path,
+                  link: result.item.link,
+                  size: result.item.size,
+                },
+                score: result.score,
+              }));
+            } catch (error) {
+              console.error('Smart Connections v3.0 search error:', error);
+              return [];
+            }
+          },
+        };
+        
+        return {
+          id: "smart-connections",
+          name: "Smart Connections",
+          required: false,
+          installed: true,
+          api,
+          plugin: smartConnectionsPlugin,
+        };
+      }
+      
+      // Fallback to legacy Smart Connections v2.x (window.SmartSearch)
+      const legacyApi = window.SmartSearch;
       return {
         id: "smart-connections",
         name: "Smart Connections",
         required: false,
-        installed: !!api,
-        api,
-        plugin: plugin.app.plugins.plugins["smart-connections"],
+        installed: !!legacyApi,
+        api: legacyApi,
+        plugin: smartConnectionsPlugin,
       };
     }),
     takeWhile((dependency) => !dependency.installed, true),
