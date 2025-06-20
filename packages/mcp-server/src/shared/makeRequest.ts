@@ -1,46 +1,75 @@
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { type, type Type } from "arktype";
 import { logger } from "./logger";
+// We need getVaultConfig, but it's not exported from configManager.ts yet.
+// For now, assume ObsidianMcpServer instance will provide it or be passed around.
+// This will be resolved when ObsidianMcpServer is updated.
+// import { getVaultConfig } from "./configManager"; // This will be used later
 
-// Default to HTTPS port, fallback to HTTP if specified
-const USE_HTTP = process.env.OBSIDIAN_USE_HTTP === "true";
-const PORT = USE_HTTP ? 27123 : 27124;
-const PROTOCOL = USE_HTTP ? "http" : "https";
-export const BASE_URL = `${PROTOCOL}://127.0.0.1:${PORT}`;
+// Remove global BASE_URL and API_KEY logic, as it's now per-vault.
 
 // Disable TLS certificate validation for local self-signed certificates
+// This should ideally be configurable per vault if needed, or handled carefully.
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 /**
- * Makes a request to the Obsidian Local REST API with the provided path and optional request options.
- * Automatically adds the required API key to the request headers.
+ * Makes a request to a specific Obsidian vault's Local REST API.
+ * Retrieves vault-specific connection details (API key, base URL) using the vaultId.
+ * If no vaultId is provided, it will use the default vault or first available vault.
  * Throws an `McpError` if the API response is not successful.
  *
- * @param path - The path to the Obsidian API endpoint.
+ * @param vaultId - The ID of the target vault (must match an ID in vaults.json). If not provided, uses default or first vault.
+ * @param schema - The ArkType schema to validate the response.
+ * @param path - The path to the Obsidian API endpoint (e.g., "/active/").
+ * @param vaultConfigProvider - Function that provides vault configuration details.
  * @param init - Optional request options to pass to the `fetch` function.
- * @returns The response from the Obsidian API.
+ * @returns The validated response from the Obsidian API.
  */
-
 export async function makeRequest<
   T extends
     | Type<{}, {}>
     | Type<null | undefined, {}>
     | Type<{} | null | undefined, {}>,
->(schema: T, path: string, init?: RequestInit): Promise<T["infer"]> {
-  const API_KEY = process.env.OBSIDIAN_API_KEY;
-  if (!API_KEY) {
-    logger.error("OBSIDIAN_API_KEY environment variable is required", {
-      env: process.env,
-    });
-    throw new Error("OBSIDIAN_API_KEY environment variable is required");
+>(
+  vaultId: string | undefined, // Optional vaultId parameter
+  schema: T,
+  path: string,
+  // vaultConfigProvider is required, so it comes before optional 'init'
+  vaultConfigProvider: (id?: string) => { apiKey: string; localRestApiBaseUrl: string },
+  init?: RequestInit,
+): Promise<T["infer"]> {
+  let vaultDetails;
+  let actualVaultId: string;
+  
+  try {
+    // Get the vault details
+    vaultDetails = vaultConfigProvider(vaultId);
+    
+    // If vaultId was not provided, we can't determine the actual ID from just the connection details
+    if (!vaultId) {
+      actualVaultId = "default"; // We don't know the actual ID if default was used
+      logger.debug("Using default vault");
+    } else {
+      actualVaultId = vaultId;
+    }
+  } catch (error: any) {
+    // Catch errors from vaultConfigProvider (e.g., vaultId not found)
+    logger.error(`Failed to get configuration for vaultId "${vaultId || 'default'}"`, { error: error.message });
+    if (error instanceof McpError) throw error;
+    throw new McpError(ErrorCode.InvalidRequest, `Configuration error for vaultId "${vaultId || 'default'}": ${error.message}`);
   }
+
+  const { apiKey: API_KEY, localRestApiBaseUrl: BASE_URL } = vaultDetails;
+
+  // API_KEY and BASE_URL are guaranteed by VaultConfigEntrySchema to be non-empty strings
+  // and localRestApiBaseUrl is a valid URL string.
 
   const url = `${BASE_URL}${path}`;
   const response = await fetch(url, {
     ...init,
     headers: {
-      Authorization: `Bearer ${API_KEY}`,
-      "Content-Type": "text/markdown",
+      Authorization: `Bearer ${API_KEY}`, // Use vault-specific API_KEY
+      "Content-Type": "text/markdown", // Default, can be overridden by init.headers
       ...init?.headers,
     },
   });
@@ -70,5 +99,12 @@ export async function makeRequest<
     );
   }
 
+  // Add the vault ID to the response if it's an object
+  if (typeof validated === 'object' && validated !== null) {
+    // We can't directly modify the validated object due to type constraints,
+    // but we can log the vault ID for debugging
+    logger.debug(`Request to ${path} used vault: ${actualVaultId}`);
+  }
+  
   return validated;
 }

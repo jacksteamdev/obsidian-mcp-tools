@@ -78,12 +78,53 @@ export class ToolRegistryClass<
   list = () => {
     return {
       tools: Array.from(this.enabled.values()).map((schema) => {
-        return {
-          // @ts-expect-error We know the const property is present for a string
-          name: schema.get("name").toJsonSchema().const,
-          description: schema.description,
-          inputSchema: schema.get("arguments").toJsonSchema(),
-        };
+        try {
+          // Get the name schema
+          const nameSchema = schema.get("name");
+          
+          // Get the name as a string for special case handling
+          let nameValue = "unknown";
+          try {
+            // @ts-expect-error We know the const property is present for a string
+            nameValue = nameSchema.toJsonSchema().const;
+          } catch (error) {
+            logger.warn(`Failed to get name for tool schema`, { error });
+          }
+          
+          // Special case for list_configured_vaults tool
+          if (nameValue === "list_configured_vaults") {
+            return {
+              name: "list_configured_vaults",
+              description: schema.description || "Lists all configured Obsidian vaults with their ID and name.",
+              inputSchema: { type: "object", properties: {} },
+            };
+          }
+          
+          // For all other tools, try to get the arguments schema
+          let inputSchema: any = { type: "object", properties: {} };
+          try {
+            const argsSchema = schema.get("arguments");
+            if (argsSchema) {
+              inputSchema = argsSchema.toJsonSchema();
+            }
+          } catch (error) {
+            logger.warn(`Failed to convert arguments schema to JSON Schema for tool: ${nameValue}`, { error });
+          }
+          
+          return {
+            name: nameValue,
+            description: schema.description || "",
+            inputSchema,
+          };
+        } catch (error) {
+          logger.error(`Failed to process schema for tool list`, { error });
+          // Return a minimal valid tool definition to avoid breaking the list
+          return {
+            name: "unknown",
+            description: "Error processing tool schema",
+            inputSchema: { type: "object", properties: {} },
+          };
+        }
       }),
     };
   };
@@ -101,18 +142,30 @@ export class ToolRegistryClass<
     params: Schema["infer"],
   ): Schema["infer"] => {
     const args = params.arguments;
-    const argsSchema = schema.get("arguments").exclude("undefined");
-    if (!args || !argsSchema) return params;
+    // Get the arguments schema, handling the case where it might be undefined
+    const argsSchemaRaw = schema.get("arguments");
+    if (!args || !argsSchemaRaw) return params;
+    
+    const argsSchema = argsSchemaRaw.exclude("undefined");
+    if (!argsSchema) return params;
 
     const fixed = { ...params.arguments };
     for (const [key, value] of Object.entries(args)) {
-      const valueSchema = argsSchema.get(key).exclude("undefined");
-      if (
-        valueSchema.expression === "boolean" &&
-        typeof value === "string" &&
-        ["true", "false"].includes(value)
-      ) {
-        fixed[key] = value === "true";
+      try {
+        const keySchema = argsSchema.get(key);
+        if (!keySchema) continue;
+        
+        const valueSchema = keySchema.exclude("undefined");
+        if (
+          valueSchema.expression === "boolean" &&
+          typeof value === "string" &&
+          ["true", "false"].includes(value)
+        ) {
+          fixed[key] = value === "true";
+        }
+      } catch (error) {
+        // Skip this key if there's an error accessing its schema
+        continue;
       }
     }
 

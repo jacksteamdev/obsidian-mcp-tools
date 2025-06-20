@@ -6,62 +6,72 @@ import {
 } from "$/shared";
 import { type } from "arktype";
 import { buildTemplateArgumentsSchema, LocalRestAPI } from "shared";
+import type { ObsidianMcpServer } from "../core"; // Import ObsidianMcpServer
 
-export function registerTemplaterTools(tools: ToolRegistry) {
+export function registerTemplaterTools(tools: ToolRegistry, obsServer: ObsidianMcpServer) { // Modified signature
+  const vaultConfigProvider = obsServer.getVaultConfig.bind(obsServer); // Get vaultConfigProvider
+
   tools.register(
     type({
       name: '"execute_template"',
       arguments: LocalRestAPI.ApiTemplateExecutionParams.omit("createFile").and(
         {
+          vaultId: "string>0", // ADDED vaultId
           // should be boolean but the MCP client returns a string
           "createFile?": type("'true'|'false'"),
         },
       ),
-    }).describe("Execute a Templater template with the given arguments"),
+    }).describe("Execute a Templater template in a specific vault with the given arguments"), // Updated description
     async ({ arguments: args }) => {
-      // Get prompt content
+      const { vaultId, ...templateArgsForRest } = args; // Extract vaultId
+
+      // Get template content from the specified vault
       const data = await makeRequest(
-        LocalRestAPI.ApiVaultFileResponse,
-        `/vault/${args.name}`,
+        vaultId, // Pass vaultId
+        LocalRestAPI.ApiNoteJson, // Expect ApiNoteJson for .content
+        `/vault/${templateArgsForRest.name}`, // Use name from remaining args
+        vaultConfigProvider, // Pass vaultConfigProvider
         {
           headers: { Accept: LocalRestAPI.MIME_TYPE_OLRAPI_NOTE_JSON },
         },
-      );
+      ) as LocalRestAPI.ApiNoteJsonType; // Cast for type safety
 
       // Validate prompt arguments
-      const templateParameters = parseTemplateParameters(data.content);
+      const templateParameters = parseTemplateParameters(data.content || ""); // Add null check for content
       const validArgs = buildTemplateArgumentsSchema(templateParameters)(
-        args.arguments,
+        templateArgsForRest.arguments, // Use arguments from remaining args
       );
       if (validArgs instanceof type.errors) {
         throw formatMcpError(validArgs);
       }
 
-      const templateExecutionArgs: {
-        name: string;
-        arguments: Record<string, string>;
-        createFile: boolean;
-        targetPath?: string;
-      } = {
-        name: args.name,
+      // Prepare arguments for the target Local REST API's /templates/execute endpoint
+      // This body should NOT contain vaultId.
+      const finalTemplateExecutionArgs: LocalRestAPI.ApiTemplateExecutionParamsType = {
+        name: templateArgsForRest.name,
         arguments: validArgs,
-        createFile: args.createFile === "true",
-        targetPath: args.targetPath,
+        createFile: templateArgsForRest.createFile === "true",
+        targetPath: templateArgsForRest.targetPath,
       };
-
-      // Process template through Templater plugin
+      
+      // Process template through Templater plugin via the specified vault's Local REST API
       const response = await makeRequest(
+        vaultId, // This vaultId directs makeRequest to the correct vault's Local REST API
         LocalRestAPI.ApiTemplateExecutionResponse,
-        "/templates/execute",
+        "/templates/execute", // Path on the target vault's Local REST API
+        vaultConfigProvider, // Pass vaultConfigProvider
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(templateExecutionArgs),
+          body: JSON.stringify(finalTemplateExecutionArgs),
         },
       );
 
       return {
-        content: [{ type: "text", text: JSON.stringify(response, null, 2) }],
+        content: [
+          { type: "text", text: JSON.stringify(response, null, 2) },
+          { type: "text", text: `Vault used: ${vaultId}` }
+        ],
       };
     },
   );

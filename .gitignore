@@ -181,3 +181,14 @@ bin/
 docs/planning/
 data.json
 cline_docs/temp/
+cline_docs/codebaseSummary.md
+cline_docs/currentTask.md
+cline_docs/projectRoadmap.md
+cline_docs/techStack.md
+cline_docs/projectVision.md
+cline_docs/task_setup_github_mcp_server.md
+packages/mcp-server/package.json
+bun.lock
+packages/mcp-server/package.json
+packages/obsidian-plugin/package.json
+packages/obsidian-plugin/package.json

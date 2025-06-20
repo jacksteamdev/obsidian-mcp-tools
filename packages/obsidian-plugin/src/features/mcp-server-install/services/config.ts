@@ -53,9 +53,9 @@ function getConfigPath(): string {
  * Updates the Claude Desktop config file with MCP server settings
  */
 export async function updateClaudeConfig(
-  plugin: Plugin,
-  serverPath: string,
-  apiKey?: string
+  plugin: Plugin, // plugin parameter is kept for now, though not directly used for apiKey
+  serverPath: string
+  // apiKey parameter removed
 ): Promise<void> {
   try {
     const configPath = getConfigPath();
@@ -78,10 +78,11 @@ export async function updateClaudeConfig(
     }
 
     // Update config with our server entry
+    // OBSIDIAN_API_KEY is removed as the server will now use vaults.json
     config.mcpServers["obsidian-mcp-tools"] = {
       command: serverPath,
       env: {
-        OBSIDIAN_API_KEY: apiKey,
+        // No OBSIDIAN_API_KEY here
       },
     };
 

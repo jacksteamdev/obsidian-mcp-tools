@@ -11,6 +11,7 @@
   import { installMcpServer } from "../services/install";
   import { getInstallationStatus } from "../services/status";
   import { uninstallServer } from "../services/uninstall";
+  import { writeInternalVaultsConfig } from "../services/vaultConfigManager"; // Import new service
   import type { InstallationStatus } from "../types";
   import { openFolder } from "../utils/openFolder";
 
@@ -39,8 +40,11 @@
       status = { ...status, state: "installing" };
       const installPath = await installMcpServer(plugin);
 
-      // Update Claude config
-      await updateClaudeConfig(plugin, installPath.path, apiKey);
+      // Write the internal vaults.json configuration
+      await writeInternalVaultsConfig(plugin);
+
+      // Update Claude config (will be modified to not pass specific API key)
+      await updateClaudeConfig(plugin, installPath.path /* apiKey removed here, will be removed in function def */);
 
       status = await getInstallationStatus(plugin);
     } catch (error) {
@@ -97,6 +101,43 @@
     <div class="status-message">Uninstalling MCP server...</div>
   {:else if status.state === "error"}
     <div class="error-message">{status.error}</div>
+  {/if}
+</div>
+
+<div class="vault-settings">
+  <h3>Vault Settings</h3>
+  
+  {#if plugin.settings.vaults && plugin.settings.vaults.length > 0}
+    <div class="setting-item">
+      <div class="setting-item-info">
+        <div class="setting-item-name">Default Vault</div>
+        <div class="setting-item-description">
+          Select the default vault to use when no vault ID is specified
+        </div>
+      </div>
+      <div class="setting-item-control">
+        <select 
+          bind:value={plugin.settings.defaultVaultId}
+          on:change={async () => {
+            await plugin.saveSettings();
+            await writeInternalVaultsConfig(plugin);
+          }}
+        >
+          <option value="">-- Select Default Vault --</option>
+          {#each plugin.settings.vaults as vault}
+            <option value={vault.id}>{vault.name}</option>
+          {/each}
+        </select>
+      </div>
+    </div>
+  {:else}
+    <div class="setting-item">
+      <div class="setting-item-info">
+        <div class="setting-item-description">
+          No vaults configured. Please configure at least one vault.
+        </div>
+      </div>
+    </div>
   {/if}
 </div>
 

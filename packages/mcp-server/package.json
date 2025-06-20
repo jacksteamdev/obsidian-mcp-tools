@@ -3,16 +3,18 @@
   "description": "A secure MCP server implementation that provides standardized access to Obsidian vaults through the Model Context Protocol.",
   "type": "module",
   "module": "src/index.ts",
+  "types": "dist/types/src/index.d.ts",
   "scripts": {
     "dev": "bun build ./src/index.ts --watch --compile --outfile ../../bin/mcp-server",
-    "build": "bun build ./src/index.ts --compile --outfile dist/mcp-server",
-    "build:linux": "bun build --compile --minify --sourcemap --target=bun-linux-x64-baseline ./src/index.ts --outfile dist/mcp-server-linux",
-    "build:mac-arm64": "bun build --compile --minify --sourcemap --target=bun-darwin-arm64 ./src/index.ts --outfile dist/mcp-server-macos-arm64",
-    "build:mac-x64": "bun build --compile --minify --sourcemap --target=bun-darwin-x64 ./src/index.ts --outfile dist/mcp-server-macos-x64",
-    "build:windows": "bun build --compile --minify --sourcemap --target=bun-windows-x64-baseline ./src/index.ts --outfile dist/mcp-server-windows",
+    "build": "bun run build:declarations && bun build ./src/index.ts --compile --outfile dist/mcp-server",
+    "build:declarations": "tsc -p tsconfig.json",
+    "build:linux": "bun run build:declarations && bun build --compile --minify --sourcemap --target=bun-linux-x64-baseline ./src/index.ts --outfile dist/mcp-server-linux",
+    "build:mac-arm64": "bun run build:declarations && bun build --compile --minify --sourcemap --target=bun-darwin-arm64 ./src/index.ts --outfile dist/mcp-server-macos-arm64",
+    "build:mac-x64": "bun run build:declarations && bun build --compile --minify --sourcemap --target=bun-darwin-x64 ./src/index.ts --outfile dist/mcp-server-macos-x64",
+    "build:windows": "bun run build:declarations && bun build --compile --minify --sourcemap --target=bun-windows-x64-baseline ./src/index.ts --outfile dist/mcp-server-windows",
     "check": "tsc --noEmit",
     "inspector": "npx @modelcontextprotocol/inspector bun src/index.ts",
-    "release": "run-s build:*",
+    "release": "bun run build:declarations && run-s build:linux build:mac-arm64 build:mac-x64 build:windows",
     "setup": "bun run ./scripts/install.ts",
     "test": "bun test ./src/**/*.test.ts"
   },
@@ -28,6 +30,7 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/node": "^24.0.0",
     "@types/turndown": "^5.0.5",
     "prettier": "^3.4.2",
     "typescript": "^5.3.3"
