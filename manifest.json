@@ -1,7 +1,7 @@
 {
   "id": "mcp-tools",
   "name": "MCP Tools",
-  "version": "0.2.23",
+  "version": "0.2.24",
   "minAppVersion": "0.15.0",
   "description": "Securely connect Claude Desktop to your vault with semantic search, templates, and file management capabilities.",
   "author": "Jack Steam",
