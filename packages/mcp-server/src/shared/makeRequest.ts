@@ -6,7 +6,8 @@ import { logger } from "./logger";
 const USE_HTTP = process.env.OBSIDIAN_USE_HTTP === "true";
 const PORT = USE_HTTP ? 27123 : 27124;
 const PROTOCOL = USE_HTTP ? "http" : "https";
-export const BASE_URL = `${PROTOCOL}://127.0.0.1:${PORT}`;
+const HOST = process.env.OBSIDIAN_HOST || "127.0.0.1";
+export const BASE_URL = `${PROTOCOL}://${HOST}:${PORT}`;
 
 // Disable TLS certificate validation for local self-signed certificates
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -23,9 +24,9 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 export async function makeRequest<
   T extends
-    | Type<{}, {}>
-    | Type<null | undefined, {}>
-    | Type<{} | null | undefined, {}>,
+  | Type<{}, {}>
+  | Type<null | undefined, {}>
+  | Type<{} | null | undefined, {}>,
 >(schema: T, path: string, init?: RequestInit): Promise<T["infer"]> {
   const API_KEY = process.env.OBSIDIAN_API_KEY;
   if (!API_KEY) {
