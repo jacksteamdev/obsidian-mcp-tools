@@ -1,6 +1,6 @@
 {
   "name": "mcp-tools-for-obsidian",
-  "version": "0.2.26",
+  "version": "0.2.27",
   "private": true,
   "description": "Securely connect Claude Desktop to your Obsidian vault with semantic search, templates, and file management capabilities.",
   "tags": [
