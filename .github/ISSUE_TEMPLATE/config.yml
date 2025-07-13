@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discord Community
+    url: https://discord.gg/q59pTrN9AA
+    about: Join our Discord for questions, discussions, and community support
+  - name: 📖 Contributing Guidelines  
+    url: https://github.com/jacksteamdev/obsidian-mcp-tools/blob/main/CONTRIBUTING.md
+    about: Read our community standards and development guidelines before posting
+  - name: 🔒 Security Issues
+    url: https://github.com/jacksteamdev/obsidian-mcp-tools/blob/main/SECURITY.md
+    about: Report security vulnerabilities privately via email
