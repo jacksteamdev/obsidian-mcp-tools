@@ -19,7 +19,6 @@ Join Discord for discussions: https://discord.gg/q59pTrN9AA
 
 ## Testing
 **How has this been tested?**
-- [ ] Unit tests pass (`bun test`)
 - [ ] Local Obsidian vault testing
 - [ ] MCP server functionality verified
 - [ ] Claude Desktop integration tested
