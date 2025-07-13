@@ -45,7 +45,19 @@ export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
   interval(200).pipe(
     takeUntil(timer(5000)),
     map((): Dependencies["smart-connections"] => {
-      const api = window.SmartSearch;
+      // Try window.SmartSearch first (works on some platforms)
+      let api = window.SmartSearch;
+      
+      // Fallback to plugin system (fixes Linux issue)
+      if (!api) {
+        const smartConnectionsPlugin = plugin.app.plugins.plugins["smart-connections"];
+        if (smartConnectionsPlugin?.env) {
+          api = smartConnectionsPlugin.env;
+          // Cache it for future use
+          window.SmartSearch = api;
+        }
+      }
+      
       return {
         id: "smart-connections",
         name: "Smart Connections",
