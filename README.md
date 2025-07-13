@@ -6,6 +6,14 @@
 
 [Features](#features) | [Installation](#installation) | [Configuration](#configuration) | [Troubleshooting](#troubleshooting) | [Security](#security) | [Development](#development) | [Support](#support)
 
+> **🔄 Seeking Project Maintainers**
+> 
+> This project is actively seeking dedicated maintainers to take over development and community management. The project will remain under the current GitHub account for Obsidian plugin store compliance, with new maintainers added as collaborators.
+> 
+> **Interested?** Join our [Discord community](https://discord.gg/q59pTrN9AA) or check our [maintainer requirements](CONTRIBUTING.md#maintainer-responsibilities).
+> 
+> **Timeline**: Applications open until **September 15, 2025**. Selection by **September 30, 2025**.
+
 MCP Tools for Obsidian enables AI applications like Claude Desktop to securely access and work with your Obsidian vault through the Model Context Protocol (MCP). MCP is an open protocol that standardizes how AI applications can interact with external data sources and tools while maintaining security and user control. [^2]
 
 This plugin consists of two parts:
@@ -184,6 +192,8 @@ packages/
 
 ## Contributing
 
+**Before contributing, please read our [Contributing Guidelines](CONTRIBUTING.md) including our community standards and behavioral expectations.**
+
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
@@ -193,16 +203,18 @@ packages/
    ```
 5. Submit a pull request
 
-Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+We welcome genuine contributions but maintain strict community standards. Be respectful and constructive in all interactions.
 
 ## Support
 
+- 💬 [Join our Discord](https://discord.gg/q59pTrN9AA) for questions, discussions, and community support
 - [Open an issue](https://github.com/jacksteamdev/obsidian-mcp-tools/issues) for bug reports and feature requests
-- [Start a discussion](https://github.com/jacksteamdev/obsidian-mcp-tools/discussions) for questions and general help
+
+**Please read our [Contributing Guidelines](CONTRIBUTING.md) before posting.** We maintain high community standards and have zero tolerance for toxic behavior.
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for a list of changes in each release.
+See [GitHub Releases](https://github.com/jacksteamdev/obsidian-mcp-tools/releases) for detailed changelog information.
 
 ## License
 
