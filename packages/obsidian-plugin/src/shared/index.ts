@@ -45,15 +45,20 @@ export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
   interval(200).pipe(
     takeUntil(timer(5000)),
     map((): Dependencies["smart-connections"] => {
-      const smartConnectionsPlugin = plugin.app.plugins.plugins["smart-connections"] as any;
-      
+      const smartConnectionsPlugin = plugin.app.plugins.plugins[
+        "smart-connections"
+      ] as any;
+
       // Check for Smart Connections v3.0+ (uses smart environment)
       if (smartConnectionsPlugin?.env?.smart_sources) {
         const smartEnv = smartConnectionsPlugin.env;
-        
+
         // Create a compatibility wrapper that matches the old SmartSearch interface
         const api: SmartConnections.SmartSearch = {
-          search: async (search_text: string, filter?: any) => {
+          search: async (
+            search_text: string,
+            filter?: Record<string, string>,
+          ) => {
             try {
               // Use the new v3.0 lookup API
               const results = await smartEnv.smart_sources.lookup({
@@ -61,7 +66,8 @@ export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
                 filter: {
                   limit: filter?.limit,
                   key_starts_with_any: filter?.key_starts_with_any,
-                  exclude_key_starts_with_any: filter?.exclude_key_starts_with_any,
+                  exclude_key_starts_with_any:
+                    filter?.exclude_key_starts_with_any,
                   exclude_key: filter?.exclude_key,
                   exclude_keys: filter?.exclude_keys,
                   exclude_key_starts_with: filter?.exclude_key_starts_with,
@@ -71,12 +77,15 @@ export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
                   key_includes: filter?.key_includes,
                 },
               });
-              
+
               // Transform results to match expected format
               return results.map((result: any) => ({
                 item: {
                   path: result.item.path,
-                  name: result.item.name || result.item.key?.split('/').pop() || result.item.key,
+                  name:
+                    result.item.name ||
+                    result.item.key?.split("/").pop() ||
+                    result.item.key,
                   breadcrumbs: result.item.breadcrumbs || result.item.path,
                   read: () => result.item.read(),
                   key: result.item.key,
@@ -87,12 +96,12 @@ export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
                 score: result.score,
               }));
             } catch (error) {
-              console.error('Smart Connections v3.0 search error:', error);
+              console.error("Smart Connections v3.0 search error:", error);
               return [];
             }
           },
         };
-        
+
         return {
           id: "smart-connections",
           name: "Smart Connections",
@@ -102,17 +111,17 @@ export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
           plugin: smartConnectionsPlugin,
         };
       }
-      
+
       // Try window.SmartSearch first (works on some platforms for v2.x)
       let legacyApi = window.SmartSearch;
-      
+
       // Fallback to plugin system (fixes Linux/cross-platform detection issues)
       if (!legacyApi && smartConnectionsPlugin?.env) {
         legacyApi = smartConnectionsPlugin.env;
         // Cache it for future use
         window.SmartSearch = legacyApi;
       }
-      
+
       return {
         id: "smart-connections",
         name: "Smart Connections",
