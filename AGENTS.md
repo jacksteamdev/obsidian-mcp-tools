@@ -1,3 +1,5 @@
+Use `bd` (beads) for all new work. DO NOT USE MARKDOWN TO TRACK ISSUES.
+
 # Project Architecture
 
 ## Structure
@@ -139,25 +141,6 @@ type({
 - Update relevant documentation in /docs when modifying features
 - Keep README.md in sync with new capabilities
 - Maintain changelog entries in CHANGELOG.md
-
-## Task Summary Records
-
-When starting a task:
-
-- Create a new Markdown file in /cline_docs
-- Record the initial objective
-- Create a checklist of subtasks
-
-Maintain the task file:
-
-- Update the checklist after completing subtasks
-- Record what worked and didn't work
-
-When completing a task:
-
-- Summarize the task outcome
-- Verify the initial objective was completed
-- Record final insights
 
 ## Testing Standards
 

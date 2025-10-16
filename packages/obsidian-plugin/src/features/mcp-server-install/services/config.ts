@@ -12,6 +12,9 @@ interface ClaudeConfig {
       args?: string[];
       env?: {
         OBSIDIAN_API_KEY?: string;
+        OAUTH_CLIENT_ID?: string;
+        OAUTH_CLIENT_SECRET?: string;
+        OAUTH_TOKEN_ENDPOINT?: string;
         [key: string]: string | undefined;
       };
     };
@@ -49,13 +52,22 @@ function getConfigPath(): string {
   return configPath;
 }
 
+export interface AuthConfig {
+  apiKey?: string;
+  oauth?: {
+    clientId: string;
+    clientSecret: string;
+    tokenEndpoint: string;
+  };
+}
+
 /**
  * Updates the Claude Desktop config file with MCP server settings
  */
 export async function updateClaudeConfig(
   plugin: Plugin,
   serverPath: string,
-  apiKey?: string
+  authConfig: AuthConfig
 ): Promise<void> {
   try {
     const configPath = getConfigPath();
@@ -77,17 +89,28 @@ export async function updateClaudeConfig(
       // File doesn't exist, use default empty config
     }
 
+    // Build environment variables based on auth config
+    const env: Record<string, string | undefined> = {};
+
+    if (authConfig.apiKey) {
+      env.OBSIDIAN_API_KEY = authConfig.apiKey;
+    }
+
+    if (authConfig.oauth) {
+      env.OAUTH_CLIENT_ID = authConfig.oauth.clientId;
+      env.OAUTH_CLIENT_SECRET = authConfig.oauth.clientSecret;
+      env.OAUTH_TOKEN_ENDPOINT = authConfig.oauth.tokenEndpoint;
+    }
+
     // Update config with our server entry
     config.mcpServers["obsidian-mcp-tools"] = {
       command: serverPath,
-      env: {
-        OBSIDIAN_API_KEY: apiKey,
-      },
+      env,
     };
 
     // Write updated config
     await fsp.writeFile(configPath, JSON.stringify(config, null, 2));
-    logger.info("Updated Claude config", { configPath });
+    logger.info("Updated Claude config", { configPath, hasApiKey: !!authConfig.apiKey, hasOAuth: !!authConfig.oauth });
   } catch (error) {
     logger.error("Failed to update Claude config:", { error });
     throw new Error(

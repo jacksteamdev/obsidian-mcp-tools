@@ -59,6 +59,13 @@ export function setupObsidianPrompts(server: Server) {
       return { prompts };
     } catch (err) {
       const error = formatMcpError(err);
+
+      // If the Prompts directory doesn't exist, return empty list instead of throwing
+      if (error.code === ErrorCode.InternalError && error.message.includes("404")) {
+        logger.debug(`Prompts directory not found, returning empty list`);
+        return { prompts: [] };
+      }
+
       logger.error("Error in ListPromptsRequestSchema handler", {
         error,
         message: error.message,

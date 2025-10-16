@@ -1,6 +1,6 @@
 import { logger, type ToolRegistry, ToolRegistryClass } from "$/shared";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { registerFetchTool } from "../fetch";
 import { registerLocalRestApiTools } from "../local-rest-api";
 import { setupObsidianPrompts } from "../prompts";
@@ -10,10 +10,12 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 export class ObsidianMcpServer {
   private server: Server;
   private tools: ToolRegistry;
+  private transports: Map<string, SSEServerTransport>;
 
   constructor() {
     this.server = new Server(
@@ -30,6 +32,7 @@ export class ObsidianMcpServer {
     );
 
     this.tools = new ToolRegistryClass();
+    this.transports = new Map();
 
     this.setupHandlers();
 
@@ -63,17 +66,82 @@ export class ObsidianMcpServer {
     });
   }
 
-  async run() {
-    logger.debug("Starting server...");
-    const transport = new StdioServerTransport();
+  /**
+   * Handles SSE connection requests (GET /sse)
+   */
+  async handleSSEConnection(req: IncomingMessage, res: ServerResponse) {
+    logger.debug("New SSE connection request");
+
+    const transport = new SSEServerTransport("/message", res);
+    const sessionId = transport.sessionId;
+
+    this.transports.set(sessionId, transport);
+
+    transport.onclose = () => {
+      logger.debug("SSE transport closed", { sessionId });
+      this.transports.delete(sessionId);
+    };
+
+    transport.onerror = (error) => {
+      logger.error("SSE transport error", { sessionId, error });
+      this.transports.delete(sessionId);
+    };
+
     try {
       await this.server.connect(transport);
-      logger.debug("Server started successfully");
+      logger.debug("SSE connection established", { sessionId });
     } catch (err) {
-      logger.fatal("Failed to start server", {
+      logger.error("Failed to establish SSE connection", {
         error: err instanceof Error ? err.message : String(err),
       });
-      process.exit(1);
+      this.transports.delete(sessionId);
+      throw err;
+    }
+  }
+
+  /**
+   * Handles POST message requests (/message)
+   */
+  async handlePostMessage(req: IncomingMessage, res: ServerResponse) {
+    console.log("handlePostMessage");
+    const sessionId = new URL(
+      req.url || "",
+      `http://${req.headers.host}`,
+    ).searchParams.get("sessionId");
+
+    if (!sessionId) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Missing sessionId parameter" }));
+      return;
+    }
+
+    const transport = this.transports.get(sessionId);
+    if (!transport) {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Session not found" }));
+      return;
+    }
+
+    try {
+      let body = "";
+      req.on("data", (chunk) => {
+        body += chunk.toString();
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        req.on("end", () => resolve());
+        req.on("error", reject);
+      });
+
+      const parsedBody = JSON.parse(body);
+      await transport.handlePostMessage(req, res, parsedBody);
+    } catch (err) {
+      logger.error("Failed to handle POST message", {
+        error: err instanceof Error ? err.message : String(err),
+        sessionId,
+      });
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Internal server error" }));
     }
   }
 }

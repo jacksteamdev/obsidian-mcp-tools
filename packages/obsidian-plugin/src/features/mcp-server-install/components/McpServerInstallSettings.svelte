@@ -19,6 +19,22 @@
   // Dependencies and API key status
   const deps = loadDependenciesArray(plugin);
 
+  // Check authentication configuration
+  let hasApiKey = false;
+  let hasOAuth = false;
+
+  onMount(async () => {
+    // Check for API key
+    const apiKey = await plugin.getLocalRestApiKey();
+    hasApiKey = !!apiKey;
+
+    // Check for OAuth credentials
+    const oauthClientId = process.env.OAUTH_CLIENT_ID;
+    const oauthClientSecret = process.env.OAUTH_CLIENT_SECRET;
+    const oauthTokenEndpoint = process.env.OAUTH_TOKEN_ENDPOINT;
+    hasOAuth = !!(oauthClientId && oauthClientSecret && oauthTokenEndpoint);
+  });
+
   // Installation status
   let status: InstallationStatus = {
     state: "not installed",
@@ -32,15 +48,31 @@
   async function handleInstall() {
     try {
       const apiKey = await plugin.getLocalRestApiKey();
-      if (!apiKey) {
-        throw new Error("Local REST API key is not configured");
+
+      // Check for OAuth credentials from environment variables
+      const oauthClientId = process.env.OAUTH_CLIENT_ID;
+      const oauthClientSecret = process.env.OAUTH_CLIENT_SECRET;
+      const oauthTokenEndpoint = process.env.OAUTH_TOKEN_ENDPOINT;
+
+      const hasOAuth = oauthClientId && oauthClientSecret && oauthTokenEndpoint;
+
+      // Require either API key or OAuth credentials
+      if (!apiKey && !hasOAuth) {
+        throw new Error("Either Local REST API key or OAuth credentials (OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_TOKEN_ENDPOINT) must be configured");
       }
 
       status = { ...status, state: "installing" };
       const installPath = await installMcpServer(plugin);
 
-      // Update Claude config
-      await updateClaudeConfig(plugin, installPath.path, apiKey);
+      // Update Claude config with auth configuration
+      await updateClaudeConfig(plugin, installPath.path, {
+        apiKey,
+        oauth: hasOAuth ? {
+          clientId: oauthClientId!,
+          clientSecret: oauthClientSecret!,
+          tokenEndpoint: oauthTokenEndpoint!,
+        } : undefined,
+      });
 
       status = await getInstallationStatus(plugin);
     } catch (error) {
@@ -70,6 +102,29 @@
     }
   }
 </script>
+
+<div class="authentication-status">
+  <h3>Authentication Configuration</h3>
+
+  {#if hasApiKey && hasOAuth}
+    <div class="status-message">
+      ✅ API Key configured<br />
+      ✅ OAuth configured (will be preferred)
+    </div>
+  {:else if hasApiKey}
+    <div class="status-message">✅ API Key configured</div>
+  {:else if hasOAuth}
+    <div class="status-message">✅ OAuth configured</div>
+  {:else}
+    <div class="error-message">
+      ❌ No authentication configured. Please configure either:
+      <ul>
+        <li>Local REST API key in the Local REST API plugin, or</li>
+        <li>OAuth credentials via environment variables (OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_TOKEN_ENDPOINT)</li>
+      </ul>
+    </div>
+  {/if}
+</div>
 
 <div class="installation-status">
   <h3>Installation status</h3>

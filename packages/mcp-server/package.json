@@ -21,6 +21,8 @@
     "acorn": "^8.14.0",
     "acorn-walk": "^8.3.4",
     "arktype": "2.0.0-rc.30",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
     "radash": "^12.1.0",
     "shared": "workspace:*",
     "turndown": "^7.2.0",
@@ -28,6 +30,8 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
     "@types/turndown": "^5.0.5",
     "prettier": "^3.4.2",
     "typescript": "^5.3.3"
