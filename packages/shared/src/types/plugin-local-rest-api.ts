@@ -181,7 +181,7 @@ export const ApiVaultDirectoryResponse = type({
  */
 export const ApiVaultFileResponse = type({
   frontmatter: {
-    tags: "string[]",
+    tags: "string[]?",
     description: "string?",
   },
   content: "string",
