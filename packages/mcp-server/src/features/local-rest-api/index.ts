@@ -8,7 +8,7 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
   tools.register(
     type({
       name: '"get_server_info"',
-      arguments: "Record<string, unknown>",
+      arguments: {},
     }).describe(
       "Returns basic details about the Obsidian Local REST API and authentication status. This is the only API request that does not require authentication.",
     ),
@@ -134,7 +134,7 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
   tools.register(
     type({
       name: '"delete_active_file"',
-      arguments: "Record<string, unknown>",
+      arguments: {},
     }).describe("Delete the currently-active file in Obsidian."),
     async () => {
       await makeRequest(LocalRestAPI.ApiNoContentResponse, "/active/", {
