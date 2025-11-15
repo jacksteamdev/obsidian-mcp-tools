@@ -1,7 +1,7 @@
 import fs from "fs";
 import fsp from "fs/promises";
 import https from "https";
-import { Notice, Plugin } from "obsidian";
+import { Notice, Plugin, type McpToolsPluginSettings } from "obsidian";
 import os from "os";
 import { Observable } from "rxjs";
 import { logger } from "$/shared";
@@ -9,7 +9,16 @@ import { GITHUB_DOWNLOAD_URL, type Arch, type Platform } from "../constants";
 import type { DownloadProgress, InstallPathInfo } from "../types";
 import { getInstallPath } from "./status";
 
-export function getPlatform(): Platform {
+export function getPlatform(plugin?: Plugin): Platform {
+  // Check for custom platform override in settings
+  if (plugin) {
+    const settings = (plugin as any).settings as McpToolsPluginSettings;
+    if (settings?.customPlatform) {
+      return settings.customPlatform;
+    }
+  }
+
+  // Fall back to detected platform
   const platform = os.platform();
   switch (platform) {
     case "darwin":
@@ -21,7 +30,16 @@ export function getPlatform(): Platform {
   }
 }
 
-export function getArch(): Arch {
+export function getArch(plugin?: Plugin): Arch {
+  // Check for custom architecture override in settings
+  if (plugin) {
+    const settings = (plugin as any).settings as McpToolsPluginSettings;
+    if (settings?.customArch) {
+      return settings.customArch;
+    }
+  }
+
+  // Fall back to detected architecture
   return os.arch() as Arch;
 }
 
@@ -216,8 +234,8 @@ export async function installMcpServer(
   plugin: Plugin,
 ): Promise<InstallPathInfo> {
   try {
-    const platform = getPlatform();
-    const arch = getArch();
+    const platform = getPlatform(plugin);
+    const arch = getArch(plugin);
     const downloadUrl = getDownloadUrl(platform, arch);
     const installPath = await getInstallPath(plugin);
     if ("error" in installPath) throw new Error(installPath.error);

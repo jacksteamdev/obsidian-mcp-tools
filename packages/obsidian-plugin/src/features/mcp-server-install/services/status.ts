@@ -9,6 +9,7 @@ import { promisify } from "util";
 import { BINARY_NAME } from "../constants";
 import type { InstallationStatus, InstallPathInfo } from "../types";
 import { getFileSystemAdapter } from "../utils/getFileSystemAdapter";
+import { normalizeDuplicateSegments } from "../utils/normalizePath";
 import { getPlatform } from "./install";
 
 const execAsync = promisify(exec);
@@ -70,7 +71,7 @@ export async function getInstallPath(
   const adapter = getFileSystemAdapter(plugin);
   if ("error" in adapter) return adapter;
 
-  const platform = getPlatform();
+  const platform = getPlatform(plugin);
   const originalPath = path.join(
     adapter.getBasePath(),
     plugin.app.vault.configDir,
@@ -79,13 +80,15 @@ export async function getInstallPath(
     "bin",
   );
   const realDirPath = await resolveSymlinks(originalPath);
+  // Normalize path to remove any duplicate segments (e.g., /home/user/home/user/vault)
+  const normalizedDirPath = normalizeDuplicateSegments(realDirPath);
   const platformSpecificBinary = BINARY_NAME[platform];
-  const realFilePath = path.join(realDirPath, platformSpecificBinary);
+  const realFilePath = path.join(normalizedDirPath, platformSpecificBinary);
   return {
-    dir: realDirPath,
+    dir: normalizedDirPath,
     path: realFilePath,
     name: platformSpecificBinary,
-    symlinked: originalPath === realDirPath ? undefined : originalPath,
+    symlinked: originalPath === normalizedDirPath ? undefined : originalPath,
   };
 }
 

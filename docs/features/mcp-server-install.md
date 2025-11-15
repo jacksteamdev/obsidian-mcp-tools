@@ -183,6 +183,8 @@ src/features/mcp-server-install/
    - Added robust symlink handling for binary paths
    - Ensures correct operation even with complex vault setups
    - Handles non-existent paths during resolution
+   - Normalizes duplicate path segments (e.g., /home/user/home/user/vault)
+   - Particularly helpful for symlinked home directories
 
 3. Status Management
    - Unified status interface with version tracking
@@ -214,6 +216,28 @@ Implemented robust platform detection and path handling:
 - Windows: Handles UNC paths and environment variables
 - macOS: Proper binary permissions and config paths
 - Linux: Flexible configuration for various distributions
+- WSL Support: Custom platform selection for running Linux binaries from Windows
+
+### Custom Configuration
+Added support for advanced configuration scenarios:
+- **Custom Platform/Architecture**: Override auto-detection for WSL and cross-platform setups
+- **Custom Binary Path**: Specify alternative binary locations
+- **Custom Command**: Wrap server execution (e.g., `wsl.exe` for WSL scenarios)
+- **Custom Environment Variables**: Pass additional environment configuration
+- **Custom Host**: Configure server connection host
+
+Example WSL configuration:
+```typescript
+{
+  customPlatform: "linux",
+  customArch: "x64",
+  customCommand: "wsl.exe --distribution Ubuntu -- bash -c \"mcp-server\"",
+  customEnvVars: {
+    OBSIDIAN_API_KEY: "your-key",
+    OBSIDIAN_HOST: "127.0.0.1"
+  }
+}
+```
 
 ### Future Considerations
 1. Version Management
@@ -223,7 +247,7 @@ Implemented robust platform detection and path handling:
 
 2. Configuration
    - Add backup/restore of Claude config
-   - Support custom binary locations
+   - ~~Support custom binary locations~~ ✅ **Implemented** (see Custom Configuration)
    - Allow custom log paths
 
 3. Error Recovery

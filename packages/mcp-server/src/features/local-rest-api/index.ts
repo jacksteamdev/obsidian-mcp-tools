@@ -2,6 +2,7 @@ import { makeRequest, type ToolRegistry } from "$/shared";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { type } from "arktype";
 import { LocalRestAPI } from "shared";
+import { normalizeDirectory } from "$/shared/normalizePath";
 
 export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
   // GET Status
@@ -251,7 +252,8 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       "List files in the root directory or a specified subdirectory of your vault.",
     ),
     async ({ arguments: args }) => {
-      const path = args.directory ? `${args.directory}/` : "";
+      const normalizedDir = normalizeDirectory(args.directory);
+      const path = normalizedDir ? `${normalizedDir}/` : "";
       const data = await makeRequest(
         LocalRestAPI.ApiVaultFileResponse.or(
           LocalRestAPI.ApiVaultDirectoryResponse,

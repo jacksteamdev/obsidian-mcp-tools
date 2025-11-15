@@ -1,5 +1,5 @@
 import fsp from "fs/promises";
-import { Plugin } from "obsidian";
+import { Plugin, type McpToolsPluginSettings } from "obsidian";
 import os from "os";
 import path from "path";
 import { logger } from "$/shared/logger";
@@ -77,17 +77,36 @@ export async function updateClaudeConfig(
       // File doesn't exist, use default empty config
     }
 
+    // Get plugin settings for custom configuration
+    const settings = (plugin as any).settings as McpToolsPluginSettings;
+
+    // Determine command to use (custom command or default server path)
+    const command = settings?.customCommand || serverPath;
+
+    // Build environment variables
+    const env: Record<string, string | undefined> = {
+      OBSIDIAN_API_KEY: apiKey,
+    };
+
+    // Add custom host if specified
+    if (settings?.customHost) {
+      env.OBSIDIAN_HOST = settings.customHost;
+    }
+
+    // Merge any custom environment variables
+    if (settings?.customEnvVars) {
+      Object.assign(env, settings.customEnvVars);
+    }
+
     // Update config with our server entry
     config.mcpServers["obsidian-mcp-tools"] = {
-      command: serverPath,
-      env: {
-        OBSIDIAN_API_KEY: apiKey,
-      },
+      command,
+      env,
     };
 
     // Write updated config
     await fsp.writeFile(configPath, JSON.stringify(config, null, 2));
-    logger.info("Updated Claude config", { configPath });
+    logger.info("Updated Claude config", { configPath, command });
   } catch (error) {
     logger.error("Failed to update Claude config:", { error });
     throw new Error(
