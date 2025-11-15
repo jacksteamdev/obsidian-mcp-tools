@@ -40,28 +40,58 @@ export default class McpToolsPlugin extends Plugin {
     await setupMcpServerInstall(this);
 
     // Check for required dependencies
-    lastValueFrom(loadLocalRestAPI(this)).then((localRestApi) => {
-      this.localRestApi = localRestApi;
+    lastValueFrom(loadLocalRestAPI(this))
+      .then((localRestApi) => {
+        this.localRestApi = localRestApi;
 
-      if (!this.localRestApi.api) {
+        if (!this.localRestApi.api) {
+          new Notice(
+            `${this.manifest.name}: Local REST API plugin is required but not found. Please install it from the community plugins and restart Obsidian.`,
+            0,
+          );
+          logger.error("Local REST API plugin not found");
+          return;
+        }
+
+        // Check if the plugin version supports the Extension API
+        if (typeof this.localRestApi.api.addRoute !== "function") {
+          new Notice(
+            `${this.manifest.name}: Local REST API plugin version is outdated. Please update to version 2.5.4 or later to enable custom endpoints.`,
+            0,
+          );
+          logger.error("Local REST API plugin does not support addRoute API");
+          return;
+        }
+
+        try {
+          // Register endpoints
+          this.localRestApi.api
+            .addRoute("/search/smart")
+            .post(this.handleSearchRequest.bind(this));
+
+          logger.info("Registered endpoint: POST /search/smart");
+
+          this.localRestApi.api
+            .addRoute("/templates/execute")
+            .post(this.handleTemplateExecution.bind(this));
+
+          logger.info("Registered endpoint: POST /templates/execute");
+          logger.info("MCP Tools Plugin loaded successfully");
+        } catch (error) {
+          logger.error("Failed to register endpoints", { error });
+          new Notice(
+            `${this.manifest.name}: Failed to register API endpoints. Error: ${error instanceof Error ? error.message : String(error)}`,
+            0,
+          );
+        }
+      })
+      .catch((error) => {
+        logger.error("Failed to load Local REST API plugin", { error });
         new Notice(
-          `${this.manifest.name}: Local REST API plugin is required but not found. Please install it from the community plugins and restart Obsidian.`,
+          `${this.manifest.name}: Failed to load Local REST API plugin. Please ensure it is installed and enabled.`,
           0,
         );
-        return;
-      }
-
-      // Register endpoints
-      this.localRestApi.api
-        .addRoute("/search/smart")
-        .post(this.handleSearchRequest.bind(this));
-
-      this.localRestApi.api
-        .addRoute("/templates/execute")
-        .post(this.handleTemplateExecution.bind(this));
-
-      logger.info("MCP Tools Plugin loaded");
-    });
+      });
   }
 
   private async handleTemplateExecution(req: Request, res: Response) {
