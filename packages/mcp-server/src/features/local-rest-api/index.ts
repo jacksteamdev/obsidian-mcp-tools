@@ -95,15 +95,16 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       "Insert or modify content in the currently-open note relative to a heading, block reference, or frontmatter field.",
     ),
     async ({ arguments: args }) => {
+      // Encode header values to handle special characters, newlines, and multi-byte characters
       const headers: Record<string, string> = {
         Operation: args.operation,
         "Target-Type": args.targetType,
-        Target: args.target,
+        Target: encodeURIComponent(args.target),
         "Create-Target-If-Missing": "true",
       };
 
       if (args.targetDelimiter) {
-        headers["Target-Delimiter"] = args.targetDelimiter;
+        headers["Target-Delimiter"] = encodeURIComponent(args.targetDelimiter);
       }
       if (args.trimTargetWhitespace !== undefined) {
         headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
@@ -356,15 +357,16 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       "Insert or modify content in a file relative to a heading, block reference, or frontmatter field.",
     ),
     async ({ arguments: args }) => {
+      // Encode header values to handle special characters, newlines, and multi-byte characters
       const headers: HeadersInit = {
         Operation: args.operation,
         "Target-Type": args.targetType,
-        Target: args.target,
+        Target: encodeURIComponent(args.target),
         "Create-Target-If-Missing": "true",
       };
 
       if (args.targetDelimiter) {
-        headers["Target-Delimiter"] = args.targetDelimiter;
+        headers["Target-Delimiter"] = encodeURIComponent(args.targetDelimiter);
       }
       if (args.trimTargetWhitespace !== undefined) {
         headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
