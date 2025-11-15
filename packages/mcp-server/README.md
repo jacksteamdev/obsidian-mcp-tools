@@ -52,12 +52,23 @@ On macOS:
     "obsidian-mcp-tools": {
       "command": "/path/to/mcp-server",
       "env": {
-        "OBSIDIAN_API_KEY": "your-api-key"
+        "OBSIDIAN_API_KEY": "your-api-key",
+        "OBSIDIAN_HTTP_PORT": "27123",     // Optional: Custom HTTP port (default: 27123)
+        "OBSIDIAN_HTTPS_PORT": "27124",    // Optional: Custom HTTPS port (default: 27124)
+        "OBSIDIAN_HOST": "127.0.0.1"       // Optional: Custom host (default: 127.0.0.1)
       }
     }
   }
 }
 ```
+
+#### Environment Variables
+
+- `OBSIDIAN_API_KEY` (required): Your Local REST API plugin API key
+- `OBSIDIAN_HTTP_PORT` (optional): Custom HTTP port (default: 27123)
+- `OBSIDIAN_HTTPS_PORT` (optional): Custom HTTPS port (default: 27124)
+- `OBSIDIAN_HOST` (optional): Custom host address (default: 127.0.0.1)
+- `OBSIDIAN_USE_HTTP` (optional): Use HTTP instead of HTTPS (default: false)
 
 ## Development
 
