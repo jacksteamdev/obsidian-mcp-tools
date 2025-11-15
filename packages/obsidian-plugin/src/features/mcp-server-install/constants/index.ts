@@ -12,7 +12,7 @@ export const BINARY_NAME = {
 export const CLAUDE_CONFIG_PATH = {
   macos: "~/Library/Application Support/Claude/claude_desktop_config.json",
   windows: "%APPDATA%\\Claude\\claude_desktop_config.json",
-  linux: "~/.config/claude/config.json",
+  linux: "~/.config/Claude/claude_desktop_config.json",
 } as const;
 
 export const LOG_PATH = {
