@@ -71,6 +71,66 @@ Clicking the install button will:
   - Windows: %APPDATA%\obsidian-mcp-tools\logs
   - Linux: ~/.local/share/obsidian-mcp-tools/logs
 
+### Installing Server Outside Vault Directory
+
+If you use OneDrive, Google Drive, or another cloud sync service that automatically removes executables, you can manually install the MCP server outside your vault:
+
+#### 1. Create an External Installation Directory
+
+Choose a location outside your vault that won't be synced:
+- **macOS/Linux**: `~/.local/share/obsidian-mcp-tools/bin/`
+- **Windows**: `%LOCALAPPDATA%\obsidian-mcp-tools\bin\`
+
+```bash
+# macOS/Linux
+mkdir -p ~/.local/share/obsidian-mcp-tools/bin
+
+# Windows (PowerShell)
+New-Item -ItemType Directory -Path "$env:LOCALAPPDATA\obsidian-mcp-tools\bin" -Force
+```
+
+#### 2. Download the MCP Server Binary
+
+Download the latest release for your platform from the [releases page](https://github.com/jacksteamdev/obsidian-mcp-tools/releases):
+- **macOS (Intel)**: `mcp-server-macos-x64`
+- **macOS (Apple Silicon)**: `mcp-server-macos-arm64`
+- **Windows**: `mcp-server-windows.exe`
+- **Linux**: `mcp-server-linux`
+
+Move the downloaded binary to your installation directory and make it executable:
+
+```bash
+# macOS/Linux
+chmod +x ~/.local/share/obsidian-mcp-tools/bin/mcp-server
+```
+
+#### 3. Configure Your MCP Client
+
+Manually configure your MCP client to use the external binary location. Edit your MCP client's configuration file:
+
+**For Claude Desktop:**
+
+```json
+{
+  "mcpServers": {
+    "obsidian-mcp-tools": {
+      "command": "/Users/YourUsername/.local/share/obsidian-mcp-tools/bin/mcp-server",
+      "env": {
+        "OBSIDIAN_API_KEY": "your-local-rest-api-key-here"
+      }
+    }
+  }
+}
+```
+
+Replace the `command` path with your actual installation path and `OBSIDIAN_API_KEY` with your Local REST API plugin's API key.
+
+**Benefits of External Installation:**
+- Compatible with cloud sync services that block executables
+- Separates application binaries from document data
+- Single installation can serve multiple vaults (using different API keys)
+- Easier to manage binary updates independently
+
 ## Configuration
 
 After clicking the "Install Server" button in the plugin settings, the plugin will automatically:
