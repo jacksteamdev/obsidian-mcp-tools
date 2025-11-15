@@ -251,7 +251,9 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       "List files in the root directory or a specified subdirectory of your vault.",
     ),
     async ({ arguments: args }) => {
-      const path = args.directory ? `${args.directory}/` : "";
+      // Normalize path by removing trailing slashes to prevent double slashes
+      const directory = args.directory?.replace(/\/+$/, "") || "";
+      const path = directory ? `${directory}/` : "";
       const data = await makeRequest(
         LocalRestAPI.ApiVaultFileResponse.or(
           LocalRestAPI.ApiVaultDirectoryResponse,
