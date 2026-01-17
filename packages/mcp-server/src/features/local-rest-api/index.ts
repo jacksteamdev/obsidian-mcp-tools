@@ -25,10 +25,13 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"get_active_file"',
       arguments: {
-        format: type('"markdown" | "json"').optional(),
+        "format?": type('"markdown" | "json"').describe(
+          "Response format: 'markdown' for raw content or 'json' for parsed with frontmatter and tags. Optional, defaults to 'markdown'.",
+        ),
       },
     }).describe(
-      "Returns the content of the currently active file in Obsidian. Can return either markdown content or a JSON representation including parsed tags and frontmatter.",
+      "Returns the content of the currently active file in Obsidian. Can return either markdown content or a JSON representation including parsed tags and frontmatter. " +
+        "Example: { format: 'json' }",
     ),
     async ({ arguments: args }) => {
       const format =
@@ -53,9 +56,15 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"update_active_file"',
       arguments: {
-        content: "string",
+        content: type("string").describe(
+          "The complete new content to write to the file. REQUIRED.",
+        ),
       },
-    }).describe("Update the content of the active file open in Obsidian."),
+    }).describe(
+      "Update the content of the active file open in Obsidian. " +
+        "IMPORTANT: The 'content' argument is required. " +
+        "Example: { content: '# My Note\\n\\nUpdated content here' }",
+    ),
     async ({ arguments: args }) => {
       await makeRequest(LocalRestAPI.ApiNoContentResponse, "/active/", {
         method: "PUT",
@@ -72,9 +81,15 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"append_to_active_file"',
       arguments: {
-        content: "string",
+        content: type("string").describe(
+          "The content to append to the end of the file. REQUIRED.",
+        ),
       },
-    }).describe("Append content to the end of the currently-open note."),
+    }).describe(
+      "Append content to the end of the currently-open note. " +
+        "IMPORTANT: The 'content' argument is required. " +
+        "Example: { content: '\\n\\n## New Section\\n\\nAppended content' }",
+    ),
     async ({ arguments: args }) => {
       await makeRequest(LocalRestAPI.ApiNoContentResponse, "/active/", {
         method: "POST",
@@ -92,7 +107,9 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       name: '"patch_active_file"',
       arguments: LocalRestAPI.ApiPatchParameters,
     }).describe(
-      "Insert or modify content in the currently-open note relative to a heading, block reference, or frontmatter field.",
+      "Insert or modify content in the currently-open note relative to a heading, block reference, or frontmatter field. " +
+        "IMPORTANT: The 'operation', 'targetType', 'target', and 'content' arguments are required. " +
+        "Example: { operation: 'append', targetType: 'heading', target: 'My Heading', content: '\\n\\nNew content' }",
     ),
     async ({ arguments: args }) => {
       const headers: Record<string, string> = {
@@ -151,11 +168,17 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"show_file_in_obsidian"',
       arguments: {
-        filename: "string",
-        "newLeaf?": "boolean",
+        filename: type("string").describe(
+          "The vault-relative path to the file (e.g., 'notes/my-note.md'). REQUIRED.",
+        ),
+        "newLeaf?": type("boolean").describe(
+          "Whether to open in a new tab. Optional, defaults to false.",
+        ),
       },
     }).describe(
-      "Open a document in the Obsidian UI. Creates a new document if it doesn't exist. Returns a confirmation if the file was opened successfully.",
+      "Open a document in the Obsidian UI. Creates a new document if it doesn't exist. " +
+        "IMPORTANT: The 'filename' argument is required. " +
+        "Example: { filename: 'daily/2025-01-17.md' }",
     ),
     async ({ arguments: args }) => {
       const query = args.newLeaf ? "?newLeaf=true" : "";
@@ -179,11 +202,17 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"search_vault"',
       arguments: {
-        queryType: '"dataview" | "jsonlogic"',
-        query: "string",
+        queryType: type('"dataview" | "jsonlogic"').describe(
+          "The query language to use: 'dataview' for DQL or 'jsonlogic'. REQUIRED.",
+        ),
+        query: type("string").describe(
+          "The search query string in the specified query language. REQUIRED.",
+        ),
       },
     }).describe(
-      "Search for documents matching a specified query using either Dataview DQL or JsonLogic.",
+      "Search for documents matching a specified query using either Dataview DQL or JsonLogic. " +
+        "IMPORTANT: Both 'queryType' and 'query' arguments are required. " +
+        "Example: { queryType: 'dataview', query: 'LIST FROM \"notes\"' }",
     ),
     async ({ arguments: args }) => {
       const contentType =
@@ -212,10 +241,18 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"search_vault_simple"',
       arguments: {
-        query: "string",
-        "contextLength?": "number",
+        query: type("string").describe(
+          "The text search query to find in vault files. REQUIRED.",
+        ),
+        "contextLength?": type("number").describe(
+          "Number of characters of context around matches. Optional.",
+        ),
       },
-    }).describe("Search for documents matching a text query."),
+    }).describe(
+      "Search for documents matching a text query. " +
+        "IMPORTANT: The 'query' argument is required. " +
+        "Example: { query: 'meeting notes' }",
+    ),
     async ({ arguments: args }) => {
       const query = new URLSearchParams({
         query: args.query,
@@ -245,10 +282,13 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"list_vault_files"',
       arguments: {
-        "directory?": "string",
+        "directory?": type("string").describe(
+          "The vault-relative path to list. Optional, defaults to vault root.",
+        ),
       },
     }).describe(
-      "List files in the root directory or a specified subdirectory of your vault.",
+      "List files in the root directory or a specified subdirectory of your vault. " +
+        "Example: { directory: 'notes/projects' }",
     ),
     async ({ arguments: args }) => {
       const path = args.directory ? `${args.directory}/` : "";
@@ -269,10 +309,18 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"get_vault_file"',
       arguments: {
-        filename: "string",
-        "format?": '"markdown" | "json"',
+        filename: type("string").describe(
+          "The vault-relative path to the file (e.g., 'notes/my-note.md'). REQUIRED.",
+        ),
+        "format?": type('"markdown" | "json"').describe(
+          "Response format: 'markdown' for raw content or 'json' for parsed with frontmatter. Optional, defaults to 'markdown'.",
+        ),
       },
-    }).describe("Get the content of a file from your vault."),
+    }).describe(
+      "Get the content of a file from your vault. " +
+        "IMPORTANT: The 'filename' argument is required. " +
+        "Example: { filename: 'daily/2025-01-17.md' }",
+    ),
     async ({ arguments: args }) => {
       const isJson = args.format === "json";
       const format = isJson
@@ -302,10 +350,18 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"create_vault_file"',
       arguments: {
-        filename: "string",
-        content: "string",
+        filename: type("string").describe(
+          "The vault-relative path to the file (e.g., 'notes/my-note.md'). REQUIRED.",
+        ),
+        content: type("string").describe(
+          "The complete content to write to the file. REQUIRED.",
+        ),
       },
-    }).describe("Create a new file in your vault or update an existing one."),
+    }).describe(
+      "Create a new file in your vault or update an existing file. " +
+        "IMPORTANT: Both 'filename' and 'content' arguments are required. " +
+        "Example: { filename: 'daily/2025-01-17.md', content: '# Daily Note\\n\\nContent here' }",
+    ),
     async ({ arguments: args }) => {
       await makeRequest(
         LocalRestAPI.ApiNoContentResponse,
@@ -326,10 +382,18 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"append_to_vault_file"',
       arguments: {
-        filename: "string",
-        content: "string",
+        filename: type("string").describe(
+          "The vault-relative path to the file (e.g., 'notes/my-note.md'). REQUIRED.",
+        ),
+        content: type("string").describe(
+          "The content to append to the end of the file. REQUIRED.",
+        ),
       },
-    }).describe("Append content to a new or existing file."),
+    }).describe(
+      "Append content to a new or existing file. " +
+        "IMPORTANT: Both 'filename' and 'content' arguments are required. " +
+        "Example: { filename: 'journal/log.md', content: '\\n\\n## New Entry\\n\\nContent here' }",
+    ),
     async ({ arguments: args }) => {
       await makeRequest(
         LocalRestAPI.ApiNoContentResponse,
@@ -350,10 +414,14 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"patch_vault_file"',
       arguments: type({
-        filename: "string",
+        filename: type("string").describe(
+          "The vault-relative path to the file (e.g., 'notes/my-note.md'). REQUIRED.",
+        ),
       }).and(LocalRestAPI.ApiPatchParameters),
     }).describe(
-      "Insert or modify content in a file relative to a heading, block reference, or frontmatter field.",
+      "Insert or modify content in a file relative to a heading, block reference, or frontmatter field. " +
+        "IMPORTANT: The 'filename', 'operation', 'targetType', 'target', and 'content' arguments are required. " +
+        "Example: { filename: 'notes/todo.md', operation: 'append', targetType: 'heading', target: 'Tasks', content: '\\n- [ ] New task' }",
     ),
     async ({ arguments: args }) => {
       const headers: HeadersInit = {
@@ -397,9 +465,15 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     type({
       name: '"delete_vault_file"',
       arguments: {
-        filename: "string",
+        filename: type("string").describe(
+          "The vault-relative path to the file to delete (e.g., 'notes/old-note.md'). REQUIRED.",
+        ),
       },
-    }).describe("Delete a file from your vault."),
+    }).describe(
+      "Delete a file from your vault. " +
+        "IMPORTANT: The 'filename' argument is required. " +
+        "Example: { filename: 'archive/old-note.md' }",
+    ),
     async ({ arguments: args }) => {
       await makeRequest(
         LocalRestAPI.ApiNoContentResponse,
