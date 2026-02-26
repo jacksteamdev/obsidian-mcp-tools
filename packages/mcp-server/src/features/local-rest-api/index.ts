@@ -98,12 +98,12 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       const headers: Record<string, string> = {
         Operation: args.operation,
         "Target-Type": args.targetType,
-        Target: args.target,
+        Target: encodeURIComponent(args.target),
         "Create-Target-If-Missing": "true",
       };
 
       if (args.targetDelimiter) {
-        headers["Target-Delimiter"] = args.targetDelimiter;
+        headers["Target-Delimiter"] = encodeURIComponent(args.targetDelimiter);
       }
       if (args.trimTargetWhitespace !== undefined) {
         headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
@@ -359,12 +359,12 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       const headers: HeadersInit = {
         Operation: args.operation,
         "Target-Type": args.targetType,
-        Target: args.target,
+        Target: encodeURIComponent(args.target),
         "Create-Target-If-Missing": "true",
       };
 
       if (args.targetDelimiter) {
-        headers["Target-Delimiter"] = args.targetDelimiter;
+        headers["Target-Delimiter"] = encodeURIComponent(args.targetDelimiter);
       }
       if (args.trimTargetWhitespace !== undefined) {
         headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
