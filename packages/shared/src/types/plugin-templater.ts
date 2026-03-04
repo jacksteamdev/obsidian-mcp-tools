@@ -1,6 +1,6 @@
-import {
+import type {
   App,
-  type MarkdownPostProcessorContext,
+  MarkdownPostProcessorContext,
   TAbstractFile,
   TFile,
   TFolder,
