@@ -6,6 +6,7 @@ import {
 } from "$/shared";
 import { type } from "arktype";
 import { buildTemplateArgumentsSchema, LocalRestAPI } from "shared";
+import { validateTemplatePath } from "./validateTemplatePath";
 
 export function registerTemplaterTools(tools: ToolRegistry) {
   tools.register(
@@ -19,10 +20,13 @@ export function registerTemplaterTools(tools: ToolRegistry) {
       ),
     }).describe("Execute a Templater template with the given arguments"),
     async ({ arguments: args }) => {
+      validateTemplatePath(args.name);
+      if (args.targetPath) validateTemplatePath(args.targetPath);
+
       // Get prompt content
       const data = await makeRequest(
         LocalRestAPI.ApiVaultFileResponse,
-        `/vault/${args.name}`,
+        `/vault/${encodeURIComponent(args.name)}`,
         {
           headers: { Accept: LocalRestAPI.MIME_TYPE_OLRAPI_NOTE_JSON },
         },
