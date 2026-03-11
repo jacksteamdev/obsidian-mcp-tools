@@ -4,6 +4,7 @@ import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { type } from "arktype";
 import { DEFAULT_USER_AGENT } from "./constants";
 import { convertHtmlToMarkdown } from "./services/markdown";
+import { validateUrl } from "./services/validateUrl";
 
 export function registerFetchTool(tools: ToolRegistry, server: Server) {
   tools.register(
@@ -26,6 +27,8 @@ export function registerFetchTool(tools: ToolRegistry, server: Server) {
       logger.info("Fetching URL", { url: args.url });
 
       try {
+        await validateUrl(args.url);
+
         const response = await fetch(args.url, {
           headers: {
             "User-Agent": DEFAULT_USER_AGENT,
