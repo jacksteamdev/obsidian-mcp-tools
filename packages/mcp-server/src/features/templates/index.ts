@@ -2,11 +2,11 @@ import {
   formatMcpError,
   makeRequest,
   parseTemplateParameters,
+  validateVaultPath,
   type ToolRegistry,
 } from "$/shared";
 import { type } from "arktype";
 import { buildTemplateArgumentsSchema, LocalRestAPI } from "shared";
-import { validateTemplatePath } from "./validateTemplatePath";
 
 export function registerTemplaterTools(tools: ToolRegistry) {
   tools.register(
@@ -20,8 +20,8 @@ export function registerTemplaterTools(tools: ToolRegistry) {
       ),
     }).describe("Execute a Templater template with the given arguments"),
     async ({ arguments: args }) => {
-      validateTemplatePath(args.name);
-      if (args.targetPath) validateTemplatePath(args.targetPath);
+      validateVaultPath(args.name);
+      if (args.targetPath) validateVaultPath(args.targetPath);
 
       // Get prompt content
       const data = await makeRequest(

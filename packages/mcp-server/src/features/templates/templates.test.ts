@@ -1,42 +1,38 @@
 import { describe, expect, it } from "bun:test";
-import { validateTemplatePath } from "./validateTemplatePath";
+import { validateVaultPath } from "$/shared";
 
-describe("validateTemplatePath", () => {
-  // Valid paths
+describe("validateVaultPath (template context)", () => {
   it("should accept normal template names", () => {
-    expect(() => validateTemplatePath("Templates/daily.md")).not.toThrow();
+    expect(() => validateVaultPath("Templates/daily.md")).not.toThrow();
   });
 
   it("should accept simple filenames", () => {
-    expect(() => validateTemplatePath("template.md")).not.toThrow();
+    expect(() => validateVaultPath("template.md")).not.toThrow();
   });
 
   it("should accept nested paths", () => {
-    expect(() => validateTemplatePath("folder/subfolder/note.md")).not.toThrow();
+    expect(() => validateVaultPath("folder/subfolder/note.md")).not.toThrow();
   });
 
-  // Path traversal
   it("should reject names containing ..", () => {
-    expect(() => validateTemplatePath("../secret")).toThrow(/path traversal/i);
+    expect(() => validateVaultPath("../secret")).toThrow(/path traversal/i);
   });
 
   it("should reject names with .. in the middle", () => {
-    expect(() => validateTemplatePath("templates/../../../etc/passwd")).toThrow(
+    expect(() => validateVaultPath("templates/../../../etc/passwd")).toThrow(
       /path traversal/i,
     );
   });
 
   it("should reject names starting with ..", () => {
-    expect(() => validateTemplatePath("..")).toThrow(/path traversal/i);
+    expect(() => validateVaultPath("..")).toThrow(/path traversal/i);
   });
 
-  // Null bytes
   it("should reject names with null bytes", () => {
-    expect(() => validateTemplatePath("template\0.md")).toThrow();
+    expect(() => validateVaultPath("template\0.md")).toThrow(/null bytes/i);
   });
 
-  // Absolute paths
   it("should reject absolute paths", () => {
-    expect(() => validateTemplatePath("/etc/passwd")).toThrow();
+    expect(() => validateVaultPath("/etc/passwd")).toThrow(/absolute/i);
   });
 });
