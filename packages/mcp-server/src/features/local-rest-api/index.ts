@@ -99,8 +99,11 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
         Operation: args.operation,
         "Target-Type": args.targetType,
         Target: args.target,
-        "Create-Target-If-Missing": "true",
       };
+
+      if (args.createTargetIfMissing !== undefined) {
+        headers["Create-Target-If-Missing"] = String(args.createTargetIfMissing);
+      }
 
       if (args.targetDelimiter) {
         headers["Target-Delimiter"] = args.targetDelimiter;
@@ -360,8 +363,11 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
         Operation: args.operation,
         "Target-Type": args.targetType,
         Target: args.target,
-        "Create-Target-If-Missing": "true",
       };
+
+      if (args.createTargetIfMissing !== undefined) {
+        headers["Create-Target-If-Missing"] = String(args.createTargetIfMissing);
+      }
 
       if (args.targetDelimiter) {
         headers["Target-Delimiter"] = args.targetDelimiter;
