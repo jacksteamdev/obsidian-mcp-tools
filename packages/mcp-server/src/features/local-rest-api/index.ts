@@ -2,6 +2,7 @@ import { makeRequest, type ToolRegistry } from "$/shared";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { type } from "arktype";
 import { LocalRestAPI } from "shared";
+import { buildPatchHeaders } from "./buildPatchHeaders";
 
 export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
   // GET Status
@@ -95,25 +96,7 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       "Insert or modify content in the currently-open note relative to a heading, block reference, or frontmatter field.",
     ),
     async ({ arguments: args }) => {
-      const headers: Record<string, string> = {
-        Operation: args.operation,
-        "Target-Type": args.targetType,
-        Target: args.target,
-      };
-
-      if (args.createTargetIfMissing !== undefined) {
-        headers["Create-Target-If-Missing"] = String(args.createTargetIfMissing);
-      }
-
-      if (args.targetDelimiter) {
-        headers["Target-Delimiter"] = args.targetDelimiter;
-      }
-      if (args.trimTargetWhitespace !== undefined) {
-        headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
-      }
-      if (args.contentType) {
-        headers["Content-Type"] = args.contentType;
-      }
+      const headers = buildPatchHeaders(args);
 
       const response = await makeRequest(
         LocalRestAPI.ApiContentResponse,
@@ -359,25 +342,7 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       "Insert or modify content in a file relative to a heading, block reference, or frontmatter field.",
     ),
     async ({ arguments: args }) => {
-      const headers: HeadersInit = {
-        Operation: args.operation,
-        "Target-Type": args.targetType,
-        Target: args.target,
-      };
-
-      if (args.createTargetIfMissing !== undefined) {
-        headers["Create-Target-If-Missing"] = String(args.createTargetIfMissing);
-      }
-
-      if (args.targetDelimiter) {
-        headers["Target-Delimiter"] = args.targetDelimiter;
-      }
-      if (args.trimTargetWhitespace !== undefined) {
-        headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
-      }
-      if (args.contentType) {
-        headers["Content-Type"] = args.contentType;
-      }
+      const headers = buildPatchHeaders(args);
 
       const response = await makeRequest(
         LocalRestAPI.ApiContentResponse,
