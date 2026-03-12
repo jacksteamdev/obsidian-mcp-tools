@@ -48,18 +48,12 @@ describe("buildPatchHeaders — required fields", () => {
     const headers = buildPatchHeaders(args);
 
     // Then: all three required headers are present with correct values
-    expect(headers["Operation"]).toBe(
-      "append",
-      // diagnostic: "Operation header should map directly from args.operation"
-    );
-    expect(headers["Target-Type"]).toBe(
-      "heading",
-      // diagnostic: "Target-Type header should map directly from args.targetType"
-    );
-    expect(headers["Target"]).toBe(
-      "Section Title",
-      // diagnostic: "Target header should map directly from args.target"
-    );
+    // Operation header should map directly from args.operation
+    expect(headers["Operation"]).toBe("append");
+    // Target-Type header should map directly from args.targetType
+    expect(headers["Target-Type"]).toBe("heading");
+    // Target header should map directly from args.target
+    expect(headers["Target"]).toBe("Section Title");
   });
 
   test("does not include optional headers when optional fields are omitted", () => {
@@ -82,22 +76,14 @@ describe("buildPatchHeaders — required fields", () => {
     const headers = buildPatchHeaders(args);
 
     // Then: no optional headers are present
-    expect(headers).not.toHaveProperty(
-      "Target-Delimiter",
-      // diagnostic: "Target-Delimiter should be absent when targetDelimiter is not provided"
-    );
-    expect(headers).not.toHaveProperty(
-      "Trim-Target-Whitespace",
-      // diagnostic: "Trim-Target-Whitespace should be absent when trimTargetWhitespace is not provided"
-    );
-    expect(headers).not.toHaveProperty(
-      "Content-Type",
-      // diagnostic: "Content-Type should be absent when contentType is not provided"
-    );
-    expect(headers).not.toHaveProperty(
-      "Create-Target-If-Missing",
-      // diagnostic: "Create-Target-If-Missing should be absent when createTargetIfMissing is not provided"
-    );
+    // Target-Delimiter should be absent when targetDelimiter is not provided
+    expect(headers).not.toHaveProperty("Target-Delimiter");
+    // Trim-Target-Whitespace should be absent when trimTargetWhitespace is not provided
+    expect(headers).not.toHaveProperty("Trim-Target-Whitespace");
+    // Content-Type should be absent when contentType is not provided
+    expect(headers).not.toHaveProperty("Content-Type");
+    // Create-Target-If-Missing should be absent when createTargetIfMissing is not provided
+    expect(headers).not.toHaveProperty("Create-Target-If-Missing");
   });
 });
 
@@ -137,10 +123,7 @@ describe("buildPatchHeaders — optional fields", () => {
     const headers = buildPatchHeaders(args);
 
     // Then: Target-Delimiter is set to the provided value
-    expect(headers["Target-Delimiter"]).toBe(
-      ">",
-      // diagnostic: "Target-Delimiter should match the provided targetDelimiter"
-    );
+    expect(headers["Target-Delimiter"]).toBe(">");
   });
 
   test("includes Trim-Target-Whitespace header as string when trimTargetWhitespace is true", () => {
@@ -162,11 +145,8 @@ describe("buildPatchHeaders — optional fields", () => {
     // When: headers are built
     const headers = buildPatchHeaders(args);
 
-    // Then: Trim-Target-Whitespace is the string "true"
-    expect(headers["Trim-Target-Whitespace"]).toBe(
-      "true",
-      // diagnostic: "Trim-Target-Whitespace must be string 'true', not boolean true"
-    );
+    // Then: Trim-Target-Whitespace is the string "true", not boolean true
+    expect(headers["Trim-Target-Whitespace"]).toBe("true");
   });
 
   test("includes Trim-Target-Whitespace header as string when trimTargetWhitespace is false", () => {
@@ -188,11 +168,8 @@ describe("buildPatchHeaders — optional fields", () => {
     // When: headers are built
     const headers = buildPatchHeaders(args);
 
-    // Then: Trim-Target-Whitespace is the string "false"
-    expect(headers["Trim-Target-Whitespace"]).toBe(
-      "false",
-      // diagnostic: "Trim-Target-Whitespace must be string 'false' when explicitly set to false"
-    );
+    // Then: Trim-Target-Whitespace is the string "false", not omitted
+    expect(headers["Trim-Target-Whitespace"]).toBe("false");
   });
 
   test("includes Content-Type header when contentType is provided", () => {
@@ -215,10 +192,7 @@ describe("buildPatchHeaders — optional fields", () => {
     const headers = buildPatchHeaders(args);
 
     // Then: Content-Type is set to the provided value
-    expect(headers["Content-Type"]).toBe(
-      "application/json",
-      // diagnostic: "Content-Type should match the provided contentType"
-    );
+    expect(headers["Content-Type"]).toBe("application/json");
   });
 });
 
@@ -260,10 +234,7 @@ describe("buildPatchHeaders — createTargetIfMissing", () => {
     const headers = buildPatchHeaders(args);
 
     // Then: Create-Target-If-Missing is "true"
-    expect(headers["Create-Target-If-Missing"]).toBe(
-      "true",
-      // diagnostic: "Create-Target-If-Missing must be string 'true' when opted in"
-    );
+    expect(headers["Create-Target-If-Missing"]).toBe("true");
   });
 
   test("includes Create-Target-If-Missing as 'false' when explicitly set to false", () => {
@@ -286,10 +257,7 @@ describe("buildPatchHeaders — createTargetIfMissing", () => {
     const headers = buildPatchHeaders(args);
 
     // Then: Create-Target-If-Missing is "false"
-    expect(headers["Create-Target-If-Missing"]).toBe(
-      "false",
-      // diagnostic: "Create-Target-If-Missing must be string 'false' when explicitly opted out"
-    );
+    expect(headers["Create-Target-If-Missing"]).toBe("false");
   });
 
   test("omits Create-Target-If-Missing header when createTargetIfMissing is not provided", () => {
@@ -310,10 +278,7 @@ describe("buildPatchHeaders — createTargetIfMissing", () => {
     // When: headers are built
     const headers = buildPatchHeaders(args);
 
-    // Then: Create-Target-If-Missing is not in the headers
-    expect(headers).not.toHaveProperty(
-      "Create-Target-If-Missing",
-      // diagnostic: "Create-Target-If-Missing should be absent when not provided — the old hardcoded 'true' behavior is the bug this fixes"
-    );
+    // Then: Create-Target-If-Missing is not in the headers — the old hardcoded 'true' behavior is the bug this fixes
+    expect(headers).not.toHaveProperty("Create-Target-If-Missing");
   });
 });
