@@ -1,6 +1,6 @@
 import type McpToolsPlugin from "$/main";
 import { logger } from "$/shared/logger";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import fsp from "fs/promises";
 import { Plugin } from "obsidian";
 import path from "path";
@@ -11,7 +11,7 @@ import type { InstallationStatus, InstallPathInfo } from "../types";
 import { getFileSystemAdapter } from "../utils/getFileSystemAdapter";
 import { getPlatform } from "./install";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 /**
  * Resolves the real path of the given file path, handling cases where the path is a symlink.
@@ -79,6 +79,18 @@ export async function getInstallPath(
     "bin",
   );
   const realDirPath = await resolveSymlinks(originalPath);
+
+  // Validate resolved path hasn't escaped the vault directory
+  const basePath = adapter.getBasePath();
+  const normalizedReal = path.normalize(realDirPath);
+  const normalizedBase = path.normalize(basePath);
+  if (
+    !normalizedReal.startsWith(normalizedBase + path.sep) &&
+    normalizedReal !== normalizedBase
+  ) {
+    return { error: "Resolved install path escapes vault directory" };
+  }
+
   const platformSpecificBinary = BINARY_NAME[platform];
   const realFilePath = path.join(realDirPath, platformSpecificBinary);
   return {
@@ -135,8 +147,7 @@ export async function getInstallationStatus(
   // Check server binary version
   let serverVersion: string | null | undefined;
   try {
-    const versionCommand = `"${installPath.path}" --version`;
-    const { stdout } = await execAsync(versionCommand);
+    const { stdout } = await execFileAsync(installPath.path, ["--version"]);
     serverVersion = clean(stdout.trim());
     if (!serverVersion) throw new Error("Invalid server version string");
   } catch {
