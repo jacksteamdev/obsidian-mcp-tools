@@ -62,7 +62,7 @@ export async function makeRequest<
 
     return validated;
   } finally {
-    if (origTLS === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    if (origTLS === undefined) delete (process.env as Record<string, string | undefined>).NODE_TLS_REJECT_UNAUTHORIZED;
     else process.env.NODE_TLS_REJECT_UNAUTHORIZED = origTLS;
   }
 }

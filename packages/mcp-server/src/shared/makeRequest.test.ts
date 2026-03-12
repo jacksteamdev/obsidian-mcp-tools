@@ -5,13 +5,13 @@ describe("makeRequest TLS scoping", () => {
 
   beforeEach(() => {
     // Ensure clean state before each test
-    delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    delete (process.env as Record<string, string | undefined>).NODE_TLS_REJECT_UNAUTHORIZED;
   });
 
   afterEach(() => {
     // Restore original value
     if (originalTLS === undefined) {
-      delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      delete (process.env as Record<string, string | undefined>).NODE_TLS_REJECT_UNAUTHORIZED;
     } else {
       process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalTLS;
     }
@@ -20,7 +20,7 @@ describe("makeRequest TLS scoping", () => {
   it("should NOT have TLS globally disabled after module import", async () => {
     // Re-import to verify module-level side effects
     // After the fix, importing the module should NOT set NODE_TLS_REJECT_UNAUTHORIZED
-    delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    delete (process.env as Record<string, string | undefined>).NODE_TLS_REJECT_UNAUTHORIZED;
 
     // Dynamic import to get a fresh evaluation
     await import("./makeRequest");
@@ -31,7 +31,7 @@ describe("makeRequest TLS scoping", () => {
 
   it("should restore TLS env var after makeRequest completes", async () => {
     process.env.OBSIDIAN_API_KEY = "test-key";
-    delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    delete (process.env as Record<string, string | undefined>).NODE_TLS_REJECT_UNAUTHORIZED;
 
     const { makeRequest } = await import("./makeRequest");
 
@@ -39,7 +39,7 @@ describe("makeRequest TLS scoping", () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = mock(() =>
       Promise.resolve(new Response("ok", { status: 200 })),
-    ) as typeof fetch;
+    ) as unknown as typeof fetch;
 
     try {
       const { type } = await import("arktype");
@@ -63,7 +63,7 @@ describe("makeRequest TLS scoping", () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = mock(() =>
       Promise.resolve(new Response("ok", { status: 200 })),
-    ) as typeof fetch;
+    ) as unknown as typeof fetch;
 
     try {
       const { type } = await import("arktype");
