@@ -1,4 +1,4 @@
-import { makeRequest, validateVaultPath, type ToolRegistry } from "$/shared";
+import { makeRequest, validateDataviewQuery, validateVaultPath, type ToolRegistry } from "$/shared";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { type } from "arktype";
 import { LocalRestAPI } from "shared";
@@ -187,6 +187,10 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       "Search for documents matching a specified query using either Dataview DQL or JsonLogic.",
     ),
     async ({ arguments: args }) => {
+      if (args.queryType === "dataview") {
+        validateDataviewQuery(args.query);
+      }
+
       const contentType =
         args.queryType === "dataview"
           ? "application/vnd.olrapi.dataview.dql+txt"

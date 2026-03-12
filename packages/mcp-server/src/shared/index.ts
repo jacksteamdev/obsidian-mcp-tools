@@ -1,4 +1,5 @@
 export * from "./formatMcpError";
+export * from "./validateDataviewQuery";
 export * from "./formatString";
 export * from "./logger";
 export * from "./makeRequest";
