@@ -257,7 +257,9 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
     ),
     async ({ arguments: args }) => {
       if (args.directory) validateVaultPath(args.directory);
-      const path = args.directory ? `${encodeURIComponent(args.directory)}/` : "";
+      const path = args.directory
+        ? `${args.directory.split("/").map(encodeURIComponent).join("/")}/`
+        : "";
       const data = await makeRequest(
         LocalRestAPI.ApiVaultFileResponse.or(
           LocalRestAPI.ApiVaultDirectoryResponse,

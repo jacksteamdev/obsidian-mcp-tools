@@ -20,7 +20,7 @@ export function validateVaultPath(path: string): string {
     );
   }
 
-  if (path.includes("..")) {
+  if (path.split("/").some((segment) => segment === "..")) {
     throw new McpError(
       ErrorCode.InvalidParams,
       "Paths containing path traversal sequences ('..') are not allowed.",

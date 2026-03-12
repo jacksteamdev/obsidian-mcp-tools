@@ -27,6 +27,11 @@ describe("validateVaultPath", () => {
     expect(() => validateVaultPath("foo\0bar")).toThrow("null bytes");
   });
 
+  it("accepts filenames containing '..' as a substring (not a path segment)", () => {
+    expect(() => validateVaultPath("my..note.md")).not.toThrow();
+    expect(() => validateVaultPath("version 2..0.md")).not.toThrow();
+  });
+
   it("returns the path unchanged for valid inputs", () => {
     expect(validateVaultPath("notes/daily.md")).toBe("notes/daily.md");
     expect(validateVaultPath("Templates/template.md")).toBe(
