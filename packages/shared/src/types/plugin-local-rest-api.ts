@@ -205,6 +205,7 @@ export const ApiVaultFileResponse = type({
  * @property trimTargetWhitespace - Whether to remove whitespace from target identifier before matching (default: false)
  * @property content - The actual content to insert, append, or use as replacement
  * @property contentType - Format of the content - use application/json for structured data like table rows or frontmatter values
+ * @property createTargetIfMissing - Whether to create the target heading if it does not exist (default: false). Set to true only for append/prepend operations.
  */
 export const ApiPatchParameters = type({
   operation: type("'append' | 'prepend' | 'replace'").describe(
@@ -229,7 +230,7 @@ export const ApiPatchParameters = type({
     "Format of the content - use application/json for structured data like table rows or frontmatter values",
   ),
   "createTargetIfMissing?": type("boolean").describe(
-    "Whether to create the target if it does not exist (default: false)",
+    "Whether to create the target heading if it does not exist (default: false). Set to true only for append/prepend operations.",
   ),
 });
 
