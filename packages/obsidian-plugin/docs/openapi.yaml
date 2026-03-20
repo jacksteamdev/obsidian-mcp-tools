@@ -375,6 +375,16 @@ paths:
               - "true"
               - "false"
             type: "string"
+        - description: "Create the target if it does not already exist (default: false)"
+          in: "header"
+          name: "Create-Target-If-Missing"
+          required: false
+          schema:
+            default: "false"
+            enum:
+              - "true"
+              - "false"
+            type: "string"
       requestBody:
         content:
           application/json:
@@ -812,6 +822,16 @@ paths:
         - description: "Trim whitespace from Target before applying patch?"
           in: "header"
           name: "Trim-Target-Whitespace"
+          required: false
+          schema:
+            default: "false"
+            enum:
+              - "true"
+              - "false"
+            type: "string"
+        - description: "Create the target if it does not already exist (default: false)"
+          in: "header"
+          name: "Create-Target-If-Missing"
           required: false
           schema:
             default: "false"
@@ -1443,6 +1463,16 @@ paths:
         - description: "Trim whitespace from Target before applying patch?"
           in: "header"
           name: "Trim-Target-Whitespace"
+          required: false
+          schema:
+            default: "false"
+            enum:
+              - "true"
+              - "false"
+            type: "string"
+        - description: "Create the target if it does not already exist (default: false)"
+          in: "header"
+          name: "Create-Target-If-Missing"
           required: false
           schema:
             default: "false"
