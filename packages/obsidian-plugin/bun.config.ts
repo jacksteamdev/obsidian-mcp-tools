@@ -79,9 +79,10 @@ const config: BuildConfig = {
     "import.meta.filename": JSON.stringify("mcp-tools-for-obsidian.ts"),
     // These environment variables are critical for the MCP server download functionality
     // They define the base URL and version for downloading the correct server binaries
-    "process.env.GITHUB_DOWNLOAD_URL": JSON.stringify(
-      `https://github.com/jacksteamdev/obsidian-mcp-tools/releases/download/${version}`
-    ),
+	"process.env.GITHUB_DOWNLOAD_URL": JSON.stringify(
+		process.env.GITHUB_DOWNLOAD_URL ?? 
+		`https://github.com/jacksteamdev/obsidian-mcp-tools/releases/download/${version}`
+	),
     "process.env.GITHUB_REF_NAME": JSON.stringify(version),
   },
   naming: {
