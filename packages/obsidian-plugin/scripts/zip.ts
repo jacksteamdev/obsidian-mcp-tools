@@ -5,23 +5,28 @@ import { join, resolve } from "path";
 import { version } from "../../../package.json" with { type: "json" };
 
 async function zipPlugin() {
-  const pluginDir = resolve(import.meta.dir, "..");
+  const pluginDir = resolve(import.meta.dir, "..");       // packages/obsidian-plugin/
+  const repoRoot = resolve(import.meta.dir, "../../..");  // repo root — where main.js actually lives
 
   const releaseDir = join(pluginDir, "releases");
   fs.ensureDirSync(releaseDir);
 
   const zipFilePath = join(releaseDir, `obsidian-plugin-${version}.zip`);
   const output = createWriteStream(zipFilePath);
-
   const archive = create("zip", { zlib: { level: 9 } });
   archive.pipe(output);
 
-  // Add the required files
-  archive.file(join(pluginDir, "main.js"), { name: "main.js" });
-  archive.file(join(pluginDir, "manifest.json"), { name: "manifest.json" });
-  archive.file(join(pluginDir, "styles.css"), { name: "styles.css" });
+  archive.file(join(repoRoot, "main.js"), { name: "main.js" });
+  archive.file(join(repoRoot, "manifest.json"), { name: "manifest.json" });
+  archive.file(join(repoRoot, "styles.css"), { name: "styles.css" });
 
-  await archive.finalize();
+  await new Promise<void>((resolve, reject) => {
+    output.on("close", resolve);
+    output.on("error", reject);
+    archive.on("error", reject);
+    archive.finalize();
+  });
+
   console.log("Plugin files zipped successfully!");
 }
 
