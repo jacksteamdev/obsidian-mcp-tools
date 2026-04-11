@@ -1,6 +1,15 @@
-import {
+// Type-only imports: none of these symbols are used as runtime values
+// (no `instanceof`, no `new`, no enum member access). With
+// `verbatimModuleSyntax: true` this whole import is elided at emit
+// time, so `bun build --compile` in packages/mcp-server never needs
+// to resolve the `"obsidian"` package — which is right, because that
+// npm package ships only `.d.ts` files and Obsidian itself injects
+// the runtime module at plugin load time in the plugin package. Do
+// not change this back to a value import without first verifying that
+// the symbol is actually needed at runtime.
+import type {
   App,
-  type MarkdownPostProcessorContext,
+  MarkdownPostProcessorContext,
   TAbstractFile,
   TFile,
   TFolder,
