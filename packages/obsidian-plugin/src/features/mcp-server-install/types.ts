@@ -17,6 +17,23 @@ declare module "obsidian" {
       platform?: Platform;
       arch?: Arch;
     };
+    /**
+     * Where the installer places the server binary.
+     *
+     * - `undefined` (the new default as of issue #28) — semantically
+     *   equivalent to `"system"`. The binary lives in the standard
+     *   per-user application directory (see `INSTALL_PATH` in
+     *   `./constants/paths.ts`) so vault sync services (iCloud, Git,
+     *   Dropbox) don't replicate a ~15MB binary across devices.
+     * - `"system"` — explicitly selected system-path install. Same
+     *   behavior as `undefined`, but pins the choice so a future
+     *   default flip won't silently migrate the user.
+     * - `"vault"` — legacy opt-in. Binary is written inside the
+     *   vault at `{vault}/.obsidian/plugins/{pluginId}/bin`. Kept
+     *   for users who intentionally want the binary to ride along
+     *   with their vault (e.g. portable install on a USB stick).
+     */
+    installLocation?: "vault" | "system";
   }
 }
 

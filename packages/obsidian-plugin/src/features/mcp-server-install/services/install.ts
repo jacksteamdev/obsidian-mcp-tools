@@ -3,8 +3,10 @@ import fsp from "fs/promises";
 import https from "https";
 import { Notice, Plugin } from "obsidian";
 import os from "os";
+import path from "path";
 import { Observable } from "rxjs";
 import { logger } from "$/shared";
+import type McpToolsPlugin from "$/main";
 import {
   ARCH_TYPES,
   GITHUB_DOWNLOAD_URL,
@@ -13,7 +15,9 @@ import {
   type Platform,
 } from "../constants";
 import type { DownloadProgress, InstallPathInfo } from "../types";
-import { getInstallPath } from "./status";
+import { serializeDisabledToolsToEnv } from "../../tool-toggle";
+import { updateClaudeConfig } from "./config";
+import { detectLegacyVaultBinary, getInstallPath } from "./status";
 
 /**
  * Check whether an arbitrary string is a valid `Platform` literal.
@@ -320,4 +324,167 @@ export async function installMcpServer(
     );
     throw error;
   }
+}
+
+/**
+ * Migrate an existing "inside the vault" install to the new default
+ * system path (issue #28).
+ *
+ * Flow:
+ *
+ *   1. Snapshot the old `installLocation` setting for rollback.
+ *   2. Locate the legacy vault binary (auto-detected platform —
+ *      independent of any override) so we know what to clean up
+ *      later. Done BEFORE mutating settings: once we flip the
+ *      setting, `getInstallPath` stops pointing at the vault.
+ *   3. Delete `installLocation` from the persisted settings (so
+ *      the `undefined → "system"` default kicks in) and save.
+ *   4. Call `installMcpServer` which now downloads into the
+ *      system path. On failure, rollback the setting and rethrow.
+ *   5. Best-effort update of the Claude Desktop config so it
+ *      points at the new binary location. Failure here is logged
+ *      but does NOT roll back — the binary is already at the new
+ *      location, and a stale client config pointing at the old
+ *      path is a degraded-but-non-fatal state. The user can click
+ *      "Reinstall" in settings to recover.
+ *   6. Best-effort cleanup of the old vault binary. Failure here
+ *      is also logged but non-fatal; the migration is considered
+ *      successful once the new binary is in place.
+ *
+ * Returns the `InstallPathInfo` for the new install location so
+ * callers can update their in-memory state / display the new path.
+ */
+export async function migrateFromVaultToSystem(
+  plugin: McpToolsPlugin,
+): Promise<InstallPathInfo> {
+  // Step 1: snapshot the current setting so we can roll back if
+  // the install step fails. Use `in` so we preserve the
+  // distinction between "explicitly undefined" and "absent" —
+  // rollback must restore the exact prior shape.
+  const settingsBefore = (await plugin.loadData()) ?? {};
+  const hadInstallLocationKey = "installLocation" in settingsBefore;
+  const previousLocation: "vault" | "system" | undefined =
+    settingsBefore.installLocation;
+
+  // Step 2: locate the legacy binary BEFORE we touch settings.
+  // `detectLegacyVaultBinary` uses the auto-detected platform and
+  // does not honor `installLocation`, so it is safe to call here
+  // and also after the setting flip if we wanted — but calling it
+  // once up front keeps the cleanup target stable.
+  const legacy = await detectLegacyVaultBinary(plugin);
+
+  // Step 3: flip the setting to the new default by deleting the
+  // key entirely. `installLocation === undefined` means "system"
+  // per types.ts.
+  const settingsForMigration = { ...settingsBefore };
+  delete settingsForMigration.installLocation;
+  await plugin.saveData(settingsForMigration);
+
+  // Step 4: run the normal install. This now targets the system
+  // path because the setting has changed. On failure, restore the
+  // previous setting so the UI does not end up in a split state.
+  let newPath: InstallPathInfo;
+  try {
+    newPath = await installMcpServer(plugin);
+  } catch (installError) {
+    try {
+      const rollback = { ...settingsForMigration };
+      if (hadInstallLocationKey) {
+        rollback.installLocation = previousLocation;
+      }
+      await plugin.saveData(rollback);
+    } catch (rollbackError) {
+      // The install failed AND we couldn't rollback. This is the
+      // worst-case branch — log both errors and still rethrow the
+      // original one so the UI surfaces the actionable message.
+      logger.error(
+        "Failed to rollback installLocation after failed migration:",
+        {
+          rollbackError:
+            rollbackError instanceof Error
+              ? rollbackError.message
+              : String(rollbackError),
+        },
+      );
+    }
+    throw installError;
+  }
+
+  // Step 5: best-effort update of the Claude Desktop config. A
+  // failure here leaves the client config pointing at the old
+  // vault path — degraded but non-fatal. We log a warning and
+  // continue; the user can recover via the "Reinstall" button.
+  try {
+    const apiKey = await plugin.getLocalRestApiKey();
+    const settingsAfter = (await plugin.loadData()) ?? {};
+    const disabled = settingsAfter.toolToggle?.disabled ?? [];
+    const envOverrides: Record<string, string> = {};
+    const serialized = serializeDisabledToolsToEnv(disabled);
+    if (serialized !== undefined) {
+      envOverrides.OBSIDIAN_DISABLED_TOOLS = serialized;
+    }
+    await updateClaudeConfig(plugin, newPath.path, apiKey, envOverrides);
+  } catch (configError) {
+    logger.warn(
+      "Migration succeeded but Claude config update failed; " +
+        "client config still points at the old vault binary path. " +
+        "User can fix via the 'Reinstall' button in settings.",
+      {
+        error:
+          configError instanceof Error
+            ? configError.message
+            : String(configError),
+      },
+    );
+  }
+
+  // Step 6: best-effort cleanup of the legacy vault binary. If the
+  // user dropped sidecar files in the bin/ directory, rmdir will
+  // fail with ENOTEMPTY — we swallow that. Same goes for ENOENT if
+  // something else already removed the file between the probe and
+  // the cleanup.
+  if (legacy) {
+    try {
+      await fsp.unlink(legacy.path);
+      logger.info("Removed legacy vault binary after migration", {
+        path: legacy.path,
+      });
+    } catch (unlinkError) {
+      const code = (unlinkError as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT") {
+        logger.warn(
+          "Failed to remove legacy vault binary after migration; " +
+            "leaving it in place (non-fatal).",
+          {
+            path: legacy.path,
+            error:
+              unlinkError instanceof Error
+                ? unlinkError.message
+                : String(unlinkError),
+          },
+        );
+      }
+    }
+
+    try {
+      await fsp.rmdir(path.dirname(legacy.path));
+    } catch (rmdirError) {
+      const code = (rmdirError as NodeJS.ErrnoException).code;
+      if (code !== "ENOTEMPTY" && code !== "ENOENT") {
+        logger.warn(
+          "Failed to remove legacy vault bin/ directory after " +
+            "migration; leaving it in place (non-fatal).",
+          {
+            dir: path.dirname(legacy.path),
+            error:
+              rmdirError instanceof Error
+                ? rmdirError.message
+                : String(rmdirError),
+          },
+        );
+      }
+    }
+  }
+
+  return newPath;
 }

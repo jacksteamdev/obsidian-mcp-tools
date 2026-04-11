@@ -29,6 +29,17 @@ export const LOG_PATH = {
   linux: "~/.local/share/obsidian-mcp-tools/logs",
 } as const;
 
+// Default installation directory for the server binary when the
+// user has opted out of the legacy "inside the vault" install
+// location (issue #28). These are the stable per-user locations
+// for each platform; the `~` and `%APPDATA%` placeholders are
+// expanded at runtime via `expandHomePath` in services/status.ts.
+export const INSTALL_PATH = {
+  macos: "~/Library/Application Support/obsidian-mcp-tools/bin",
+  windows: "%APPDATA%\\obsidian-mcp-tools\\bin",
+  linux: "~/.local/share/obsidian-mcp-tools/bin",
+} as const;
+
 export const PLATFORM_TYPES = ["windows", "macos", "linux"] as const;
 export type Platform = (typeof PLATFORM_TYPES)[number];
 
