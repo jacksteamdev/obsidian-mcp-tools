@@ -10,6 +10,7 @@ import { BINARY_NAME } from "../constants";
 import type { InstallationStatus, InstallPathInfo } from "../types";
 import { getFileSystemAdapter } from "../utils/getFileSystemAdapter";
 import { getPlatform } from "./install";
+import { removeDuplicatePathSegments } from "./pathSegments";
 
 const execAsync = promisify(exec);
 
@@ -22,22 +23,30 @@ const execAsync = promisify(exec);
  */
 async function resolveSymlinks(filepath: string): Promise<string> {
   try {
-    return await fsp.realpath(filepath);
+    // Collapse any accidental duplicate segments that realpath may
+    // produce on certain iCloud / symlinked vault layouts.
+    const resolved = await fsp.realpath(filepath);
+    return removeDuplicatePathSegments(resolved);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       const parts = path.normalize(filepath).split(path.sep);
       let resolvedParts: string[] = [];
       let skipCount = 1; // Skip first segment by default
 
-      // Handle the root segment differently for Windows vs POSIX
-      if (path.win32.isAbsolute(filepath)) {
+      // Check POSIX absoluteness *before* Win32 absoluteness. Rationale:
+      // `path.win32.isAbsolute("/foo")` returns true because in Win32
+      // a leading "/" is treated as the root of the current drive. On
+      // Linux/macOS/WSL that branch would push `parts[0]` (an empty
+      // string) instead of "/", producing a relative-looking path that
+      // makes realpath resolve relative to CWD on the next iteration.
+      if (path.posix.isAbsolute(filepath)) {
+        resolvedParts.push("/");
+      } else if (path.win32.isAbsolute(filepath)) {
         resolvedParts.push(parts[0]);
         if (parts[1] === "") {
           resolvedParts.push("");
           skipCount = 2; // Skip two segments for UNC paths
         }
-      } else if (path.posix.isAbsolute(filepath)) {
-        resolvedParts.push("/");
       } else {
         resolvedParts.push(parts[0]);
       }
