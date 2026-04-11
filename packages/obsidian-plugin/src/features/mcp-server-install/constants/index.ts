@@ -1,28 +1,18 @@
 import { environmentVariables } from "./bundle-time" with { type: "macro" };
 
+// Bundle-time macro: must stay in this module (not in ./paths) so the
+// macro runs during the plugin build and does not leak into unit tests.
 export const { GITHUB_DOWNLOAD_URL, GITHUB_REF_NAME } =
   environmentVariables();
 
-export const BINARY_NAME = {
-  windows: "mcp-server.exe",
-  macos: "mcp-server",
-  linux: "mcp-server",
-} as const;
-
-export const CLAUDE_CONFIG_PATH = {
-  macos: "~/Library/Application Support/Claude/claude_desktop_config.json",
-  windows: "%APPDATA%\\Claude\\claude_desktop_config.json",
-  linux: "~/.config/claude/config.json",
-} as const;
-
-export const LOG_PATH = {
-  macos: "~/Library/Logs/obsidian-mcp-tools",
-  windows: "%APPDATA%\\obsidian-mcp-tools\\logs",
-  linux: "~/.local/share/obsidian-mcp-tools/logs",
-} as const;
-
-export const PLATFORM_TYPES = ["windows", "macos", "linux"] as const;
-export type Platform = (typeof PLATFORM_TYPES)[number];
-
-export const ARCH_TYPES = ["x64", "arm64"] as const;
-export type Arch = (typeof ARCH_TYPES)[number];
+// Re-export the static constants from ./paths so all existing callers
+// that do `import { CLAUDE_CONFIG_PATH } from "../constants"` keep working.
+export {
+  ARCH_TYPES,
+  BINARY_NAME,
+  CLAUDE_CONFIG_PATH,
+  LOG_PATH,
+  PLATFORM_TYPES,
+  type Arch,
+  type Platform,
+} from "./paths";

@@ -344,12 +344,16 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       "List files in the root directory or a specified subdirectory of your vault.",
     ),
     async ({ arguments: args }) => {
-      const path = args.directory ? `${args.directory}/` : "";
+      // Strip any trailing slashes the caller supplied so the final URL
+      // never contains a double slash at the /vault/ boundary (e.g.
+      // `/vault//Documents/`), which Local REST API v3.x returns as 500.
+      const directory = args.directory?.replace(/\/+$/, "") || "";
+      const pathSuffix = directory ? `${directory}/` : "";
       const data = await makeRequest(
         LocalRestAPI.ApiVaultFileResponse.or(
           LocalRestAPI.ApiVaultDirectoryResponse,
         ),
-        `/vault/${path}`,
+        `/vault/${pathSuffix}`,
       );
       return {
         content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
