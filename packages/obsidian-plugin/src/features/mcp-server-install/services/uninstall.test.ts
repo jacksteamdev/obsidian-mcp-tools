@@ -55,6 +55,10 @@ describe("uninstallServer", () => {
           adapter,
         },
       },
+      // uninstallServer now calls plugin.loadData() to read the
+      // platformOverride setting. The default fake returns an empty
+      // settings object so uninstall uses the auto-detected platform.
+      loadData: async () => ({}),
     };
   }
 

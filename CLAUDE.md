@@ -411,7 +411,7 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 | Issue #35 | Clarify instructions for non-Claude clients | ✅ `aa1697a` |
 | Issue #29 | Obsidian command execution support | open — needs security design review before code lands |
 | Issue #28 | Install MCP server outside of vault | open |
-| Issue #26 | Select which platform for the server binary (WSL) | open |
+| Issue #26 | Select which platform for the server binary (WSL) | ✅ `<pending>` — server install reads `OBSIDIAN_SERVER_PLATFORM`/`OBSIDIAN_SERVER_ARCH` env vars **and** a `platformOverride` plugin setting (Advanced section in settings UI). getPlatform/getArch now accept an optional override argument; call sites read it from `plugin.loadData()`. Banner in the settings UI warns when the installed binary does not match the selected platform. |
 | PR #65 | feat: improve tool schema clarity for better LLM reliability | open |
 | PR #47 | feat: add Obsidian command execution via MCP tools (addresses #29) | open — gated on #29 design review |
 
@@ -444,7 +444,6 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 ### Still pending from Cluster G
 
 - **Issue #28** (install MCP server outside of vault) — medium, installer work. Now safer thanks to the installer test coverage landed in step 7.
-- **Issue #26** (WSL binary selection) — small, installer detection change.
 - **PR #47 / Issue #29** (Obsidian command execution via MCP) — needs a **security design review** before any code lands. The tool would let an LLM invoke arbitrary Obsidian commands including destructive ones (`File: Delete file`). Requires policy decisions on whitelist/blacklist, user confirmation flows, and audit logging.
 
 ### Also pending from the fork's own discoveries

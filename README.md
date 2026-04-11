@@ -106,8 +106,12 @@ The server is configured entirely through environment variables passed by the cl
 | `OBSIDIAN_PORT` | no | `27124` (HTTPS) / `27123` (HTTP) | Port where Local REST API is listening. |
 | `OBSIDIAN_USE_HTTP` | no | `false` | Set to `true` to connect over HTTP instead of HTTPS. |
 | `OBSIDIAN_DISABLED_TOOLS` | no | — | Comma-separated list of tool names to disable (e.g. `patch_vault_file, delete_vault_file`). Unknown names are logged as warnings and do not abort startup. |
+| `OBSIDIAN_SERVER_PLATFORM` | no | auto-detect | Force the installer to download a specific server binary. Accepts `linux`, `macos`, or `windows`. Useful when running Obsidian under WSL, Bottles, wine, or another translation layer where `os.platform()` gives the wrong answer. Invalid values silently fall through to auto-detect. |
+| `OBSIDIAN_SERVER_ARCH` | no | auto-detect | Force the installer to download a specific architecture. Accepts `x64` or `arm64`. Only affects the macOS download URL (Linux and Windows ship a single binary each). |
 
 The server also accepts a `--port <number>` CLI flag as an alternative to `OBSIDIAN_PORT`. When both are set, the CLI flag wins.
+
+> The plugin also exposes a **Server binary platform** override in the settings UI (under _Advanced_ in the MCP Tools settings tab). It writes the same preference as `OBSIDIAN_SERVER_PLATFORM` / `OBSIDIAN_SERVER_ARCH` into the plugin's own data file. The setting UI takes precedence over the env vars when both are set.
 
 ### Example configuration
 

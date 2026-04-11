@@ -1,4 +1,24 @@
 import type { Templater, SmartConnections } from "shared";
+import type { Arch, Platform } from "./constants";
+
+/**
+ * Persisted settings for the installer feature. Stored under the
+ * `platformOverride` key in `plugin.loadData()` so users can force
+ * a specific binary target from the settings UI — intended for
+ * WSL / Bottles / wine scenarios where `os.platform()` auto-detect
+ * is wrong.
+ *
+ * Augmentation lives here (not in the global `src/types.ts`) so the
+ * installer feature stays self-contained per the .clinerules rule.
+ */
+declare module "obsidian" {
+  interface McpToolsPluginSettings {
+    platformOverride?: {
+      platform?: Platform;
+      arch?: Arch;
+    };
+  }
+}
 
 export interface SetupResult {
   success: boolean;

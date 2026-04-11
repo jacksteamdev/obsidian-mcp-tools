@@ -60,6 +60,11 @@ describe("getInstallationStatus", () => {
       // await) and only checks truthiness. Keeping it sync here is
       // intentional: it matches how getInstallationStatus reads it.
       getLocalRestApiKey: () => apiKey,
+      // getInstallPath / status.ts now read `platformOverride` from
+      // plugin.loadData() to honor the user's setting. The default
+      // fake plugin returns an empty settings object so status.ts
+      // falls through to auto-detect.
+      loadData: async () => ({}),
     };
   }
 

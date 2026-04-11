@@ -5,11 +5,60 @@ import { Notice, Plugin } from "obsidian";
 import os from "os";
 import { Observable } from "rxjs";
 import { logger } from "$/shared";
-import { GITHUB_DOWNLOAD_URL, type Arch, type Platform } from "../constants";
+import {
+  ARCH_TYPES,
+  GITHUB_DOWNLOAD_URL,
+  PLATFORM_TYPES,
+  type Arch,
+  type Platform,
+} from "../constants";
 import type { DownloadProgress, InstallPathInfo } from "../types";
 import { getInstallPath } from "./status";
 
-export function getPlatform(): Platform {
+/**
+ * Check whether an arbitrary string is a valid `Platform` literal.
+ * Exported so callers (settings UI, tests) can validate user input
+ * before passing it as an override to `getPlatform`.
+ */
+export function isPlatform(value: unknown): value is Platform {
+  return (
+    typeof value === "string" &&
+    (PLATFORM_TYPES as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * Check whether an arbitrary string is a valid `Arch` literal.
+ */
+export function isArch(value: unknown): value is Arch {
+  return (
+    typeof value === "string" &&
+    (ARCH_TYPES as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * Resolve the Platform the installer should use. Priority:
+ *
+ *   1. Explicit `override` argument (set by callers that read the
+ *      plugin's `platformOverride` setting from `plugin.loadData()`).
+ *   2. `OBSIDIAN_SERVER_PLATFORM` env var escape hatch for users
+ *      running Obsidian under WSL, Bottles, wine, or other
+ *      translation layers where `os.platform()` auto-detect gives
+ *      the wrong answer.
+ *   3. `os.platform()` auto-detect.
+ *
+ * Invalid override values (typos, unsupported platforms) fall
+ * through to the next priority level instead of throwing — an
+ * install-time error is worse than a graceful fallback to the
+ * auto-detected default.
+ */
+export function getPlatform(override?: Platform): Platform {
+  if (override && isPlatform(override)) return override;
+
+  const envOverride = process.env.OBSIDIAN_SERVER_PLATFORM;
+  if (envOverride && isPlatform(envOverride)) return envOverride;
+
   const platform = os.platform();
   switch (platform) {
     case "darwin":
@@ -21,7 +70,17 @@ export function getPlatform(): Platform {
   }
 }
 
-export function getArch(): Arch {
+/**
+ * Resolve the Arch the installer should use. Same priority as
+ * `getPlatform`: explicit override → `OBSIDIAN_SERVER_ARCH` env var →
+ * `os.arch()` auto-detect.
+ */
+export function getArch(override?: Arch): Arch {
+  if (override && isArch(override)) return override;
+
+  const envOverride = process.env.OBSIDIAN_SERVER_ARCH;
+  if (envOverride && isArch(envOverride)) return envOverride;
+
   return os.arch() as Arch;
 }
 
@@ -216,8 +275,13 @@ export async function installMcpServer(
   plugin: Plugin,
 ): Promise<InstallPathInfo> {
   try {
-    const platform = getPlatform();
-    const arch = getArch();
+    // Honor any platform/arch override the user has set via the
+    // settings UI before falling through to env vars and auto-detect.
+    // getPlatform/getArch validate the override and degrade
+    // gracefully on invalid values.
+    const settings = await plugin.loadData();
+    const platform = getPlatform(settings?.platformOverride?.platform);
+    const arch = getArch(settings?.platformOverride?.arch);
     const downloadUrl = getDownloadUrl(platform, arch);
     const installPath = await getInstallPath(plugin);
     if ("error" in installPath) throw new Error(installPath.error);

@@ -6,6 +6,11 @@
   import { onMount } from "svelte";
   import { serializeDisabledToolsToEnv } from "../../tool-toggle";
   import {
+    BINARY_NAME,
+    type Arch,
+    type Platform,
+  } from "../constants";
+  import {
     removeFromClaudeConfig,
     updateClaudeConfig,
   } from "../services/config";
@@ -25,8 +30,49 @@
     state: "not installed",
     versions: {},
   };
+
+  // Platform override (advanced) — empty string means "auto-detect".
+  // `select` elements cannot bind to `undefined`, so we round-trip
+  // the absent state through "" and translate at save time.
+  let overridePlatform: "" | Platform = "";
+  let overrideArch: "" | Arch = "";
+  let savingPlatform = false;
+
+  // Derived: expected binary filename for the currently-saved
+  // platform setting, so the banner can compare it against what is
+  // actually on disk (status.name is populated by getInstallPath).
+  $: expectedBinaryName =
+    overridePlatform === ""
+      ? undefined
+      : BINARY_NAME[overridePlatform];
+
+  // Show the banner when the user has an explicit platform override
+  // AND the current installation state would not yield a working
+  // server for that platform. Two cases:
+  //
+  // 1. (pre-save preview) A binary is installed but its filename
+  //    does not match what the override would install next.
+  // 2. (post-save / first install) No binary is installed at all
+  //    for the chosen platform — which happens right after saving
+  //    an override because `getInstallPath` now targets a file name
+  //    that does not exist on disk yet.
+  //
+  // The banner stays silent for the 95% of users who never touch
+  // the override: `overridePlatform === ""` short-circuits both
+  // cases.
+  $: platformNeedsAction =
+    overridePlatform !== "" &&
+    ((status.state === "installed" &&
+      status.name !== undefined &&
+      expectedBinaryName !== undefined &&
+      status.name !== expectedBinaryName) ||
+      status.state === "not installed");
+
   onMount(async () => {
     status = await getInstallationStatus(plugin);
+    const data = await plugin.loadData();
+    overridePlatform = data?.platformOverride?.platform ?? "";
+    overrideArch = data?.platformOverride?.arch ?? "";
   });
 
   // Handle installation
@@ -63,6 +109,46 @@
         error instanceof Error ? error.message : "Installation failed";
       status = { ...status, state: "error", error: message };
       new Notice(message);
+    }
+  }
+
+  // Save the platform override. We intentionally do NOT auto-trigger
+  // a reinstall here — the failure modes of a half-finished download
+  // (old binary deleted, new binary never arrived) are worse than
+  // the extra click the user has to make on the "Reinstall" button.
+  // Instead the banner (see template below) points them at the
+  // existing Reinstall button after a mismatch is detected.
+  async function handlePlatformSave() {
+    savingPlatform = true;
+    try {
+      const data = (await plugin.loadData()) ?? {};
+
+      // Empty selection means "clear the override". Delete the key
+      // entirely rather than leaving `{}` behind, so data.json stays
+      // tidy (same convention as tool-toggle settings).
+      if (overridePlatform === "" && overrideArch === "") {
+        delete data.platformOverride;
+      } else {
+        data.platformOverride = {
+          ...(overridePlatform !== "" && { platform: overridePlatform }),
+          ...(overrideArch !== "" && { arch: overrideArch }),
+        };
+      }
+      await plugin.saveData(data);
+
+      // Refresh status so the banner recomputes against the new
+      // override. getInstallPath now reads the setting we just wrote.
+      status = await getInstallationStatus(plugin);
+
+      new Notice("Platform preference saved.");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to save platform preference";
+      new Notice(message);
+    } finally {
+      savingPlatform = false;
     }
   }
 
@@ -161,6 +247,61 @@
   </div>
 </div>
 
+<details class="advanced-platform">
+  <summary>Advanced — Server binary platform</summary>
+  <p class="description">
+    Leave this on <strong>Auto-detect</strong> unless you're running
+    Obsidian under WSL, Bottles, wine, or another translation layer
+    and need a binary for a different target OS. Changing the
+    platform does <em>not</em> automatically reinstall the server —
+    after saving, click <strong>Install server</strong> or
+    <strong>Update</strong> above to download the matching binary.
+  </p>
+
+  <div class="platform-row">
+    <label>
+      Platform
+      <select bind:value={overridePlatform} disabled={savingPlatform}>
+        <option value="">Auto-detect</option>
+        <option value="linux">Linux</option>
+        <option value="macos">macOS</option>
+        <option value="windows">Windows</option>
+      </select>
+    </label>
+
+    <label>
+      Architecture
+      <select bind:value={overrideArch} disabled={savingPlatform}>
+        <option value="">Auto-detect</option>
+        <option value="x64">x64</option>
+        <option value="arm64">arm64</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="actions">
+    <button on:click={handlePlatformSave} disabled={savingPlatform}>
+      {savingPlatform ? "Saving..." : "Save platform preference"}
+    </button>
+  </div>
+
+  {#if platformNeedsAction}
+    <div class="warning-banner">
+      {#if status.state === "installed"}
+        ⚠️ The currently installed server binary
+        (<code>{status.name}</code>) does not match the selected
+        platform (expected <code>{expectedBinaryName}</code>). Click
+        <strong>Install server</strong> or <strong>Update</strong>
+        above to download the matching binary.
+      {:else}
+        ⚠️ No server binary is installed for the selected platform
+        (expected <code>{expectedBinaryName}</code>). Click
+        <strong>Install server</strong> above to download it.
+      {/if}
+    </div>
+  {/if}
+</details>
+
 <style>
   .error-message {
     color: var(--text-error);
@@ -189,5 +330,60 @@
 
   button {
     margin-left: 0.5em;
+  }
+
+  .advanced-platform {
+    margin-top: 2em;
+  }
+
+  .advanced-platform summary {
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 0.9em;
+  }
+
+  .advanced-platform .description {
+    color: var(--text-muted);
+    font-size: 0.85em;
+    margin-top: 0.5em;
+    margin-bottom: 1em;
+  }
+
+  .platform-row {
+    display: flex;
+    gap: 1em;
+    flex-wrap: wrap;
+    margin-bottom: 0.75em;
+  }
+
+  .platform-row label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25em;
+    font-size: 0.85em;
+    color: var(--text-muted);
+  }
+
+  .platform-row select {
+    font-family: var(--font-monospace);
+  }
+
+  .actions {
+    margin-top: 0.5em;
+    margin-bottom: 1em;
+  }
+
+  .warning-banner {
+    margin-top: 0.75em;
+    padding: 0.75em;
+    border-left: 3px solid var(--text-warning, #e1a800);
+    background: var(--background-secondary);
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+
+  .warning-banner code {
+    font-family: var(--font-monospace);
+    font-size: 0.85em;
   }
 </style>

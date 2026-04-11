@@ -17,8 +17,14 @@ export async function uninstallServer(plugin: Plugin): Promise<void> {
       throw new Error(adapter.error);
     }
 
-    // Remove binary
-    const platform = getPlatform();
+    // Remove binary. Honor the platformOverride setting so we target
+    // the same binary filename that install would produce today — if
+    // the user has toggled the override, we want to delete whatever
+    // the CURRENT setting says is "theirs", not the auto-detected
+    // default. This mirrors the behavior of `getInstallPath` in
+    // status.ts.
+    const settings = await plugin.loadData();
+    const platform = getPlatform(settings?.platformOverride?.platform);
     const binDir = path.join(
       adapter.getBasePath(),
       plugin.app.vault.configDir,
