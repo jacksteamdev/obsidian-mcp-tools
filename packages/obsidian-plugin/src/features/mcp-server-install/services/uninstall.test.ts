@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  spyOn,
+  test,
+  type Mock,
+} from "bun:test";
 import fsp from "fs/promises";
 import os from "os";
 import path from "path";
@@ -8,20 +16,19 @@ import { uninstallServer } from "./uninstall";
 /**
  * Integration tests for uninstallServer.
  *
- * Strategy: real tmpdir as the vault root + override of
- * `process.env.HOME` to relocate Claude Desktop's config file into
- * the sandbox. uninstall.ts reads `process.env.HOME` directly (not
- * `os.homedir()`), so a plain env var override is sufficient — no
- * need for the `spyOn` dance we used in config.test.ts.
+ * Strategy: real tmpdir as the vault root + `spyOn(os, "homedir")`
+ * to relocate Claude Desktop's config file into the sandbox.
+ * uninstall.ts now shares `getConfigPath()` with config.ts, which
+ * uses `os.homedir()` under the hood — matching config.test.ts's
+ * approach (Bun/Node cache HOME early, so an env var override is
+ * not reliable once the process has initialized).
  *
- * KNOWN BUG (not fixed in this commit): uninstall.ts hardcodes the
- * macOS Claude config path (`~/Library/Application Support/Claude/
- * claude_desktop_config.json`) instead of reusing `getConfigPath()`
- * from config.ts. On Linux and Windows, the uninstall flow silently
- * fails to remove the orphaned `obsidian-mcp-tools` entry from the
- * real config. These tests exercise only the macOS path and pin the
- * current (buggy) behavior — when the bug is fixed, extend coverage
- * to Linux/Windows and update this docblock.
+ * Platform scope: tests run only on macOS because `getConfigPath()`
+ * branches on `os.platform()`, and the macOS branch is what this
+ * project's primary users hit. The Linux branch now shares the same
+ * code path thanks to the cross-platform config fix, but exercising
+ * it would require `spyOn(os, "platform")` which bun:test does not
+ * support cleanly for ESM-imported `os`.
  */
 
 describe("uninstallServer", () => {
@@ -34,7 +41,7 @@ describe("uninstallServer", () => {
   let binDir: string;
   let binaryPath: string;
   let configPath: string;
-  let originalHome: string | undefined;
+  let homedirSpy: Mock<typeof os.homedir>;
 
   const PLUGIN_ID = "obsidian-mcp-tools";
 
@@ -63,16 +70,11 @@ describe("uninstallServer", () => {
       "Library/Application Support/Claude/claude_desktop_config.json",
     );
 
-    originalHome = process.env.HOME;
-    process.env.HOME = tmpRoot;
+    homedirSpy = spyOn(os, "homedir").mockReturnValue(tmpRoot);
   });
 
   afterEach(async () => {
-    if (originalHome === undefined) {
-      delete process.env.HOME;
-    } else {
-      process.env.HOME = originalHome;
-    }
+    homedirSpy.mockRestore();
     await fsp.rm(tmpRoot, { recursive: true, force: true });
   });
 

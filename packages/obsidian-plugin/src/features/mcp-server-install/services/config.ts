@@ -27,9 +27,14 @@ interface ClaudeConfig {
 }
 
 /**
- * Gets the absolute path to the Claude Desktop config file
+ * Gets the absolute path to the Claude Desktop config file. Exported
+ * so `uninstall.ts` can share the same platform-aware resolution
+ * instead of hardcoding the macOS location. See issue in CLAUDE.md
+ * open bugs: previously uninstall.ts used a literal macOS path,
+ * which silently failed to clean up the config entry on Linux and
+ * Windows.
  */
-function getConfigPath(): string {
+export function getConfigPath(): string {
   const platform = os.platform();
   let configPath: string;
 
