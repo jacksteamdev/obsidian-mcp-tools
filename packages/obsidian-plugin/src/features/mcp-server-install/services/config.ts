@@ -1,9 +1,17 @@
 import fsp from "fs/promises";
-import { Plugin } from "obsidian";
 import os from "os";
 import path from "path";
 import { logger } from "$/shared/logger";
 import { CLAUDE_CONFIG_PATH } from "../constants";
+
+// NOTE: this module deliberately does NOT import from "obsidian".
+// The `plugin` parameter on `updateClaudeConfig` is unused in the
+// function body (kept for signature compatibility with callers) and
+// its type is widened to `unknown` below. Avoiding the "obsidian"
+// import makes this file loadable from unit tests — the package
+// ships only .d.ts files and has no runtime JS, so any test that
+// imports a module referencing it crashes with
+// `Cannot find package 'obsidian'`.
 
 interface ClaudeConfig {
   mcpServers: {
@@ -63,7 +71,7 @@ function getConfigPath(): string {
  *   serialization stays in the caller.
  */
 export async function updateClaudeConfig(
-  plugin: Plugin,
+  plugin: unknown,
   serverPath: string,
   apiKey?: string,
   extraEnv?: Record<string, string>,
