@@ -3,6 +3,49 @@ import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { type } from "arktype";
 import { LocalRestAPI } from "shared";
 
+/**
+ * Parse markdown content and resolve a partial heading name to its full
+ * hierarchical path as expected by the Local REST API `markdown-patch`
+ * indexer (e.g. `"Section A"` → `"Top Level::Section A"`).
+ *
+ * Returns the full path of the first matching heading, or `null` if no
+ * heading with that exact name exists in the content.
+ *
+ * Exported so it can be unit-tested without network access.
+ */
+export function resolveHeadingPath(
+  content: string,
+  leafName: string,
+  delimiter: string,
+): string | null {
+  const lines = content.split("\n");
+  // Stack of heading names at each indentation level. stack[level-1] holds
+  // the name of the heading at that level. When we encounter a heading at
+  // level N, all deeper levels become stale and are truncated.
+  const stack: string[] = [];
+
+  for (const line of lines) {
+    const match = line.match(/^(#{1,6})\s+(.+)$/);
+    if (!match) continue;
+    const level = match[1].length;
+    const headingText = match[2].trim();
+
+    // Drop any stack entries deeper than the current level, then set the
+    // current level's slot. This keeps `stack.slice(0, level)` a valid
+    // ancestor path for any subsequent match at a deeper level.
+    stack.length = level - 1;
+    stack[level - 1] = headingText;
+
+    if (headingText === leafName) {
+      // Join the full ancestor chain (including the match itself) with the
+      // delimiter the caller will also pass as the Target-Delimiter header.
+      return stack.slice(0, level).join(delimiter);
+    }
+  }
+
+  return null;
+}
+
 export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
   // GET Status
   tools.register(
@@ -95,15 +138,57 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       "Insert or modify content in the currently-open note relative to a heading, block reference, or frontmatter field.",
     ),
     async ({ arguments: args }) => {
+      // Step 1: resolve partial heading names to full hierarchical paths.
+      // Local REST API's markdown-patch indexer keys headings by their full
+      // ancestor path (e.g. "Top Level::Section A"). When the caller supplies
+      // just a leaf name ("Section A"), the lookup fails and — because
+      // Create-Target-If-Missing is on by default — a new heading is silently
+      // appended at EOF instead of patching the intended one. To prevent this,
+      // fetch the file once, parse its heading tree, and expand the partial
+      // name to a full path before issuing the PATCH.
+      const targetDelimiter = args.targetDelimiter ?? "::";
+      let resolvedTarget = args.target;
+
+      if (
+        args.targetType === "heading" &&
+        !args.target.includes(targetDelimiter)
+      ) {
+        const fileContent = await makeRequest(
+          LocalRestAPI.ApiContentResponse,
+          "/active/",
+          { headers: { Accept: "text/markdown" } },
+        );
+        const fullPath = resolveHeadingPath(
+          fileContent,
+          args.target,
+          targetDelimiter,
+        );
+        if (fullPath) {
+          resolvedTarget = fullPath;
+        }
+      }
+
+      // Step 2: ensure appended content has trailing whitespace so the
+      // next section in the document remains visually separated.
+      let body = args.content;
+      if (args.operation === "append" && !body.endsWith("\n")) {
+        body = body + "\n\n";
+      }
+
+      // Step 3: build headers. Target and Target-Delimiter are URL-encoded
+      // so non-ASCII headings (Japanese, emoji, special chars) and newlines
+      // survive the HTTP header layer intact. Encoding happens *after* path
+      // resolution — otherwise the indexer lookup would match an encoded
+      // string against unencoded file content.
       const headers: Record<string, string> = {
         Operation: args.operation,
         "Target-Type": args.targetType,
-        Target: args.target,
-        "Create-Target-If-Missing": "true",
+        Target: encodeURIComponent(resolvedTarget),
+        "Create-Target-If-Missing": String(args.createTargetIfMissing ?? true),
       };
 
       if (args.targetDelimiter) {
-        headers["Target-Delimiter"] = args.targetDelimiter;
+        headers["Target-Delimiter"] = encodeURIComponent(args.targetDelimiter);
       }
       if (args.trimTargetWhitespace !== undefined) {
         headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
@@ -118,7 +203,7 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
         {
           method: "PATCH",
           headers,
-          body: args.content,
+          body,
         },
       );
       return {
@@ -356,15 +441,46 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       "Insert or modify content in a file relative to a heading, block reference, or frontmatter field.",
     ),
     async ({ arguments: args }) => {
+      // See patch_active_file above for the full rationale of these three
+      // steps. The only difference here is the endpoint from which we
+      // fetch file content for heading resolution — the named vault file
+      // instead of the currently active file.
+      const targetDelimiter = args.targetDelimiter ?? "::";
+      let resolvedTarget = args.target;
+
+      if (
+        args.targetType === "heading" &&
+        !args.target.includes(targetDelimiter)
+      ) {
+        const fileContent = await makeRequest(
+          LocalRestAPI.ApiContentResponse,
+          `/vault/${encodeURIComponent(args.filename)}`,
+          { headers: { Accept: "text/markdown" } },
+        );
+        const fullPath = resolveHeadingPath(
+          fileContent,
+          args.target,
+          targetDelimiter,
+        );
+        if (fullPath) {
+          resolvedTarget = fullPath;
+        }
+      }
+
+      let body = args.content;
+      if (args.operation === "append" && !body.endsWith("\n")) {
+        body = body + "\n\n";
+      }
+
       const headers: HeadersInit = {
         Operation: args.operation,
         "Target-Type": args.targetType,
-        Target: args.target,
-        "Create-Target-If-Missing": "true",
+        Target: encodeURIComponent(resolvedTarget),
+        "Create-Target-If-Missing": String(args.createTargetIfMissing ?? true),
       };
 
       if (args.targetDelimiter) {
-        headers["Target-Delimiter"] = args.targetDelimiter;
+        headers["Target-Delimiter"] = encodeURIComponent(args.targetDelimiter);
       }
       if (args.trimTargetWhitespace !== undefined) {
         headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
@@ -379,7 +495,7 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
         {
           method: "PATCH",
           headers,
-          body: args.content,
+          body,
         },
       );
 

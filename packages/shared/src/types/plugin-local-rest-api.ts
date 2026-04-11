@@ -205,6 +205,7 @@ export const ApiVaultFileResponse = type({
  * @property trimTargetWhitespace - Whether to remove whitespace from target identifier before matching (default: false)
  * @property content - The actual content to insert, append, or use as replacement
  * @property contentType - Format of the content - use application/json for structured data like table rows or frontmatter values
+ * @property createTargetIfMissing - Whether the Local REST API should create the target heading/block if it does not exist (default: true for backward compatibility). Set to false to get an explicit error instead of silently appending a new heading at EOF when the target cannot be resolved.
  */
 export const ApiPatchParameters = type({
   operation: type("'append' | 'prepend' | 'replace'").describe(
@@ -214,7 +215,7 @@ export const ApiPatchParameters = type({
     "Identifies what to modify: a section under a heading, a referenced block, or a frontmatter field",
   ),
   target: type("string").describe(
-    "The identifier - either heading path (e.g. 'Heading 1::Subheading 1:1'), block reference ID, or frontmatter field name",
+    "The identifier - either heading path (e.g. 'Heading 1::Subheading 1:1'), block reference ID, or frontmatter field name. For nested headings (H2+), supply either the full path ('Top Level::Section A') or just the leaf name — the server will attempt to resolve partial leaf names to a full path before patching.",
   ),
   "targetDelimiter?": type("string").describe(
     "The separator used in heading paths to indicate nesting (default '::')",
@@ -227,6 +228,9 @@ export const ApiPatchParameters = type({
   ),
   "contentType?": type("'text/markdown' | 'application/json'").describe(
     "Format of the content - use application/json for structured data like table rows or frontmatter values",
+  ),
+  "createTargetIfMissing?": type("boolean").describe(
+    "Whether to create the target heading/block if it doesn't exist (default: true). Set to false to get an explicit error instead of silently creating a new target at end-of-file when the lookup fails.",
   ),
 });
 
