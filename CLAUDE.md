@@ -15,6 +15,10 @@ Why the detour through Local REST API instead of reading `.md` files directly: i
 
 Current version: **0.2.27** (see root `package.json`). License: MIT.
 
+### Fork status
+
+Active work on this tree happens in the **`istefox/obsidian-mcp-tools`** fork (remote `myfork`), not upstream. Upstream `jacksteamdev/obsidian-mcp-tools` is effectively dormant (see Project status below). The "Open issues & PRs snapshot" section further down lists upstream state frozen at 2026-04-11; items the fork has **already landed locally** are marked with ✅ and a commit SHA — those commits exist only on `myfork/main`, not on `origin/main`. When reading Gotchas, check for the `[FORK: FIXED …]` prefix to know whether a trap still applies to the working tree you're in.
+
 ## Stack
 
 | Layer | Tech |
@@ -249,22 +253,39 @@ Full spec lives in `.clinerules`. Highlights:
 - **Version macro** in `features/version/index.ts` uses Bun's `with { type: "macro" }` / `with { type: "json" }` import attribute — works on Bun's compile path, will break under plain tsc emit.
 - **Smart Connections compatibility**: the plugin wrapper handles both v2.x (`window.SmartSearch`) and v3.0+ (`smartEnv.smart_sources`). Preserve both code paths when modifying.
 - **`execute_template.createFile`** is typed as the string `"true"|"false"` (not boolean) because the MCP client serializes booleans as strings — explicit workaround in `features/templates/index.ts`.
-- **`patch_vault_file` silently corrupts content with nested headings** (confirmed bug — issues #30, #71). Root cause (analysis by @doodlepip on Discord, verified):
+- **[FORK: FIXED in `d75e493`]** **`patch_vault_file` silently corrupts content with nested headings** (confirmed bug — issues #30, #71). Root cause (analysis by @doodlepip on Discord, verified):
   - The upstream `markdown-patch` library indexes headings by their full hierarchical path using a unit separator: `# Top Level` → key `"Top Level"`, `## Section A` → key `"Top Level::Section A"`.
   - The server forwards `target: "Section A"` verbatim, which does not match any key.
   - Because the server always sends `Create-Target-If-Missing: true`, a **new heading is silently appended at EOF** instead of returning an error.
   - Rule of thumb: H1 headings work with just their name; H2+ require the full path from the H1 ancestor (`"Top Level::Section A"`).
   - The fix requires either (a) agent-controlled `Create-Target-If-Missing` (PR #72) or (b) a `resolveHeadingPath` helper in the MCP plugin that expands partial names before calling the API (see Jason Bates fork, commit `8adb7dd` — never submitted upstream).
-- **`patch_vault_file` fails with non-ASCII headings** (e.g., Japanese) because the `Target` HTTP header is not URL-encoded. Fix proposed in PR #69 and PR #48 — not merged.
-- **Hardcoded port `27124`**: the server ignores `OBSIDIAN_API_URL` and any custom-port env var (issues #66, #67, #40). `OBSIDIAN_HOST` was added in v0.2.26 but only covers the host portion, not the port. Three competing fix PRs exist (#74, #64, #56) — none merged.
-- **Incompatible with Local REST API plugin v3.4.x** (issue #68, confirmed 2026-02). The v3.x root response dropped `apiExtensions` and `certificateInfo`, which the ArkType schema in this project still requires — triggers a validation error on startup. PR #55 adds version detection but is not merged.
+- **[FORK: FIXED in `d75e493`]** **`patch_vault_file` fails with non-ASCII headings** (e.g., Japanese) because the `Target` HTTP header is not URL-encoded. Fix proposed in PR #69 and PR #48 — not merged upstream, but the fork's cluster A commit includes URL encoding of the target header.
+- **[FORK: FIXED in `04765b9`]** **Hardcoded port `27124`**: the server ignores `OBSIDIAN_API_URL` and any custom-port env var (issues #66, #67, #40). `OBSIDIAN_HOST` was added in v0.2.26 but only covers the host portion, not the port. Three competing fix PRs exist (#74, #64, #56) — none merged upstream. The fork's cluster C commit adds `OBSIDIAN_PORT` env var, `OBSIDIAN_USE_HTTP` toggle, and a `--port <n>` CLI flag (CLI flag wins over env var).
+- **[FORK: FIXED in `92b233c`]** **Incompatible with Local REST API plugin v3.4.x** (issue #68, confirmed 2026-02). The v3.x root response dropped `apiExtensions` and `certificateInfo`, which the ArkType schema in this project still requires — triggers a validation error on startup. PR #55 adds version detection but is not merged upstream. The fork's cluster B commit relaxes the schema to accept the v3.4.x root response shape.
+- **[FORK: FIXED in `becd3c8`]** **`resolveSymlinks` returns a relative path in the ENOENT fallback branch** (status.ts). When the server binary is not yet installed, `fsp.realpath` throws ENOENT and the fallback recomposes segments with `path.join(...resolvedParts)` where the first element is an empty string — which `path.join` silently drops, producing a relative-looking `"private/var/.../bin/mcp-server"`. Downstream, `ensureDirectory(installPath.dir)` in `installMcpServer` would then `mkdir` relative to the Obsidian process CWD instead of under the vault. Fix: prepend `path.sep` when the first resolved segment is `""` and the joined result does not already start with the separator. Regression guard: `status.integration.test.ts` → `"returns 'not installed' when the binary is missing"`.
+- **[FORK: FIXED in `becd3c8`]** **`uninstallServer` throws on a never-installed vault** (uninstall.ts). The catch block around `fsp.rmdir(binDir)` only tolerated `ENOTEMPTY`, so calling uninstall on a vault that never ran "Install Server" — a legitimate flow the settings UI uses to reset state after a failed install — threw `Failed to uninstall server: ENOENT ...`. Widened the catch to tolerate both `ENOTEMPTY` and `ENOENT`.
+- **[FORK: FIXED in `0f13451`]** **`uninstallServer` config cleanup is macOS-only** (uninstall.ts). The Claude Desktop config path was built with a literal `path.join(HOME, "Library/Application Support/Claude/claude_desktop_config.json")` instead of reusing the platform-aware `getConfigPath()` from `config.ts`. On Linux and Windows, the read would ENOENT (since the file lives elsewhere), silently leaving an orphan `obsidian-mcp-tools` entry in the real config. Fix: `getConfigPath()` is now exported from `config.ts` and reused by `uninstall.ts`.
 
 ## Testing & CI
 
 - Framework: `bun:test` (`import { describe, expect, test } from "bun:test"`).
-- Tests live next to the code (`*.test.ts`). Only the server package has tests today: `fetch/services/markdown.test.ts`, `shared/parseTemplateParameters.test.ts`. **No tests in the plugin** — you need to verify UI/install flow manually via `bun run link` into a throwaway vault.
-- Run a single file: `bun test src/features/fetch/services/markdown.test.ts`.
-- CI: `.github/workflows/release.yml` triggers on tag push, runs `bun run release`, cross-compiles all platforms, generates SLSA provenance attestations, and uploads release artifacts.
+- Tests live next to the code (`*.test.ts`).
+- **Counts as of 2026-04-11 fork state**: `mcp-server` 88 pass / 7 files; `obsidian-plugin` 66 pass / 7 files. Total **154 pass**.
+- Run a single file: `bun test src/features/fetch/services/markdown.test.ts`. Run a whole package: `cd packages/<name> && bun test`. Run check + tests across all packages: `bun run check` from the repo root, then `bun test` in each package (there is no monorepo-wide `bun test` fan-out today).
+- **Plugin test infrastructure** (added in the fork):
+  - `packages/obsidian-plugin/bunfig.toml` — `[test] preload` registers a synthetic `"obsidian"` module via `src/test-setup.ts`, so test files can import production modules that reference `Plugin`, `Notice`, `FileSystemAdapter`, `TFile`, etc. The real npm `obsidian` package ships only `.d.ts` files; at production runtime Obsidian injects the module itself. Without this preload, any plugin test that transitively imports a file referencing those classes crashes at load with `Cannot find package 'obsidian'`.
+  - `packages/obsidian-plugin/src/test-setup.ts` — the module mock. `FileSystemAdapter` accepts an optional `basePath` constructor argument so tests can anchor the fake vault at a real temp directory (`new FileSystemAdapter(tmpRoot)`). Production code never constructs a `FileSystemAdapter` itself — Obsidian does via `plugin.app.vault.adapter` — so the extra parameter is invisible to the ship build.
+  - `packages/obsidian-plugin/.env.test` — provides fake `GITHUB_DOWNLOAD_URL` and `GITHUB_REF_NAME` so the build-time `environmentVariables()` macro in `constants/bundle-time.ts` succeeds when `install.ts` is transitively loaded from a test context. Bun loads this file automatically when `bun test` runs (it sets `NODE_ENV=test`).
+  - **Stubbing `os.homedir()`**: tests that need to relocate a platform-specific config path (e.g. macOS `~/Library/Application Support/Claude/…`) use `spyOn(os, "homedir").mockReturnValue(tmpRoot)`. Bun/Node cache HOME early, so a runtime `process.env.HOME = …` override is not reliable. See `config.test.ts` and `uninstall.test.ts` for the pattern.
+  - **Integration tests for the installer state machine** use real shell scripts as fake binaries (written to a tmpdir with `mode: 0o755`) instead of mocking `child_process.exec`. This keeps the test one step closer to reality and exercises `semver.clean` on actual stdout. See `status.integration.test.ts`. Tests are macOS-guarded (the shebang approach is Unix-only).
+- **Covered on the plugin side** (as of fork 2026-04-11):
+  - Pure helpers: `pathSegments.ts`, `constants/paths.ts`, `tool-toggle/utils.ts`
+  - `services/config.ts` — `updateClaudeConfig` + `removeFromClaudeConfig` (9 tests)
+  - `services/install.ts` — `getDownloadUrl`, `getPlatform`, `getArch`, `ensureDirectory` (10 tests)
+  - `services/status.ts` — `getInstallationStatus` state machine (9 tests)
+  - `services/uninstall.ts` — `uninstallServer` flow (6 tests)
+- **Still not covered on the plugin side**: `installMcpServer` (orchestration wrapper), `downloadFile` (HTTP + stream; would need a local test server or a heavy `https.get` mock), and **no Svelte component rendering tests** — the existing Svelte files are covered only by `svelte-check` (static) and manual `bun run link` smoke tests.
+- CI: `.github/workflows/release.yml` triggers on tag push, runs `bun run release`, cross-compiles all platforms, generates SLSA provenance attestations, and uploads release artifacts. **No test step in CI yet** — tests run locally only, so keep them green before every merge to `myfork/main`.
 
 ## Pre-commit checklist
 
@@ -304,8 +325,8 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 
 ### Static analysis findings (from code + config)
 
-- **Test coverage is thin**: two unit test files in the server (`fetch/services/markdown.test.ts`, `shared/parseTemplateParameters.test.ts`), zero in the plugin. `.clinerules` mandates unit + integration + E2E but reality is far behind.
-- **Dual validators**: both `arktype` and `zod` are server dependencies. ArkType is the project standard per `.clinerules`; Zod presence is likely legacy — audit before removing.
+- **[UPDATED IN FORK 2026-04-11]** **Test coverage improved significantly**: the server has 88 tests across 7 files; the plugin has 66 tests across 7 files (154 total). Installer state machine, config writer, `get_vault_file` binary detection, tool-toggle helpers, and multiple legacy bugs now have regression guards. Svelte component rendering is still uncovered — see "Testing & CI" above for the rationale.
+- **[FORK: FIXED in `7e95366`]** **Dual validators**: both `arktype` and `zod` were server dependencies. ArkType is the project standard per `.clinerules`; `zod` was confirmed unused by a repo-wide grep and removed in the fork.
 - **MCP SDK pinned to `1.0.4`** — a very early version. Upgrading will probably touch every `tools.register()` call site.
 - **`cline_docs/` directory is referenced in `.clinerules`** for task records but does not exist in the tree (`.gitignore` excludes `cline_docs/temp/`). Create the directory if you want to follow the Cline workflow it prescribes.
 - **Stale branches on origin**: `feat--example-website-for-testing`, `feat--source-documents`, `feat--update-plugin-manifest`, `feature--search-and-list-tags`, `fix--use-obsidian-platform-api`, `refactor--rebrand` — none merged, some likely abandoned.
@@ -315,9 +336,11 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 
 ## Open issues & PRs snapshot (2026-04-11)
 
-23 open issues + 23 open PRs. Grouped by cluster so you can plan a merge/cherry-pick strategy. Only the most load-bearing items are listed; see GitHub for the full list.
+23 open issues + 23 open PRs **upstream**. Grouped by cluster so you can plan a merge/cherry-pick strategy. Only the most load-bearing items are listed; see GitHub for the full list.
 
-### Cluster A — `patch_vault_file` (highest impact)
+> **Reading key**: ✅ = **closed in the `istefox` fork** at the commit SHA shown — still open on `jacksteamdev/main`. Anything without ✅ is open on both upstream and the fork.
+
+### Cluster A — `patch_vault_file` (highest impact) ✅ `d75e493`
 
 | Ref | Title | Status |
 |---|---|---|
@@ -328,14 +351,14 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 | PR #48 | fix: encode HTTP headers in patch operations | Overlaps PR #69 |
 | External fork | Jason Bates `obsidian-mcp-tools` commit `8adb7dd` — `resolveHeadingPath` helper for partial H2+ names | **Never submitted as PR** |
 
-### Cluster B — Local REST API v3.4.x compatibility
+### Cluster B — Local REST API v3.4.x compatibility ✅ `92b233c`
 
 | Ref | Title |
 |---|---|
 | Issue #68 | v0.2.27 incompatible with Local REST API v3.4.x — missing `apiExtensions` / `certificateInfo` in root response |
 | PR #55 | fix: add version check and error handling for Local REST API endpoints |
 
-### Cluster C — Hardcoded port `27124` (3 issues + 3 competing PRs)
+### Cluster C — Hardcoded port `27124` (3 issues + 3 competing PRs) ✅ `04765b9`
 
 | Ref | Title |
 |---|---|
@@ -348,7 +371,7 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 
 **Editorial decision required**: three PRs solve the same problem three different ways. Pick one convention before merging.
 
-### Cluster D — Schema compatibility with non-Claude MCP clients
+### Cluster D — Schema compatibility with non-Claude MCP clients ✅ `700274c`
 
 | Ref | Title |
 |---|---|
@@ -357,7 +380,7 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 | PR #70 | fix: ensure `inputSchema` always includes `properties` key for **OpenAI-compatible clients** |
 | PR #50 | fix: replace `Record<string, unknown>` with empty object schema for no-arg tools |
 
-### Cluster E — Linux / path resolution bugs (installer)
+### Cluster E — Linux / path resolution bugs (installer) ✅ `67637f4`
 
 | Ref | Title |
 |---|---|
@@ -369,7 +392,7 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 | PR #52 | fix: remove duplicate path segments after symlink resolution |
 | PR #49 | fix: correct Claude Desktop config path for Linux |
 
-### Cluster F — Smart Search / Templater failures
+### Cluster F — Smart Search / Templater failures ✅ `0b39524`
 
 | Ref | Title |
 |---|---|
@@ -379,18 +402,18 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 
 ### Cluster G — Feature requests (enhancements)
 
-| Ref | Title |
-|---|---|
-| Issue #62 | Add `limit` parameter to `search_vault_simple` |
-| Issue #61 | Allow enabling/disabling individual MCP tools |
-| Issue #60 | Documentation/support for Claude Code (CLI) |
-| Issue #59 | `getVaultFile()` cannot fetch audio files |
-| Issue #35 | Clarify instructions for non-Claude clients |
-| Issue #29 | Obsidian command execution support |
-| Issue #28 | Install MCP server outside of vault |
-| Issue #26 | Select which platform for the server binary (WSL) |
-| PR #65 | feat: improve tool schema clarity for better LLM reliability |
-| PR #47 | feat: add Obsidian command execution via MCP tools (addresses #29) |
+| Ref | Title | Fork status |
+|---|---|---|
+| Issue #62 | Add `limit` parameter to `search_vault_simple` | ✅ `539e115` |
+| Issue #61 | Allow enabling/disabling individual MCP tools | ✅ `7ba5f3a` (server) + `7733bd8` (plugin UI) |
+| Issue #60 | Documentation/support for Claude Code (CLI) | ✅ `aa1697a` |
+| Issue #59 | `getVaultFile()` cannot fetch audio files | ✅ `f6d004a` |
+| Issue #35 | Clarify instructions for non-Claude clients | ✅ `aa1697a` |
+| Issue #29 | Obsidian command execution support | open — needs security design review before code lands |
+| Issue #28 | Install MCP server outside of vault | open |
+| Issue #26 | Select which platform for the server binary (WSL) | open |
+| PR #65 | feat: improve tool schema clarity for better LLM reliability | open |
+| PR #47 | feat: add Obsidian command execution via MCP tools (addresses #29) | open — gated on #29 design review |
 
 ### Cluster H — Stale / ambitious PRs
 
@@ -403,20 +426,31 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 
 ## Suggested next steps (for whoever picks up active work)
 
-**Ordered by impact and urgency.** Each step assumes a fork-and-rebrand stance unless upstream becomes active again.
+**Ordered by impact and urgency.** Fork-and-rebrand stance is in force because upstream is dormant. Items marked ✅ have been landed on `myfork/main` since the original roadmap was written; check the commit SHA before assuming any of them still need work.
 
-1. **Decide the maintainership stance first.** If contributing upstream, open a GitHub discussion to gauge whether jacksteamdev will review PRs in batches. If forking, rename the package, change `manifest.json` → `id`, and make it clear the fork is independent. Do not start merging community PRs upstream without owner buy-in — `.clinerules` and the commit history suggest the owner has specific preferences that are not all documented.
-2. **Land the `patch_vault_file` fix as PR bundle** (Cluster A): combine the logic of PR #72 (agent-controlled `Create-Target-If-Missing`) with PR #69 (URL-encoding non-ASCII headers) plus a `resolveHeadingPath` helper inspired by Jason Bates' fork commit `8adb7dd`. Add a `patch_vault_file.test.ts` covering H1, H2, H2 full-path, non-ASCII, and EOF-append regression cases. This is the single highest-leverage fix.
-3. **Resolve the Local REST API v3.4.x compatibility break** (Cluster B, issue #68) — without this, recent Local REST API users cannot use the server at all. PR #55 is a starting point but needs a design review against what actually changed in v3.4.x.
-4. **Pick one port-configurability PR** from Cluster C and close the other two with a reference to the chosen one. Preferred convention: `OBSIDIAN_HOST` already exists for host + implicit port; extending it with URL parsing (`OBSIDIAN_HOST=http://localhost:9000`) is more ergonomic than adding a second env var.
-5. **Fix the schema shape for non-Claude clients** (Cluster D) — small diff, broad compatibility benefit (Letta, OpenAI-compatible tooling).
-6. **Triage the Linux path bugs** (Cluster E) as a single change — they all trace back to the same installer path-resolution code and should be fixed together, not as 4 separate merges.
-7. **Add plugin tests** for the installer state machine (`features/mcp-server-install/services/status.ts`, `install.ts`, `uninstall.ts`) — highest-risk unverified surface.
-8. **Upgrade `@modelcontextprotocol/sdk`** from 1.0.4 to a recent version. Expect to touch every `tools.register()` call site, and possibly the boolean-coercion workaround.
-9. **Remove `zod`** if a grep confirms it is unused runtime code.
-10. **Create `cline_docs/`** with at least a README so the directory expected by `.clinerules` is discoverable.
-11. **Prune stale remote branches** and unmerged PRs that have been superseded (many of the vanmarkic PRs likely overlap with the newer fixes in the same cluster).
-12. **Document the prompt system end-to-end** — `docs/features/prompt-requirements.md` exists but the vault-side contract (`Prompts/` folder, `#mcp-tools-prompt` tag, Templater parameters) is not mentioned in the README.
+1. **Decide the maintainership stance first.** If contributing upstream, open a GitHub discussion to gauge whether jacksteamdev will review PRs in batches. If forking permanently, rename the package, change `manifest.json` → `id`, and make it clear the fork is independent. Do not start merging community PRs upstream without owner buy-in — `.clinerules` and the commit history suggest the owner has specific preferences that are not all documented. **Status**: unresolved; the fork continues to work under the original `obsidian-mcp-tools` id and `jacksteamdev` owner string.
+2. ✅ **`patch_vault_file` fix bundle** (Cluster A) — `d75e493`.
+3. ✅ **Local REST API v3.4.x compatibility break** (Cluster B, issue #68) — `92b233c`.
+4. ✅ **Port configurability** (Cluster C) — `04765b9`. The fork picked the `OBSIDIAN_PORT` env var + `--port` CLI flag approach, with `OBSIDIAN_HOST` retained for host-only overrides. The three competing upstream PRs (#74, #64, #56) are superseded.
+5. ✅ **Schema shape for non-Claude clients** (Cluster D) — `700274c`.
+6. ✅ **Linux path bugs** (Cluster E) — `67637f4`.
+7. ✅ **Plugin tests for the installer state machine** — `1d94b64` (`config` + `install` helpers) and `becd3c8` (`getInstallationStatus` + `uninstallServer` with two production bug fixes uncovered along the way: `resolveSymlinks` ENOENT fallback returning a relative path, and `uninstallServer` throwing on ENOENT during rmdir). Follow-up `0f13451` shared `getConfigPath` between `config.ts` and `uninstall.ts` to fix the cross-platform Claude config cleanup bug.
+8. **Upgrade `@modelcontextprotocol/sdk`** from 1.0.4 to a recent version. Expect to touch every `tools.register()` call site, the boolean-coercion workaround in `ToolRegistry`, and the binary-file handling in `get_vault_file` (the fork currently short-circuits binary files with a metadata response because SDK 1.0.4 has no audio/video content type — see `f6d004a`). High leverage once the installer has test coverage (step 7, done). **Not yet started.**
+9. ✅ **Remove `zod`** — `7e95366`. Confirmed unused, removed from `packages/mcp-server/package.json` and `bun.lock`.
+10. **Create `cline_docs/`** with at least a README so the directory expected by `.clinerules` is discoverable. **Not yet started.**
+11. **Prune stale remote branches** on `origin` (`feat--example-website-for-testing`, `feat--source-documents`, `refactor--rebrand`, …). These belong to the upstream remote — the fork cannot delete them. Only relevant if maintainership migrates. **Not yet started.**
+12. **Document the prompt system end-to-end** — `docs/features/prompt-requirements.md` exists but the vault-side contract (`Prompts/` folder, `#mcp-tools-prompt` tag, Templater parameters) is not mentioned in the README. **Not yet started.**
+
+### Still pending from Cluster G
+
+- **Issue #28** (install MCP server outside of vault) — medium, installer work. Now safer thanks to the installer test coverage landed in step 7.
+- **Issue #26** (WSL binary selection) — small, installer detection change.
+- **PR #47 / Issue #29** (Obsidian command execution via MCP) — needs a **security design review** before any code lands. The tool would let an LLM invoke arbitrary Obsidian commands including destructive ones (`File: Delete file`). Requires policy decisions on whitelist/blacklist, user confirmation flows, and audit logging.
+
+### Also pending from the fork's own discoveries
+
+- **Legacy installer bug deep-dive** is now closed (steps 7 + follow-up). No remaining known installer bugs.
+- **Update CLAUDE.md** — this document has been refreshed as of 2026-04-11 to reflect the fork's state. Keep it current by re-running the Open issues snapshot and the Testing counts at each significant commit.
 
 ## References
 
