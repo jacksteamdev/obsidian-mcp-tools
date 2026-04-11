@@ -46,6 +46,118 @@ export function resolveHeadingPath(
   return null;
 }
 
+/**
+ * Mapping from lowercased file extension to canonical mime type for the
+ * binary file categories this server knows about (audio, image, video,
+ * documents, archives). Extensions absent from this map are treated as
+ * non-binary and flow through the normal text/markdown read path.
+ *
+ * Markdown, JSON, YAML, HTML, CSV, TXT, and SVG are intentionally NOT
+ * in this map — they are textual and should be readable via the usual
+ * `get_vault_file` path.
+ */
+const BINARY_EXTENSION_MIME_TYPES: ReadonlyMap<string, string> = new Map([
+  // Audio
+  ["mp3", "audio/mpeg"],
+  ["wav", "audio/wav"],
+  ["m4a", "audio/mp4"],
+  ["ogg", "audio/ogg"],
+  ["opus", "audio/opus"],
+  ["flac", "audio/flac"],
+  ["aac", "audio/aac"],
+  ["wma", "audio/x-ms-wma"],
+  // Image
+  ["png", "image/png"],
+  ["jpg", "image/jpeg"],
+  ["jpeg", "image/jpeg"],
+  ["gif", "image/gif"],
+  ["bmp", "image/bmp"],
+  ["webp", "image/webp"],
+  ["tiff", "image/tiff"],
+  ["tif", "image/tiff"],
+  ["ico", "image/x-icon"],
+  ["avif", "image/avif"],
+  ["heic", "image/heic"],
+  ["heif", "image/heif"],
+  // Video
+  ["mp4", "video/mp4"],
+  ["mov", "video/quicktime"],
+  ["mkv", "video/x-matroska"],
+  ["avi", "video/x-msvideo"],
+  ["webm", "video/webm"],
+  ["m4v", "video/x-m4v"],
+  ["mpg", "video/mpeg"],
+  ["mpeg", "video/mpeg"],
+  ["wmv", "video/x-ms-wmv"],
+  ["flv", "video/x-flv"],
+  // Documents
+  ["pdf", "application/pdf"],
+  ["doc", "application/msword"],
+  [
+    "docx",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ],
+  ["xls", "application/vnd.ms-excel"],
+  [
+    "xlsx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ],
+  ["ppt", "application/vnd.ms-powerpoint"],
+  [
+    "pptx",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ],
+  // Archives
+  ["zip", "application/zip"],
+  ["tar", "application/x-tar"],
+  ["gz", "application/gzip"],
+  ["7z", "application/x-7z-compressed"],
+  ["rar", "application/vnd.rar"],
+  ["bz2", "application/x-bzip2"],
+]);
+
+/**
+ * Extract a lowercased file extension from a filename, or null if the
+ * name has no extension. Hidden-file names like `.env` (leading dot,
+ * no other dot) return null because the leading dot is not a separator.
+ *
+ * Exported for unit testing.
+ */
+export function extractFileExtension(name: string): string | null {
+  const idx = name.lastIndexOf(".");
+  // `idx <= 0` covers both "no dot at all" (-1) and "leading dot only"
+  // (0), which handles hidden filenames like `.env` or `.gitignore`.
+  if (idx <= 0 || idx === name.length - 1) return null;
+  return name.slice(idx + 1).toLowerCase();
+}
+
+/**
+ * Return true if the filename's extension identifies a known binary
+ * file type that cannot be safely returned as markdown/text content
+ * by `get_vault_file`.
+ *
+ * Exported for unit testing.
+ */
+export function isBinaryFilename(name: string): boolean {
+  const ext = extractFileExtension(name);
+  return ext !== null && BINARY_EXTENSION_MIME_TYPES.has(ext);
+}
+
+/**
+ * Best-effort guess of a file's mime type based on its extension.
+ * Falls back to `application/octet-stream` when the extension is
+ * missing or unknown.
+ *
+ * Exported for unit testing. Intended to be called only in the
+ * binary-file branch of `get_vault_file` — for textual files the
+ * Local REST API response content-type is authoritative.
+ */
+export function guessMimeType(name: string): string {
+  const ext = extractFileExtension(name);
+  if (ext === null) return "application/octet-stream";
+  return BINARY_EXTENSION_MIME_TYPES.get(ext) ?? "application/octet-stream";
+}
+
 export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
   // GET Status
   tools.register(
@@ -380,8 +492,31 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
         filename: "string",
         "format?": '"markdown" | "json"',
       },
-    }).describe("Get the content of a file from your vault."),
+    }).describe(
+      "Get the content of a file from your vault. Text files (markdown, JSON, YAML, HTML, CSV, SVG, plain text) are returned directly. Binary files (audio, images, PDF, video, Office documents, archives) return a structured metadata response with a hint — their raw bytes are not exposed because the MCP SDK used by this server cannot carry non-text content. For binary files, use show_file_in_obsidian to open them in the Obsidian UI.",
+    ),
     async ({ arguments: args }) => {
+      // Short-circuit binary files by extension. Local REST API cannot
+      // return binaries as text, and the MCP SDK pinned in this repo
+      // (1.0.4) does not support audio/video content types — so we
+      // return a structured metadata response that tells the agent
+      // to use show_file_in_obsidian instead of trying to read bytes.
+      // The detection is extension-based (no HEAD request) to avoid
+      // adding a roundtrip on the hot path for markdown reads.
+      if (isBinaryFilename(args.filename)) {
+        const metadata = {
+          kind: "binary_file",
+          filename: args.filename,
+          mimeType: guessMimeType(args.filename),
+          hint: "This file is binary (audio, image, PDF, video, Office document, or archive) and cannot be returned as text content. Use show_file_in_obsidian to open it in the Obsidian UI.",
+        };
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(metadata, null, 2) },
+          ],
+        };
+      }
+
       const isJson = args.format === "json";
       const format = isJson
         ? "application/vnd.olrapi.note+json"
