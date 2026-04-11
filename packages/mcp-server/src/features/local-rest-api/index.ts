@@ -51,7 +51,11 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
   tools.register(
     type({
       name: '"get_server_info"',
-      arguments: "Record<string, unknown>",
+      // Empty object literal instead of "Record<string, unknown>" so that
+      // ArkType emits a JSON schema with an explicit `properties: {}` key —
+      // some non-Claude MCP clients (Letta Cloud, OpenAI-compatible) reject
+      // schemas that omit `properties`, which Record<string, unknown> did.
+      arguments: {},
     }).describe(
       "Returns basic details about the Obsidian Local REST API and authentication status. This is the only API request that does not require authentication.",
     ),
@@ -219,7 +223,11 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
   tools.register(
     type({
       name: '"delete_active_file"',
-      arguments: "Record<string, unknown>",
+      // Empty object literal instead of "Record<string, unknown>" so that
+      // ArkType emits a JSON schema with an explicit `properties: {}` key —
+      // some non-Claude MCP clients (Letta Cloud, OpenAI-compatible) reject
+      // schemas that omit `properties`, which Record<string, unknown> did.
+      arguments: {},
     }).describe("Delete the currently-active file in Obsidian."),
     async () => {
       await makeRequest(LocalRestAPI.ApiNoContentResponse, "/active/", {
