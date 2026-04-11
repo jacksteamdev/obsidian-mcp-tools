@@ -15,6 +15,7 @@ import {
   CommandPermissionModal,
   type ModalDecision,
 } from "./commandPermissionModal";
+import { createMutex } from "./settingsLock";
 
 /**
  * Express handler for `POST /mcp-tools/command-permission/`.
@@ -25,40 +26,51 @@ import {
  * **Fast path (decideable from settings alone)**:
  *
  * 1. Validate the request body via `CommandPermissionRequest`.
- * 2. Load settings via `plugin.loadData()` to fetch `enabled` and
- *    `allowlist`.
- * 3. If the master toggle is OFF, deny immediately with a helpful
- *    reason. (Deny-by-default is the whole point of the feature.)
- * 4. If the command id is in the allowlist, allow immediately.
+ * 2. Under the settings mutex: load settings, check the master
+ *    toggle and allowlist, write the audit entry, save.
+ * 3. Respond with the decision.
  *
  * **Slow path (modal confirmation — Fase 2)**:
  *
- * 5. If the master toggle is ON and the command id is NOT in the
- *    allowlist, invoke the `CommandPermissionModal` in the Obsidian
- *    UI and long-poll the HTTP response until the user clicks a
- *    button or 30 seconds elapse. The handler maps the modal
- *    decision to an HTTP response like this:
+ * 4. Phase A decides the command needs a modal (master on, not in
+ *    allowlist) and exits the lock WITHOUT writing any audit entry.
+ * 5. Modal opens in Obsidian UI, handler awaits user decision.
+ *    This wait happens OUTSIDE the lock so concurrent modal flows
+ *    do not block each other.
+ * 6. Phase B re-enters the lock, re-reads settings (in case the
+ *    allowlist changed while the modal was open), writes the
+ *    final audit entry, optionally appends to the allowlist if the
+ *    user clicked "Allow always", saves.
+ * 7. Respond.
  *
- *       allow-once    → { decision: "allow" }, no state change
- *       allow-always  → { decision: "allow" }, commandId appended
- *                        to settings.commandPermissions.allowlist
- *       deny          → { decision: "deny", reason: "… by user" }
- *       timeout       → { decision: "deny", reason: "… in 30s" }
+ * The handler maps the modal decision to the HTTP response like this:
  *
- * Both paths append an audit entry to the ring buffer and persist
- * the updated settings. The audit entry includes a `reason` field
- * only for denied decisions (allow entries are intentionally tidy).
+ *     allow-once    → { decision: "allow" }, no state change
+ *     allow-always  → { decision: "allow" }, commandId appended
+ *                      to settings.commandPermissions.allowlist
+ *     deny          → { decision: "deny", reason: "… by user" }
+ *     timeout       → { decision: "deny", reason: "… in 30s" }
  *
- * The handler is bound into main.ts via `this.localRestApi.api
- * .addRoute("/mcp-tools/command-permission/").post(...)`, same
- * pattern already used for `/search/smart` and `/templates/execute`.
+ * ## Why a mutex?
  *
- * Error handling: any unexpected failure (bad body, settings load
- * fail, save fail, modal crash) returns 500 with a generic message
- * unless the response stream was already closed (long-polling +
- * client disconnect), in which case the error is logged and
- * swallowed. The MCP server will interpret a non-2xx as a failure
- * to validate and raise an MCPError upstream.
+ * `plugin.loadData()` and `plugin.saveData()` are independently
+ * async, so concurrent handler invocations can race: each reads the
+ * same "before" state, appends its audit entry to a copy, writes
+ * back — and only the last writer's version survives. The original
+ * Fase 1 handler had this race; Fase 2's soft rate-limit smoke test
+ * (35 parallel fast-path calls) exposed it by dropping 32 of 35
+ * audit entries. The mutex serializes the critical section without
+ * affecting the modal wait (which stays outside the lock so multiple
+ * modals can coexist).
+ *
+ * ## Error handling
+ *
+ * Any unexpected failure (bad body, settings load fail, save fail,
+ * modal crash) returns 500 with a generic message unless the response
+ * stream was already closed (long-polling + client disconnect), in
+ * which case `safeJson` logs and swallows the error. The MCP server
+ * will interpret a non-2xx as a failure to validate and raise an
+ * MCPError upstream.
  */
 
 /**
@@ -83,6 +95,15 @@ const MODAL_TIMEOUT_MS = 30_000;
  * so the modal can flag calls above 30/min with a visible nudge.
  */
 const runtimeRateCounter = createRuntimeRateCounter();
+
+/**
+ * Serializes all settings-touching critical sections. See
+ * `settingsLock.ts` for the design rationale. The mutex lives at
+ * module scope so every handler invocation goes through the same
+ * queue — two concurrent curl requests correctly interleave one at
+ * a time through their load/modify/save cycles.
+ */
+const settingsMutex = createMutex();
 
 /**
  * Discriminated union returned by the modal-awaiting helper. The
@@ -174,6 +195,15 @@ function safeJson(
   }
 }
 
+/**
+ * Result of the first lock phase. Either the decision is finalized
+ * (fast path — no modal needed, audit already written) or the handler
+ * must proceed to open a modal and run phase B afterward.
+ */
+type PhaseAResult =
+  | { kind: "done"; decision: "allow" | "deny"; reason?: string }
+  | { kind: "needs-modal" };
+
 export async function handleCommandPermissionRequest(
   plugin: Plugin,
   req: Request,
@@ -195,119 +225,182 @@ export async function handleCommandPermissionRequest(
       return;
     }
 
-    // 2. Load settings. We re-read on every call because the user
-    //    may have updated the allowlist or the enable toggle between
-    //    invocations; caching would introduce staleness bugs.
-    const settings = (await plugin.loadData()) ?? {};
-    const perms = settings.commandPermissions ?? {};
-
-    // 3. Fast-path decision (master off or command already in list).
-    const pureOutcome = decidePermission(
-      parsed.commandId,
-      perms.enabled,
-      perms.allowlist,
-    );
-
     // Record the call in the runtime rate counter regardless of
-    // which path we take. The soft-rate warning should reflect
-    // total volume, not just modal invocations.
+    // which path we take. Pure in-memory operation, no lock needed
+    // (JavaScript is single-threaded and the counter ops are sync).
     runtimeRateCounter.record();
 
-    let finalDecision: "allow" | "deny" = pureOutcome.decision;
-    let finalReason: string | undefined = pureOutcome.reason;
-    let updatedAllowlist: string[] | undefined;
+    // 2. Phase A — decide the pure outcome under the settings lock.
+    //    If the fast path applies (master off, or command already
+    //    in allowlist), we write the audit entry and save here.
+    //    Otherwise we return `needs-modal` and exit the lock so
+    //    the modal flow can run without blocking other requests.
+    const phaseA: PhaseAResult = await settingsMutex.run(async () => {
+      const settings = (await plugin.loadData()) ?? {};
+      const perms = settings.commandPermissions ?? {};
 
-    // 4. Slow-path: the command is not in the allowlist AND the
-    //    master toggle is ON. This is the branch that opens a modal
-    //    and long-polls until the user answers.
-    const needsModal =
-      perms.enabled === true &&
-      pureOutcome.decision === "deny" &&
-      !(perms.allowlist ?? []).includes(parsed.commandId);
-
-    if (needsModal) {
-      const commandName = resolveCommandName(plugin.app, parsed.commandId);
-      const isDestructive = isDestructiveCommand(
+      const pureOutcome = decidePermission(
         parsed.commandId,
-        commandName,
+        perms.enabled,
+        perms.allowlist,
       );
-      const rateCount = runtimeRateCounter.countInLastMinute();
-      const showRateWarning = rateCount > SOFT_RATE_LIMIT_PER_MINUTE;
 
-      logger.debug("Opening command permission modal", {
+      const inAllowlist = (perms.allowlist ?? []).includes(parsed.commandId);
+      const needsModal =
+        perms.enabled === true &&
+        pureOutcome.decision === "deny" &&
+        !inAllowlist;
+
+      if (needsModal) {
+        return { kind: "needs-modal" };
+      }
+
+      // Fast path: write audit + save.
+      const auditEntry: CommandAuditEntry = {
+        timestamp: new Date().toISOString(),
         commandId: parsed.commandId,
-        commandName,
-        isDestructive,
-        rateCount,
-        showRateWarning,
-      });
+        decision: pureOutcome.decision,
+        ...(pureOutcome.reason ? { reason: pureOutcome.reason } : {}),
+      };
+      const updatedRecent = appendAuditEntry(
+        perms.recentInvocations,
+        auditEntry,
+      );
+      settings.commandPermissions = {
+        ...perms,
+        recentInvocations: updatedRecent,
+      };
+      await plugin.saveData(settings);
 
-      const modal = new CommandPermissionModal(plugin.app, {
-        commandId: parsed.commandId,
-        commandName,
-        isDestructive,
-        showRateWarning,
-        rateCount,
-      });
-      modal.open();
+      return {
+        kind: "done",
+        decision: pureOutcome.decision,
+        reason: pureOutcome.reason,
+      };
+    });
 
-      const outcome = await awaitModalDecision(modal);
-
-      if (outcome.kind === "timeout") {
-        finalDecision = "deny";
-        finalReason = `User did not respond to the permission request for '${parsed.commandId}' within ${MODAL_TIMEOUT_MS / 1000} seconds.`;
+    if (phaseA.kind === "done") {
+      if (phaseA.decision === "allow") {
+        logger.info("Command permission allowed", {
+          commandId: parsed.commandId,
+          persisted: false,
+        });
       } else {
-        const d = outcome.decision;
-        if (d === "deny") {
-          finalDecision = "deny";
-          finalReason = `User denied permission for command '${parsed.commandId}' via the confirmation modal.`;
-        } else {
-          // "allow-once" and "allow-always" both authorize this
-          // specific call. They differ only in whether the
-          // decision is persisted for future invocations.
-          finalDecision = "allow";
-          finalReason = undefined;
+        logger.warn("Command permission denied", {
+          commandId: parsed.commandId,
+          reason: phaseA.reason,
+        });
+      }
+      const responseBody: { decision: "allow" | "deny"; reason?: string } = {
+        decision: phaseA.decision,
+        ...(phaseA.reason ? { reason: phaseA.reason } : {}),
+      };
+      safeJson(res, responseBody, {
+        commandId: parsed.commandId,
+        decision: phaseA.decision,
+      });
+      return;
+    }
 
-          if (d === "allow-always") {
-            const existing = perms.allowlist ?? [];
-            if (!existing.includes(parsed.commandId)) {
-              updatedAllowlist = [...existing, parsed.commandId];
-            }
-          }
-        }
+    // 3. Slow path: resolve display metadata, open the modal, and
+    //    await a decision. This section runs OUTSIDE the lock so
+    //    that multiple concurrent modals can coexist — we only want
+    //    to serialize settings I/O, not user interaction.
+    const commandName = resolveCommandName(plugin.app, parsed.commandId);
+    const isDestructive = isDestructiveCommand(
+      parsed.commandId,
+      commandName,
+    );
+    const rateCount = runtimeRateCounter.countInLastMinute();
+    const showRateWarning = rateCount > SOFT_RATE_LIMIT_PER_MINUTE;
+
+    logger.debug("Opening command permission modal", {
+      commandId: parsed.commandId,
+      commandName,
+      isDestructive,
+      rateCount,
+      showRateWarning,
+    });
+
+    const modal = new CommandPermissionModal(plugin.app, {
+      commandId: parsed.commandId,
+      commandName,
+      isDestructive,
+      showRateWarning,
+      rateCount,
+    });
+    modal.open();
+
+    const outcome = await awaitModalDecision(modal);
+
+    // Map modal outcome → final HTTP decision + persistence intent.
+    let finalDecision: "allow" | "deny";
+    let finalReason: string | undefined;
+    let persistAllowlistEntry = false;
+
+    if (outcome.kind === "timeout") {
+      finalDecision = "deny";
+      finalReason = `User did not respond to the permission request for '${parsed.commandId}' within ${MODAL_TIMEOUT_MS / 1000} seconds.`;
+    } else {
+      const d = outcome.decision;
+      if (d === "deny") {
+        finalDecision = "deny";
+        finalReason = `User denied permission for command '${parsed.commandId}' via the confirmation modal.`;
+      } else {
+        // "allow-once" and "allow-always" both authorize this
+        // specific call. They differ only in whether the decision
+        // is persisted for future invocations.
+        finalDecision = "allow";
+        finalReason = undefined;
+        if (d === "allow-always") persistAllowlistEntry = true;
       }
     }
 
-    // 5. Build the audit entry. The `reason` field is present only
-    //    for denied decisions; allow entries stay tidy.
-    const auditEntry: CommandAuditEntry = {
-      timestamp: new Date().toISOString(),
-      commandId: parsed.commandId,
-      decision: finalDecision,
-      ...(finalReason ? { reason: finalReason } : {}),
-    };
+    // 4. Phase B — persist the final outcome under the settings
+    //    lock. We re-read settings here so that any concurrent
+    //    updates that happened while the modal was open (e.g. the
+    //    user edited the allowlist via the settings UI) are
+    //    preserved. The load/modify/save cycle is atomic thanks to
+    //    the mutex.
+    let persistedAllowlistEntry = false;
+    await settingsMutex.run(async () => {
+      const settings = (await plugin.loadData()) ?? {};
+      const perms = settings.commandPermissions ?? {};
 
-    // 6. Persist: audit log + updated allowlist (if allow-always
-    //    added an entry). The spread must happen in this order so
-    //    that `updatedAllowlist` wins when present.
-    const updatedRecent = appendAuditEntry(
-      perms.recentInvocations,
-      auditEntry,
-    );
-    settings.commandPermissions = {
-      ...perms,
-      ...(updatedAllowlist !== undefined
-        ? { allowlist: updatedAllowlist }
-        : {}),
-      recentInvocations: updatedRecent,
-    };
-    await plugin.saveData(settings);
+      const auditEntry: CommandAuditEntry = {
+        timestamp: new Date().toISOString(),
+        commandId: parsed.commandId,
+        decision: finalDecision,
+        ...(finalReason ? { reason: finalReason } : {}),
+      };
+      const updatedRecent = appendAuditEntry(
+        perms.recentInvocations,
+        auditEntry,
+      );
 
-    // 7. Logger mirror — structured so a future log tool can filter.
+      let updatedAllowlist: string[] | undefined;
+      if (
+        persistAllowlistEntry &&
+        !(perms.allowlist ?? []).includes(parsed.commandId)
+      ) {
+        updatedAllowlist = [...(perms.allowlist ?? []), parsed.commandId];
+        persistedAllowlistEntry = true;
+      }
+
+      settings.commandPermissions = {
+        ...perms,
+        ...(updatedAllowlist !== undefined
+          ? { allowlist: updatedAllowlist }
+          : {}),
+        recentInvocations: updatedRecent,
+      };
+      await plugin.saveData(settings);
+    });
+
     if (finalDecision === "allow") {
       logger.info("Command permission allowed", {
         commandId: parsed.commandId,
-        persisted: updatedAllowlist !== undefined,
+        persisted: persistedAllowlistEntry,
       });
     } else {
       logger.warn("Command permission denied", {
@@ -316,8 +409,6 @@ export async function handleCommandPermissionRequest(
       });
     }
 
-    // 8. Respond with the decision. `safeJson` guards against a
-    //    client that disconnected during the long-poll.
     const responseBody: { decision: "allow" | "deny"; reason?: string } = {
       decision: finalDecision,
       ...(finalReason ? { reason: finalReason } : {}),
