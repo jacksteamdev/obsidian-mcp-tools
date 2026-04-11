@@ -4,6 +4,7 @@ import { describe, expect, test } from "bun:test";
 import {
   BINARY_NAME,
   CLAUDE_CONFIG_PATH,
+  INSTALL_PATH,
   LOG_PATH,
   PLATFORM_TYPES,
 } from "./paths";
@@ -62,6 +63,35 @@ describe("LOG_PATH", () => {
   test("all platforms have log paths containing obsidian-mcp-tools", () => {
     for (const platform of PLATFORM_TYPES) {
       expect(LOG_PATH[platform]).toContain("obsidian-mcp-tools");
+    }
+  });
+});
+
+describe("INSTALL_PATH", () => {
+  test("macOS install path uses ~/Library/Application Support", () => {
+    // The new default (issue #28) moves the server binary out of
+    // the vault and into the standard per-user Application Support
+    // directory on macOS so vault sync services stop replicating it.
+    expect(INSTALL_PATH.macos).toBe(
+      "~/Library/Application Support/obsidian-mcp-tools/bin",
+    );
+  });
+
+  test("Windows install path uses %APPDATA%", () => {
+    expect(INSTALL_PATH.windows).toBe(
+      "%APPDATA%\\obsidian-mcp-tools\\bin",
+    );
+  });
+
+  test("Linux install path follows XDG conventions (~/.local/share)", () => {
+    expect(INSTALL_PATH.linux).toBe(
+      "~/.local/share/obsidian-mcp-tools/bin",
+    );
+  });
+
+  test("all platforms have install paths containing obsidian-mcp-tools", () => {
+    for (const platform of PLATFORM_TYPES) {
+      expect(INSTALL_PATH[platform]).toContain("obsidian-mcp-tools");
     }
   });
 });
