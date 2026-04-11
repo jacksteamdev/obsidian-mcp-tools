@@ -3,8 +3,9 @@ import fsp from "fs/promises";
 import { Plugin } from "obsidian";
 import path from "path";
 import { BINARY_NAME } from "../constants";
-import { getPlatform } from "./install";
 import { getFileSystemAdapter } from "../utils/getFileSystemAdapter";
+import { getConfigPath } from "./config";
+import { getPlatform } from "./install";
 
 /**
  * Uninstalls the MCP server by removing the binary and cleaning up configuration
@@ -53,12 +54,13 @@ export async function uninstallServer(plugin: Plugin): Promise<void> {
       // Directory not empty or never existed — nothing to do.
     }
 
-    // Remove our entry from Claude config
-    // Note: We don't remove the entire config file since it may contain other server configs
-    const configPath = path.join(
-      process.env.HOME || process.env.USERPROFILE || "",
-      "Library/Application Support/Claude/claude_desktop_config.json",
-    );
+    // Remove our entry from Claude config, reusing the same
+    // platform-aware path resolution as updateClaudeConfig. This
+    // replaces a previously hardcoded macOS-only path that left
+    // orphan entries on Linux and Windows after uninstall.
+    // Note: we don't remove the entire config file since it may
+    // contain entries for other MCP servers.
+    const configPath = getConfigPath();
 
     try {
       const content = await fsp.readFile(configPath, "utf8");
