@@ -1,5 +1,6 @@
 <script lang="ts">
   import { FeatureSettings as McpServerInstallSettings } from "src/features/mcp-server-install";
+  import { FeatureSettings as ToolToggleSettings } from "src/features/tool-toggle";
   import type McpServerPlugin from "src/main";
 
   export let plugin: McpServerPlugin;
@@ -7,4 +8,5 @@
 
 <div class="settings-container">
   <McpServerInstallSettings {plugin} />
+  <ToolToggleSettings {plugin} />
 </div>
