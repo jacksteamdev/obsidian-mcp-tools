@@ -1,16 +1,25 @@
 # Design: Obsidian Command Execution via MCP
 
-> **Status**: **Fase 1 MVP landed** on branch `feat/command-execution-mvp` (2026-04-11). Fase 2 and Fase 3 are still open.
+> **Status**: **Fase 1 + Fase 2 landed** on `myfork/main` (2026-04-11). Only Fase 3 (polish + tests) is open.
 > **Tracks**: upstream issue #29, upstream PR #47 (both open).
 > **Fork context**: this document is the design reference for the `istefox/obsidian-mcp-tools` fork. It intentionally diverges from the upstream PR #47 approach where noted.
 >
-> **What Fase 1 delivered** (deviation from the original plan documented inline below):
+> **What Fase 1 delivered** (commit `c2f4549`):
 > - Two new MCP tools: `list_obsidian_commands` (read-only, always available) and `execute_obsidian_command` (gated).
 > - New plugin endpoint `POST /mcp-tools/command-permission/` (wired in `main.ts` alongside `/search/smart` and `/templates/execute`).
-> - In-memory per-process tumbling-window rate limiter, 100 calls/minute.
+> - In-memory per-process tumbling-window rate limiter, 100 calls/minute, server-side.
 > - Plugin settings UI at `features/command-permissions/components/CommandPermissionsSettings.svelte`: single master toggle, comma/newline allowlist textarea, live command browser (`app.commands.commands`) with one-click "Add" buttons, recent-invocations audit log (ring buffer, max 50).
 > - One deliberate simplification vs. the original plan: **single master toggle** instead of "master enable" + separate "killswitch". Rationale: one lever is easier to understand and the killswitch value was marginal given the allowlist already acts as a narrow gate.
-> - **Not** in Fase 1: the confirmation modal path (that's Fase 2) and categorized presets (Fase 3).
+>
+> **What Fase 2 delivered**:
+> - `CommandPermissionModal` (Obsidian `Modal` subclass) + `CommandPermissionPrompt.svelte` (Svelte 5 component mounted inside the modal via `mount`/`unmount`).
+> - Long-polling `POST /mcp-tools/command-permission/` endpoint: when the command is not in the allowlist and the master toggle is ON, the handler opens the modal and awaits a user decision via `Promise.race` against a 30-second timeout. Timeouts, X-clicks, Esc, and backdrop dismissals all resolve to `"deny"`.
+> - Three-button decision flow: **Deny**, **Allow once** (executes without persisting), **Allow always** (executes AND appends the command id to the persistent allowlist).
+> - Destructive-command heuristic: regex `/\b(delete|remove|uninstall|trash|clean(?:up)?|purge|drop|reset|clear|wipe)\b/i` against both the command id and the human name. Matches tint the modal red and **disable "Allow always"** (only Allow once + Deny available). Word-boundary anchors accept kebab-case, colon-separated, and snake_case ids while rejecting substring false positives like `presetter`.
+> - Soft rate-limit warning: a plugin-side rolling counter records every call regardless of decision. When a modal is shown and the last 60 seconds contain more than 30 calls, the modal surfaces a red-bordered warning banner with the count. Enforcement is still server-side (100/min hard); the soft warning is UI-only.
+> - Safe response writing via `safeJson()` guards: long-polling leaves 30 seconds for the MCP client to abort, so every `res.json()` is wrapped to swallow `ERR_STREAM_WRITE_AFTER_END`.
+>
+> **Still open — Fase 3**: automated tests for the modal flow (requires a `Modal` mock in `test-setup.ts`; current utils.test.ts only covers pure helpers), categorized presets in the settings UI, configurable rate limits under an "Advanced" disclosure, CSV export of the audit log.
 
 ## Problem statement
 

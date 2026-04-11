@@ -3,9 +3,12 @@ import type { CommandAuditEntry } from "./types";
 import {
   AUDIT_LOG_MAX_ENTRIES,
   appendAuditEntry,
+  createRuntimeRateCounter,
   decidePermission,
   formatAllowlist,
+  isDestructiveCommand,
   parseAllowlistCsv,
+  SOFT_RATE_LIMIT_PER_MINUTE,
 } from "./utils";
 
 describe("parseAllowlistCsv", () => {
@@ -139,5 +142,144 @@ describe("decidePermission", () => {
     expect(result.decision).toBe("deny");
     expect(result.reason).toBeDefined();
     expect(result.reason).toContain("allowlist");
+  });
+});
+
+describe("isDestructiveCommand", () => {
+  test("flags delete/remove/trash/purge/etc. in the command id", () => {
+    // Every keyword in the regex must produce a match when used as a
+    // distinct word inside a command id.
+    for (const word of [
+      "delete",
+      "remove",
+      "uninstall",
+      "trash",
+      "clean",
+      "cleanup",
+      "purge",
+      "drop",
+      "reset",
+      "clear",
+      "wipe",
+    ]) {
+      expect(isDestructiveCommand(`editor:${word}-file`)).toBe(true);
+    }
+  });
+
+  test("is case-insensitive", () => {
+    expect(isDestructiveCommand("editor:DELETE-file")).toBe(true);
+    expect(isDestructiveCommand("myPlugin:Clean-Up-Duplicates")).toBe(true);
+    expect(isDestructiveCommand("PLUGIN:PURGE")).toBe(true);
+  });
+
+  test("does not match destructive words glued to other words without a separator", () => {
+    // This is a deliberate trade-off: \b word boundaries catch the
+    // common Obsidian command-id conventions (kebab-case, colon-
+    // separated, snake_case) but miss CamelCaseGluedWords. The
+    // alternative (no word boundary) would produce unacceptable
+    // false positives like "presetter" matching "reset". For now
+    // we accept the blind spot; Fase 3 can add a tokenizer if needed.
+    expect(isDestructiveCommand("myPlugin:CleanUpDuplicates")).toBe(false);
+  });
+
+  test("also checks the human-readable command name", () => {
+    // A command id can be innocuous while the name announces the
+    // effect ("ws:op" → "Delete vault"). Catching either side is a
+    // nudge, not a gate.
+    expect(isDestructiveCommand("ws:op", "Delete vault")).toBe(true);
+    expect(isDestructiveCommand("ws:op", "Toggle bold")).toBe(false);
+    expect(isDestructiveCommand("ws:op")).toBe(false);
+  });
+
+  test("does not flag commands that merely contain a destructive word as a substring of another word", () => {
+    // Word boundary check: "delete" as a substring of a longer word
+    // should NOT match (e.g. "undelete" contains "delete" but the \b
+    // anchors prevent a false positive).
+    // Similarly, "reset" as a substring of "presetter" should not match.
+    expect(isDestructiveCommand("myPlugin:undeleted-files")).toBe(false);
+    expect(isDestructiveCommand("ui:presetter")).toBe(false);
+  });
+
+  test("does not flag safe commands", () => {
+    expect(isDestructiveCommand("editor:toggle-bold")).toBe(false);
+    expect(isDestructiveCommand("graph:open")).toBe(false);
+    expect(isDestructiveCommand("workspace:save")).toBe(false);
+    expect(isDestructiveCommand("file-explorer:reveal-active-file")).toBe(false);
+  });
+});
+
+describe("createRuntimeRateCounter", () => {
+  test("returns 0 when nothing has been recorded", () => {
+    const counter = createRuntimeRateCounter();
+    expect(counter.countInLastMinute()).toBe(0);
+    expect(counter.isSoftLimitExceeded()).toBe(false);
+  });
+
+  test("counts events within the rolling window", () => {
+    // Deterministic clock — same millisecond for all three records
+    // puts everything well inside the 60s window regardless of the
+    // wall clock.
+    const counter = createRuntimeRateCounter();
+    counter.record(1000);
+    counter.record(2000);
+    counter.record(3000);
+    expect(counter.countInLastMinute(3000)).toBe(3);
+  });
+
+  test("prunes events older than the window", () => {
+    // Record at t=0, then advance past the 60s window.
+    const counter = createRuntimeRateCounter();
+    counter.record(0);
+    counter.record(10_000);
+    counter.record(20_000);
+    // At t=70_000, only the entries >= t-60_000 = 10_000 survive, and
+    // since we prune strictly <=, t=10_000 itself falls out.
+    expect(counter.countInLastMinute(70_000)).toBe(1);
+    // Advance further; even the 20_000 entry ages out eventually.
+    expect(counter.countInLastMinute(80_001)).toBe(0);
+  });
+
+  test("isSoftLimitExceeded fires strictly above the limit, not at it", () => {
+    // A counter with a soft limit of 2 records two events within the
+    // window: `countInLastMinute` returns 2, `isSoftLimitExceeded`
+    // returns false. The third event flips the flag.
+    const counter = createRuntimeRateCounter(60_000, 2);
+    counter.record(1000);
+    counter.record(1001);
+    expect(counter.countInLastMinute(1002)).toBe(2);
+    expect(counter.isSoftLimitExceeded(1002)).toBe(false);
+    counter.record(1002);
+    expect(counter.isSoftLimitExceeded(1002)).toBe(true);
+  });
+
+  test("defaults match the SOFT_RATE_LIMIT_PER_MINUTE constant", () => {
+    // A counter with default settings must respect the documented
+    // public constant; if someone bumps one but not the other, this
+    // test fails and flags the mistake.
+    const counter = createRuntimeRateCounter();
+    // Fill up to exactly the soft limit.
+    for (let i = 0; i < SOFT_RATE_LIMIT_PER_MINUTE; i++) {
+      counter.record(1000 + i);
+    }
+    expect(counter.isSoftLimitExceeded(1000 + SOFT_RATE_LIMIT_PER_MINUTE)).toBe(
+      false,
+    );
+    // One more flips it.
+    counter.record(1000 + SOFT_RATE_LIMIT_PER_MINUTE);
+    expect(counter.isSoftLimitExceeded(1000 + SOFT_RATE_LIMIT_PER_MINUTE)).toBe(
+      true,
+    );
+  });
+
+  test("repeated prunes are idempotent (stable state across calls)", () => {
+    const counter = createRuntimeRateCounter();
+    counter.record(1000);
+    counter.record(2000);
+    // Both reads advance past the window; the second must not throw
+    // and must continue returning 0.
+    expect(counter.countInLastMinute(70_000)).toBe(0);
+    expect(counter.countInLastMinute(70_000)).toBe(0);
+    counter.record(70_001);
+    expect(counter.countInLastMinute(70_001)).toBe(1);
   });
 });
