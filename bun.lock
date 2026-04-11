@@ -20,7 +20,6 @@
         "radash": "^12.1.0",
         "shared": "workspace:*",
         "turndown": "^7.2.0",
-        "zod": "^3.24.1",
       },
       "devDependencies": {
         "@types/bun": "latest",
