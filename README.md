@@ -82,6 +82,18 @@ After clicking the "Install Server" button in the plugin settings, the plugin wi
 
 While the configuration process is automated, it requires your explicit permission to install the server binary and modify the Claude Desktop configuration. No additional manual configuration is required beyond this initial setup step.
 
+### Installation location
+
+By default the server binary is installed **outside your vault** in a platform-standard system directory:
+
+- **macOS**: `~/Library/Application Support/obsidian-mcp-tools/bin/`
+- **Linux**: `~/.local/share/obsidian-mcp-tools/bin/`
+- **Windows**: `%APPDATA%\obsidian-mcp-tools\bin\`
+
+This keeps the ~15 MB binary out of your vault sync (iCloud, Git, Dropbox, Syncthing). If you prefer the legacy behavior — installing the binary inside the vault at `{vault}/.obsidian/plugins/obsidian-mcp-tools/bin/` — you can switch to it under **Installation location → Inside vault (legacy)** in the plugin settings.
+
+If you are upgrading from an earlier version that installed the binary inside your vault, the plugin will detect the legacy location on first load and offer a one-click migration with a confirmation dialog. The migration downloads a fresh copy of the binary to the new location, updates your MCP client config, and deletes the old binary from your vault.
+
 ## Using with other MCP clients
 
 The Obsidian plugin only auto-configures Claude Desktop, but the MCP server itself is a standalone binary that speaks MCP over stdio — so it works with any MCP-compatible client, including **Claude Code** (the Anthropic CLI), **Cline**, **Continue**, **Zed**, and custom clients built against the MCP SDK.
