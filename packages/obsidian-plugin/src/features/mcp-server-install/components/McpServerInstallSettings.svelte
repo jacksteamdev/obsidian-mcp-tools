@@ -14,8 +14,14 @@
     removeFromClaudeConfig,
     updateClaudeConfig,
   } from "../services/config";
-  import { installMcpServer } from "../services/install";
-  import { getInstallationStatus } from "../services/status";
+  import {
+    installMcpServer,
+    migrateFromVaultToSystem,
+  } from "../services/install";
+  import {
+    detectLegacyVaultBinary,
+    getInstallationStatus,
+  } from "../services/status";
   import { uninstallServer } from "../services/uninstall";
   import type { InstallationStatus } from "../types";
   import { openFolder } from "../utils/openFolder";
@@ -37,6 +43,21 @@
   let overridePlatform: "" | Platform = "";
   let overrideArch: "" | Arch = "";
   let savingPlatform = false;
+
+  // Installation location (issue #28). UI-friendly value: never
+  // undefined. "system" is the new default (outside vault);
+  // "vault" is the legacy opt-in.
+  let installLocation: "system" | "vault" = "system";
+
+  // Non-null when a legacy binary is detected inside the vault,
+  // regardless of the current installLocation setting — drives the
+  // migration banner for existing users upgrading from the old
+  // default.
+  let legacyBinary: { path: string; version?: string } | null = null;
+
+  // Migration flow UI state
+  let migrating = false;
+  let showMigrateConfirm = false;
 
   // Derived: expected binary filename for the currently-saved
   // platform setting, so the banner can compare it against what is
@@ -73,6 +94,8 @@
     const data = await plugin.loadData();
     overridePlatform = data?.platformOverride?.platform ?? "";
     overrideArch = data?.platformOverride?.arch ?? "";
+    installLocation = data?.installLocation ?? "system";
+    legacyBinary = await detectLegacyVaultBinary(plugin);
   });
 
   // Handle installation
@@ -149,6 +172,59 @@
       new Notice(message);
     } finally {
       savingPlatform = false;
+    }
+  }
+
+  // Persist the installation location choice and refresh downstream
+  // state (status + legacy detection) so any warning banners update
+  // immediately. No binary is moved here — the user is opting into
+  // a new default and can trigger the actual migration explicitly
+  // via the banner's "Migrate now" button.
+  async function handleInstallLocationChange() {
+    try {
+      const data = (await plugin.loadData()) ?? {};
+      if (installLocation === "system") {
+        // Keep data.json tidy: undefined is semantically the same
+        // as "system" (the new default), same convention used by
+        // handlePlatformSave when the override is cleared.
+        delete data.installLocation;
+      } else {
+        data.installLocation = "vault";
+      }
+      await plugin.saveData(data);
+
+      status = await getInstallationStatus(plugin);
+      legacyBinary = await detectLegacyVaultBinary(plugin);
+
+      new Notice("Installation location saved.");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to save installation location";
+      new Notice(message);
+    }
+  }
+
+  // Invoked from the confirmation dialog's "Migrate now" button.
+  // Delegates the full migration flow to the backend: it saves the
+  // setting, downloads the new binary, rewrites the client config,
+  // removes the old binary, and rolls back the setting on error.
+  // The caller only needs to refresh UI state and surface Notices.
+  async function handleMigrateConfirm() {
+    showMigrateConfirm = false;
+    migrating = true;
+    try {
+      await migrateFromVaultToSystem(plugin);
+      status = await getInstallationStatus(plugin);
+      legacyBinary = await detectLegacyVaultBinary(plugin);
+      new Notice("Migration complete.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Migration failed";
+      new Notice(message);
+    } finally {
+      migrating = false;
     }
   }
 
@@ -247,6 +323,56 @@
   </div>
 </div>
 
+<div class="installation-location">
+  <h3>Installation location</h3>
+  <p class="description">
+    The server binary can be installed outside your vault
+    (<strong>recommended</strong> — avoids syncing a 15+ MB binary
+    with iCloud, Git, Dropbox) or inside your vault (legacy default).
+  </p>
+
+  <div class="radio-group">
+    <label>
+      <input
+        type="radio"
+        bind:group={installLocation}
+        value="system"
+        on:change={handleInstallLocationChange}
+        disabled={migrating}
+      />
+      Outside vault (recommended)
+    </label>
+    <label>
+      <input
+        type="radio"
+        bind:group={installLocation}
+        value="vault"
+        on:change={handleInstallLocationChange}
+        disabled={migrating}
+      />
+      Inside vault (legacy)
+    </label>
+  </div>
+
+  {#if legacyBinary !== null && installLocation !== "vault"}
+    <div class="migration-banner">
+      ⚠️ A server binary was found inside your vault
+      (<code>{legacyBinary.path}</code>{#if legacyBinary.version}, version
+        {legacyBinary.version}{/if}). Installing the server inside the
+      vault is the old default and can cause problems with vault sync
+      (iCloud, Git, Dropbox). We recommend moving it outside the vault.
+      <div class="banner-actions">
+        <button
+          on:click={() => (showMigrateConfirm = true)}
+          disabled={migrating}
+        >
+          {migrating ? "Migrating..." : "Migrate now"}
+        </button>
+      </div>
+    </div>
+  {/if}
+</div>
+
 <details class="advanced-platform">
   <summary>Advanced — Server binary platform</summary>
   <p class="description">
@@ -301,6 +427,49 @@
     </div>
   {/if}
 </details>
+
+{#if showMigrateConfirm}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="modal-backdrop"
+    on:click={() => (showMigrateConfirm = false)}
+    role="presentation"
+  >
+    <div
+      class="modal-dialog"
+      on:click|stopPropagation
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="migrate-dialog-title"
+    >
+      <h3 id="migrate-dialog-title">Migrate binary?</h3>
+      <p>This will:</p>
+      <ol>
+        <li>
+          Download a fresh copy of the MCP server binary to a system
+          location outside your vault.
+        </li>
+        <li>Update your MCP client config to point at the new path.</li>
+        <li>
+          Delete the old binary at
+          <code>{legacyBinary?.path}</code>.
+        </li>
+      </ol>
+      <p>
+        <strong>This cannot be undone automatically.</strong>
+        If the download fails, your current binary will be left in place
+        and the setting will be rolled back.
+      </p>
+      <div class="modal-actions">
+        <button on:click={() => (showMigrateConfirm = false)}>Cancel</button>
+        <button class="primary" on:click={handleMigrateConfirm}>
+          Migrate now
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .error-message {
@@ -385,5 +554,101 @@
   .warning-banner code {
     font-family: var(--font-monospace);
     font-size: 0.85em;
+  }
+
+  .installation-location {
+    margin-top: 2em;
+  }
+
+  .installation-location h3 {
+    margin-bottom: 0.3em;
+  }
+
+  .installation-location .description {
+    color: var(--text-muted);
+    font-size: 0.85em;
+    margin-bottom: 0.75em;
+  }
+
+  .radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4em;
+    margin-bottom: 0.75em;
+  }
+
+  .radio-group label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+  }
+
+  .migration-banner {
+    margin-top: 0.75em;
+    padding: 0.75em;
+    border-left: 3px solid var(--text-warning, #e1a800);
+    background: var(--background-secondary);
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+
+  .migration-banner code {
+    font-family: var(--font-monospace);
+    font-size: 0.85em;
+    word-break: break-all;
+  }
+
+  .banner-actions {
+    margin-top: 0.75em;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .modal-dialog {
+    background: var(--background-primary);
+    color: var(--text-normal);
+    padding: 1.5em;
+    border-radius: 8px;
+    max-width: 520px;
+    width: calc(100% - 2em);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    font-size: 0.95em;
+  }
+
+  .modal-dialog h3 {
+    margin-top: 0;
+    margin-bottom: 0.5em;
+  }
+
+  .modal-dialog ol {
+    margin-left: 1.2em;
+    padding-left: 0;
+  }
+
+  .modal-dialog code {
+    font-family: var(--font-monospace);
+    font-size: 0.85em;
+    word-break: break-all;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 0.5em;
+    justify-content: flex-end;
+    margin-top: 1em;
+  }
+
+  .modal-actions button.primary {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
   }
 </style>
