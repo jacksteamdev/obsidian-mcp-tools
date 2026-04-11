@@ -50,12 +50,23 @@ function getConfigPath(): string {
 }
 
 /**
- * Updates the Claude Desktop config file with MCP server settings
+ * Updates the Claude Desktop config file with MCP server settings.
+ *
+ * @param plugin - The Obsidian plugin instance (unused today, kept
+ *   for signature compatibility with other callers).
+ * @param serverPath - Absolute path to the installed server binary.
+ * @param apiKey - Local REST API key, written as OBSIDIAN_API_KEY.
+ * @param extraEnv - Optional additional env vars merged into the env
+ *   block. Values take precedence over nothing (apiKey is written
+ *   separately under a fixed key). Keeping this as a plain record
+ *   avoids cross-feature imports into this file — feature-specific
+ *   serialization stays in the caller.
  */
 export async function updateClaudeConfig(
   plugin: Plugin,
   serverPath: string,
-  apiKey?: string
+  apiKey?: string,
+  extraEnv?: Record<string, string>,
 ): Promise<void> {
   try {
     const configPath = getConfigPath();
@@ -77,11 +88,13 @@ export async function updateClaudeConfig(
       // File doesn't exist, use default empty config
     }
 
-    // Update config with our server entry
+    // Update config with our server entry. Any extra env vars are
+    // merged in alongside OBSIDIAN_API_KEY.
     config.mcpServers["obsidian-mcp-tools"] = {
       command: serverPath,
       env: {
         OBSIDIAN_API_KEY: apiKey,
+        ...extraEnv,
       },
     };
 

@@ -4,6 +4,7 @@
   import { Notice } from "obsidian";
   import { dirname } from "path";
   import { onMount } from "svelte";
+  import { serializeDisabledToolsToEnv } from "../../tool-toggle";
   import {
     removeFromClaudeConfig,
     updateClaudeConfig,
@@ -39,8 +40,22 @@
       status = { ...status, state: "installing" };
       const installPath = await installMcpServer(plugin);
 
+      // Forward any user-configured disabled tools to the freshly
+      // installed server via the OBSIDIAN_DISABLED_TOOLS env var.
+      // Empty/missing list → no env var is written.
+      const data = await plugin.loadData();
+      const disabled = data?.toolToggle?.disabled ?? [];
+      const envOverrides: Record<string, string> = {};
+      const serialized = serializeDisabledToolsToEnv(disabled);
+      if (serialized) envOverrides.OBSIDIAN_DISABLED_TOOLS = serialized;
+
       // Update Claude config
-      await updateClaudeConfig(plugin, installPath.path, apiKey);
+      await updateClaudeConfig(
+        plugin,
+        installPath.path,
+        apiKey,
+        envOverrides,
+      );
 
       status = await getInstallationStatus(plugin);
     } catch (error) {
