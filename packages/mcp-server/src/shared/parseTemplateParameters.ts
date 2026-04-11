@@ -36,7 +36,10 @@ export function parseTemplateParameters(content: string): PromptParameter[] {
    * and may contain additional modifiers.
    */
   const TEMPLATER_START_TAG = /<%[*-_]*/g;
-  const TEMPLATER_END_TAG = /[-_]*%>/g;
+  // Note: no /g flag — this regex is used with .test() below, which would
+  // otherwise retain lastIndex across iterations and silently skip every
+  // second match. .split() does not need /g to split all occurrences.
+  const TEMPLATER_END_TAG = /[-_]*%>/;
 
   // Split content by template tags
   const parts = content.split(TEMPLATER_START_TAG);
