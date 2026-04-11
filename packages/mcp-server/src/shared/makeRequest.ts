@@ -2,10 +2,48 @@ import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { type, type Type } from "arktype";
 import { logger } from "./logger";
 
-// Default to HTTPS port, fallback to HTTP if specified
+/**
+ * Parse a port string into a valid TCP port number.
+ * Returns `undefined` if the input is missing, non-numeric, or out of range.
+ * Exported for unit testing.
+ */
+export function parsePort(raw: string | undefined): number | undefined {
+  if (!raw || !/^\d+$/.test(raw)) return undefined;
+  const port = Number(raw);
+  return Number.isInteger(port) && port >= 1 && port <= 65535
+    ? port
+    : undefined;
+}
+
+/**
+ * Extract a port override from argv, supporting both `--port 9000` and
+ * `--port=9000` forms. Returns the first valid form found, or `undefined`.
+ * Exported for unit testing.
+ */
+export function resolvePortFromArgs(argv: string[]): number | undefined {
+  const equalsForm = argv.find((arg) => arg.startsWith("--port="));
+  if (equalsForm) {
+    return parsePort(equalsForm.split("=")[1]);
+  }
+
+  const flagIndex = argv.findIndex((arg) => arg === "--port");
+  if (flagIndex >= 0) {
+    return parsePort(argv[flagIndex + 1]);
+  }
+
+  return undefined;
+}
+
+// Port resolution precedence (Unix-style): --port CLI flag takes top
+// priority, then OBSIDIAN_PORT env var, then the protocol default
+// (27124 HTTPS / 27123 HTTP). Host is still controlled separately by
+// OBSIDIAN_HOST for backward compatibility with the v0.2.26 setup.
 const USE_HTTP = process.env.OBSIDIAN_USE_HTTP === "true";
-const PORT = USE_HTTP ? 27123 : 27124;
 const PROTOCOL = USE_HTTP ? "http" : "https";
+const DEFAULT_PORT = USE_HTTP ? 27123 : 27124;
+const ARG_PORT = resolvePortFromArgs(process.argv);
+const ENV_PORT = parsePort(process.env.OBSIDIAN_PORT);
+const PORT = ARG_PORT ?? ENV_PORT ?? DEFAULT_PORT;
 const HOST = process.env.OBSIDIAN_HOST || "127.0.0.1";
 export const BASE_URL = `${PROTOCOL}://${HOST}:${PORT}`;
 
