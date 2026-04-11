@@ -1,5 +1,39 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeInputSchema } from "./ToolRegistry";
+import { type } from "arktype";
+import { normalizeInputSchema, ToolRegistryClass } from "./ToolRegistry";
+
+/**
+ * Minimal fake MCP Server context, just enough to satisfy the handler
+ * signature. We never hit the network or the real SDK in these tests.
+ */
+const fakeContext = { server: {} as never };
+
+/**
+ * Build a `ToolRegistryClass` prepopulated with two no-op tools. Used
+ * by the disable/dispatch tests below to avoid repeating boilerplate.
+ */
+function buildRegistryWithTwoTools() {
+  const tools = new ToolRegistryClass();
+
+  const alphaSchema = type({
+    name: '"alpha"',
+    arguments: {},
+  }).describe("Alpha tool");
+
+  const betaSchema = type({
+    name: '"beta"',
+    arguments: {},
+  }).describe("Beta tool");
+
+  tools.register(alphaSchema, async () => ({
+    content: [{ type: "text", text: "alpha-ok" }],
+  }));
+  tools.register(betaSchema, async () => ({
+    content: [{ type: "text", text: "beta-ok" }],
+  }));
+
+  return { tools, alphaSchema, betaSchema };
+}
 
 describe("normalizeInputSchema", () => {
   test("adds missing properties key to an otherwise valid object schema", () => {
@@ -65,5 +99,63 @@ describe("normalizeInputSchema", () => {
     const out = normalizeInputSchema(input);
     expect(out.type).toBe("string");
     expect(out.properties).toEqual({});
+  });
+});
+
+describe("ToolRegistry enable/disable", () => {
+  test("list() hides a disabled tool", () => {
+    const { tools, alphaSchema } = buildRegistryWithTwoTools();
+
+    // Baseline: both tools are enabled.
+    expect(tools.list().tools.map((t) => t.name)).toEqual(["alpha", "beta"]);
+
+    tools.disable(alphaSchema);
+
+    expect(tools.list().tools.map((t) => t.name)).toEqual(["beta"]);
+  });
+
+  test("dispatch() on a disabled tool throws Unknown tool", async () => {
+    const { tools, alphaSchema } = buildRegistryWithTwoTools();
+
+    tools.disable(alphaSchema);
+
+    // A disabled tool must be indistinguishable from an unregistered
+    // one — otherwise `list()` and `dispatch()` would disagree.
+    expect(
+      tools.dispatch({ name: "alpha", arguments: {} }, fakeContext),
+    ).rejects.toThrow(/Unknown tool: alpha/);
+  });
+
+  test("dispatch() still works for other enabled tools after one is disabled", async () => {
+    const { tools, alphaSchema } = buildRegistryWithTwoTools();
+
+    tools.disable(alphaSchema);
+
+    const result = await tools.dispatch(
+      { name: "beta", arguments: {} },
+      fakeContext,
+    );
+    expect(result).toEqual({
+      content: [{ type: "text", text: "beta-ok" }],
+    });
+  });
+
+  test("disableByName returns true for a known tool and disables it", () => {
+    const { tools } = buildRegistryWithTwoTools();
+
+    const result = tools.disableByName("alpha");
+
+    expect(result).toBe(true);
+    expect(tools.list().tools.map((t) => t.name)).toEqual(["beta"]);
+  });
+
+  test("disableByName returns false for an unknown tool and is a no-op", () => {
+    const { tools } = buildRegistryWithTwoTools();
+
+    const result = tools.disableByName("nonexistent");
+
+    expect(result).toBe(false);
+    // Both tools still listed.
+    expect(tools.list().tools.map((t) => t.name)).toEqual(["alpha", "beta"]);
   });
 });
