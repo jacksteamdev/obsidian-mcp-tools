@@ -1,0 +1,10 @@
+# Bun configuration for the obsidian-plugin package.
+#
+# The [test] preload registers a synthetic "obsidian" module so unit
+# tests can import files that reference Plugin, Notice, etc. — the
+# real npm "obsidian" package contains only .d.ts files and cannot
+# be loaded at runtime outside Obsidian itself. See src/test-setup.ts
+# for details.
+
+[test]
+preload = ["./src/test-setup.ts"]
