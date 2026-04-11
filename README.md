@@ -4,7 +4,7 @@
 [![Build status](https://img.shields.io/github/actions/workflow/status/jacksteamdev/obsidian-mcp-tools/release.yml)](https://github.com/jacksteamdev/obsidian-mcp-tools/actions)
 [![License](https://img.shields.io/github/license/jacksteamdev/obsidian-mcp-tools)](LICENSE)
 
-[Features](#features) | [Installation](#installation) | [Configuration](#configuration) | [Troubleshooting](#troubleshooting) | [Security](#security) | [Development](#development) | [Support](#support)
+[Features](#features) | [Installation](#installation) | [Configuration](#configuration) | [Other MCP clients](#using-with-other-mcp-clients) | [Troubleshooting](#troubleshooting) | [Security](#security) | [Development](#development) | [Support](#support)
 
 > **🔄 Seeking Project Maintainers**
 > 
@@ -39,8 +39,8 @@ All features require an MCP-compatible client like Claude Desktop, as this plugi
 ### Required
 
 - [Obsidian](https://obsidian.md/) v1.7.7 or higher
-- [Claude Desktop](https://claude.ai/download) installed and configured
 - [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) plugin installed and configured with an API key
+- An MCP-compatible client. [Claude Desktop](https://claude.ai/download) is the only client the plugin auto-configures — if you use a different client (Claude Code, Cline, Continue, Zed, or any custom MCP client), see [Using with other MCP clients](#using-with-other-mcp-clients) below for manual setup.
 
 ### Recommended
 
@@ -81,6 +81,66 @@ After clicking the "Install Server" button in the plugin settings, the plugin wi
 4. Set up appropriate paths and permissions
 
 While the configuration process is automated, it requires your explicit permission to install the server binary and modify the Claude Desktop configuration. No additional manual configuration is required beyond this initial setup step.
+
+## Using with other MCP clients
+
+The Obsidian plugin only auto-configures Claude Desktop, but the MCP server itself is a standalone binary that speaks MCP over stdio — so it works with any MCP-compatible client, including **Claude Code** (the Anthropic CLI), **Cline**, **Continue**, **Zed**, and custom clients built against the MCP SDK.
+
+### Finding the server binary
+
+After you click "Install Server" from the plugin settings, the binary is downloaded to:
+
+- **macOS / Linux**: `{vault}/.obsidian/plugins/obsidian-mcp-tools/bin/mcp-server`
+- **Windows**: `{vault}\.obsidian\plugins\obsidian-mcp-tools\bin\mcp-server.exe`
+
+Replace `{vault}` with the absolute path to your vault directory. You will need this absolute path when configuring a non-Claude-Desktop client, because clients launch the server as an external process.
+
+### Environment variables
+
+The server is configured entirely through environment variables passed by the client at launch time.
+
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `OBSIDIAN_API_KEY` | yes | — | Local REST API key. Copy it from the Local REST API plugin settings in Obsidian. |
+| `OBSIDIAN_HOST` | no | `127.0.0.1` | Hostname where Local REST API is listening. |
+| `OBSIDIAN_PORT` | no | `27124` (HTTPS) / `27123` (HTTP) | Port where Local REST API is listening. |
+| `OBSIDIAN_USE_HTTP` | no | `false` | Set to `true` to connect over HTTP instead of HTTPS. |
+| `OBSIDIAN_DISABLED_TOOLS` | no | — | Comma-separated list of tool names to disable (e.g. `patch_vault_file, delete_vault_file`). Unknown names are logged as warnings and do not abort startup. |
+
+The server also accepts a `--port <number>` CLI flag as an alternative to `OBSIDIAN_PORT`. When both are set, the CLI flag wins.
+
+### Example configuration
+
+Most MCP clients expect a JSON config with a `command`, optional `args`, and an `env` block. Here is a generic template that maps onto every client's config shape:
+
+```json
+{
+  "mcpServers": {
+    "obsidian-mcp-tools": {
+      "command": "/absolute/path/to/your-vault/.obsidian/plugins/obsidian-mcp-tools/bin/mcp-server",
+      "args": [],
+      "env": {
+        "OBSIDIAN_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+The exact config file location and the wrapping object shape vary by client:
+
+- **Claude Code** (Anthropic CLI): add via `claude mcp add`, or edit `~/.claude.json` (project scope) / `~/.claude/settings.json` (global scope).
+- **Cline**: open the *MCP Servers* panel in the Cline sidebar and add it via the UI.
+- **Continue**: configure under `mcpServers` in the Continue config file (see the Continue docs for the current path).
+- **Zed**: configure via the assistant settings panel.
+
+Consult your client's own documentation for the current config file path and any client-specific wrapping keys.
+
+### Verifying the setup
+
+Once configured, your client should expose 18 MCP tools from this server, plus any prompts you have tagged with `#mcp-tools-prompt` in a `Prompts/` folder at your vault root.
+
+To verify the connection works end-to-end, ask the agent to call `get_server_info`. A successful response confirms that the client can launch the binary, the binary can reach Local REST API, and the environment variables are being passed through correctly. If the call fails with an authentication error, double-check `OBSIDIAN_API_KEY`. If it fails with a connection error, check `OBSIDIAN_HOST` / `OBSIDIAN_PORT` and make sure the Local REST API plugin is enabled and Obsidian is running.
 
 ## Troubleshooting
 
