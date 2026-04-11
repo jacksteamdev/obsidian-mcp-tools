@@ -12,6 +12,50 @@ interface HandlerContext {
   server: Server;
 }
 
+/**
+ * Ensure an MCP tool's `inputSchema` always carries an explicit
+ * `properties` key (even when empty). Some non-Claude MCP clients —
+ * notably Letta Cloud and several OpenAI-compatible bridges — reject
+ * tool schemas that omit `properties`, which ArkType's JSON schema
+ * emitter does when the argument type is effectively an open record.
+ *
+ * This is defense in depth on top of the per-feature fix of using
+ * empty-object literals instead of `Record<string, unknown>`: if a
+ * future contributor reintroduces an open-record argument schema,
+ * the wrapper still yields a well-formed output for strict clients.
+ *
+ * Exported so it can be unit-tested without instantiating the whole
+ * ToolRegistry.
+ */
+export function normalizeInputSchema(
+  jsonSchema: unknown,
+): Record<string, unknown> {
+  // Accept any JSON-schema-shaped value; fall back to an empty object
+  // schema if the input is somehow not an object (should not happen
+  // with ArkType, but we refuse to crash on malformed data).
+  const base =
+    typeof jsonSchema === "object" && jsonSchema !== null
+      ? (jsonSchema as Record<string, unknown>)
+      : { type: "object" };
+
+  // Clone to avoid mutating the caller's object.
+  const result: Record<string, unknown> = { ...base };
+
+  // Force-set `type: "object"` if missing — MCP inputSchema must be an
+  // object type by protocol.
+  if (!("type" in result)) {
+    result.type = "object";
+  }
+
+  // The core fix: guarantee `properties` is present, defaulting to an
+  // empty object for no-arg tools.
+  if (!("properties" in result)) {
+    result.properties = {};
+  }
+
+  return result;
+}
+
 const textResult = type({
   type: '"text"',
   text: "string",
@@ -37,7 +81,11 @@ export class ToolRegistryClass<
   TSchema extends Type<
     {
       name: string;
-      arguments?: Record<string, unknown>;
+      // `object` (not `Record<string, unknown>`) so that tools declaring
+      // `arguments: {}` — i.e. no-arg tools — still type-check. See the
+      // normalizeInputSchema helper below for why the empty-object form
+      // is preferred over the open-record form.
+      arguments?: object;
     },
     {}
   >,
@@ -82,7 +130,9 @@ export class ToolRegistryClass<
           // @ts-expect-error We know the const property is present for a string
           name: schema.get("name").toJsonSchema().const,
           description: schema.description,
-          inputSchema: schema.get("arguments").toJsonSchema(),
+          inputSchema: normalizeInputSchema(
+            schema.get("arguments").toJsonSchema(),
+          ),
         };
       }),
     };
@@ -100,13 +150,22 @@ export class ToolRegistryClass<
     schema: Schema,
     params: Schema["infer"],
   ): Schema["infer"] => {
-    const args = params.arguments;
+    // `arguments` is typed as `object` at the registry level (so that
+    // no-arg tools can declare `arguments: {}`), but inside this method
+    // we need index access, so we treat it as an open dictionary.
+    const args = params.arguments as Record<string, unknown> | undefined;
     const argsSchema = schema.get("arguments").exclude("undefined");
     if (!args || !argsSchema) return params;
 
-    const fixed = { ...params.arguments };
+    const fixed: Record<string, unknown> = { ...args };
     for (const [key, value] of Object.entries(args)) {
-      const valueSchema = argsSchema.get(key).exclude("undefined");
+      // ArkType's typed .get() no longer accepts arbitrary string keys
+      // now that the registry constraint is `object` instead of
+      // `Record<string, unknown>`. Cast the schema to a loose getter for
+      // this lookup — the runtime behavior is identical.
+      const valueSchema = (
+        argsSchema as unknown as { get: (k: string) => { exclude: (s: string) => { expression: string } } }
+      ).get(key).exclude("undefined");
       if (
         valueSchema.expression === "boolean" &&
         typeof value === "string" &&
@@ -155,14 +214,22 @@ export type ToolRegistry = ToolRegistryClass<
   Type<
     {
       name: string;
-      arguments?: Record<string, unknown>;
+      // `object` (not `Record<string, unknown>`) so that tools declaring
+      // `arguments: {}` — i.e. no-arg tools — still type-check. See the
+      // normalizeInputSchema helper below for why the empty-object form
+      // is preferred over the open-record form.
+      arguments?: object;
     },
     {}
   >,
   (
     request: {
       name: string;
-      arguments?: Record<string, unknown>;
+      // `object` (not `Record<string, unknown>`) so that tools declaring
+      // `arguments: {}` — i.e. no-arg tools — still type-check. See the
+      // normalizeInputSchema helper below for why the empty-object form
+      // is preferred over the open-record form.
+      arguments?: object;
     },
     context: HandlerContext,
   ) => Promise<Result>
