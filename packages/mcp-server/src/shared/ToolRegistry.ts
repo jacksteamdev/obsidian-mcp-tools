@@ -123,6 +123,26 @@ export class ToolRegistryClass<
     return this;
   };
 
+  /**
+   * Disable a tool by its public name (the string used in MCP
+   * `tools/list` / `tools/call`). Returns `true` if a matching tool
+   * was found and disabled, `false` otherwise.
+   *
+   * Useful for applying user-controlled disable lists (e.g. from an
+   * env var) after all features have registered their tools.
+   */
+  disableByName = (name: string): boolean => {
+    for (const schema of this.keys()) {
+      // @ts-expect-error We know the const property is present for a string
+      const toolName = schema.get("name").toJsonSchema().const as string;
+      if (toolName === name) {
+        this.disable(schema);
+        return true;
+      }
+    }
+    return false;
+  };
+
   list = () => {
     return {
       tools: Array.from(this.enabled.values()).map((schema) => {
@@ -184,6 +204,11 @@ export class ToolRegistryClass<
   ) => {
     try {
       for (const [schema, handler] of this.entries()) {
+        // Only dispatch to tools that are currently enabled. A disabled
+        // tool must behave as if it did not exist — otherwise `list()`
+        // and `dispatch()` would disagree and clients could invoke tools
+        // the user explicitly turned off.
+        if (!this.enabled.has(schema)) continue;
         if (schema.get("name").allows(params.name)) {
           const validParams = schema.assert(
             this.coerceBooleanParams(schema, params),
