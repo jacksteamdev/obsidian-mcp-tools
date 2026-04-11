@@ -439,7 +439,7 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 9. ✅ **Remove `zod`** — `7e95366`. Confirmed unused, removed from `packages/mcp-server/package.json` and `bun.lock`.
 10. ✅ **Create `cline_docs/`** — landed as a docs-only commit. Directory created with `cline_docs/README.md` documenting the intended task-record lifecycle from `.clinerules`. Using the directory is optional; if a future session wants to adopt the per-task-record workflow, drop a new markdown file in.
 11. **Prune stale remote branches** on `origin` (`feat--example-website-for-testing`, `feat--source-documents`, `refactor--rebrand`, …). These belong to the upstream remote — the fork cannot delete them. Only relevant if maintainership migrates. **Not yet started.**
-12. **Document the prompt system end-to-end** — `docs/features/prompt-requirements.md` exists but the vault-side contract (`Prompts/` folder, `#mcp-tools-prompt` tag, Templater parameters) is not mentioned in the README. **Not yet started.**
+12. ✅ **Document the prompt system end-to-end** — the obsolete `docs/features/prompt-requirements.md` (a pre-implementation planning doc) has been replaced by a new authoritative reference at `docs/features/prompt-system.md` covering the vault-side contract (folder name, tag forms, frontmatter schema), the Templater parameter parser rules, the discovery and execution flows, and known limitations. README.md now has a user-facing "Using prompts" section with a 60-second quickstart, an example prompt body, and a pointer to the full reference.
 
 ### Still pending from Cluster G
 
@@ -457,7 +457,7 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 - `.clinerules` — authoritative feature architecture, ArkType conventions, error handling contract.
 - `docs/project-architecture.md` — monorepo overview (aligned with `.clinerules`).
 - `docs/features/mcp-server-install.md` — installer feature spec (install flow, settings UI, Claude config writes, version management, error handling, uninstall).
-- `docs/features/prompt-requirements.md` — prompt system requirements.
+- `docs/features/prompt-system.md` — authoritative reference for the prompt feature: vault-side contract (folder, tags, frontmatter), Templater parameter syntax, discovery and execution flows, known limitations. Read this before touching `packages/mcp-server/src/features/prompts/` or the template execution endpoint in the plugin. Replaces the earlier `prompt-requirements.md` planning doc.
 - `docs/design/issue-29-command-execution.md` — fork design review for Obsidian command execution (threat model, policy options, MCP tool surface, phased implementation plan). Authoritative reference when issue #29 / PR #47 is picked up.
 - `CONTRIBUTING.md` — community standards + release process.
 - `SECURITY.md` — SLSA provenance, vulnerability reporting (`jacksteamdev+security@gmail.com`).

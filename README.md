@@ -4,7 +4,7 @@
 [![Build status](https://img.shields.io/github/actions/workflow/status/jacksteamdev/obsidian-mcp-tools/release.yml)](https://github.com/jacksteamdev/obsidian-mcp-tools/actions)
 [![License](https://img.shields.io/github/license/jacksteamdev/obsidian-mcp-tools)](LICENSE)
 
-[Features](#features) | [Installation](#installation) | [Configuration](#configuration) | [Other MCP clients](#using-with-other-mcp-clients) | [Troubleshooting](#troubleshooting) | [Security](#security) | [Development](#development) | [Support](#support)
+[Features](#features) | [Installation](#installation) | [Configuration](#configuration) | [Other MCP clients](#using-with-other-mcp-clients) | [Prompts](#using-prompts) | [Troubleshooting](#troubleshooting) | [Security](#security) | [Development](#development) | [Support](#support)
 
 > **🔄 Seeking Project Maintainers**
 > 
@@ -31,6 +31,7 @@ When connected to an MCP client like Claude Desktop, this plugin enables:
 - **Vault Access**: Allows AI assistants to read and reference your notes while maintaining your vault's security [^4]
 - **Semantic Search**: AI assistants can search your vault based on meaning and context, not just keywords [^5]
 - **Template Integration**: Execute Obsidian templates through AI interactions, with dynamic parameters and content generation [^6]
+- **Prompt Library**: Author MCP prompts as markdown files in your vault's `Prompts/` folder, with parameters defined inline via Templater syntax. Your prompt library lives alongside your notes. See [Using prompts](#using-prompts) below.
 
 All features require an MCP-compatible client like Claude Desktop, as this plugin provides the server component that enables these integrations. The plugin does not modify Obsidian's functionality directly - instead, it creates a secure bridge that allows AI applications to work with your vault in powerful ways.
 
@@ -157,6 +158,56 @@ Consult your client's own documentation for the current config file path and any
 Once configured, your client should expose 18 MCP tools from this server, plus any prompts you have tagged with `#mcp-tools-prompt` in a `Prompts/` folder at your vault root.
 
 To verify the connection works end-to-end, ask the agent to call `get_server_info`. A successful response confirms that the client can launch the binary, the binary can reach Local REST API, and the environment variables are being passed through correctly. If the call fails with an authentication error, double-check `OBSIDIAN_API_KEY`. If it fails with a connection error, check `OBSIDIAN_HOST` / `OBSIDIAN_PORT` and make sure the Local REST API plugin is enabled and Obsidian is running.
+
+## Using prompts
+
+The plugin lets you author **MCP prompts** as plain markdown files in your vault. Your prompt library lives alongside your notes, in a folder called `Prompts/` at the root of the vault. Every MCP-compatible client (Claude Desktop, Claude Code, Cline, Continue, Zed, …) will surface these prompts in its own UI — typically as slash commands or attachments.
+
+### Requirements
+
+- The **[Templater](https://silentvoid13.github.io/Templater/)** plugin must be installed and enabled. The prompt feature uses Templater to render the template body.
+- A folder named exactly `Prompts` (capital `P`) at the root of your vault.
+
+### Creating a prompt in 60 seconds
+
+1. Create a new folder called `Prompts` at the root of your vault (if it doesn't exist already).
+2. Create a new markdown note inside it, e.g. `Prompts/weekly-review.md`.
+3. Add frontmatter with the `mcp-tools-prompt` tag and a short description:
+
+   ```markdown
+   ---
+   tags:
+     - mcp-tools-prompt
+   description: Summarize my recent daily notes on a given topic
+   ---
+
+   Summarize my notes from the past **<% tp.mcpTools.prompt("days", "How many days back to look, e.g. 7") %>** days
+   about **<% tp.mcpTools.prompt("topic", "The subject — e.g. 'writing habits'") %>**.
+
+   Give me the three most recurring themes and one action item I should act on this week.
+   ```
+
+4. Save the file.
+5. In your MCP client, refresh or reconnect to the server. The new prompt will appear — named after the filename (`weekly-review.md`) — with two parameters: `days` and `topic`.
+6. Invoke it from your client's UI (e.g. the attachment or slash-command menu in Claude Desktop), fill in the parameters, and the rendered text becomes the first message of a new conversation.
+
+### How parameters work
+
+Parameters are declared inside the template body using a specific Templater pattern:
+
+```
+<% tp.mcpTools.prompt("parameter_name", "Description shown to the user") %>
+```
+
+The same call at execution time returns the user-supplied value. You can repeat the same parameter name throughout the template — it only shows up once in the client's input form, and the value is injected everywhere.
+
+### Other ways to tag a prompt
+
+Instead of frontmatter, you can drop an inline `#mcp-tools-prompt` hashtag anywhere in the body. Both forms are accepted by the server. Use whichever fits your note-taking style.
+
+### Where is the full reference?
+
+This section covers the 90% case. For the complete contract (folder naming, frontmatter schema, parameter parsing rules, execution flow, known limitations), see **[`docs/features/prompt-system.md`](docs/features/prompt-system.md)**.
 
 ## Troubleshooting
 
