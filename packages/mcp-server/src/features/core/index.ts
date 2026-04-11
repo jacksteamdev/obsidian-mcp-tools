@@ -1,6 +1,7 @@
 import { logger, type ToolRegistry, ToolRegistryClass } from "$/shared";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { registerCommandsTools } from "../commands";
 import { registerFetchTool } from "../fetch";
 import { registerLocalRestApiTools } from "../local-rest-api";
 import { setupObsidianPrompts } from "../prompts";
@@ -51,6 +52,7 @@ export class ObsidianMcpServer {
     registerLocalRestApiTools(this.tools, this.server);
     registerSmartConnectionsTools(this.tools);
     registerTemplaterTools(this.tools);
+    registerCommandsTools(this.tools);
 
     this.applyDisabledToolsFromEnv();
 

@@ -1,8 +1,16 @@
 # Design: Obsidian Command Execution via MCP
 
-> **Status**: design review — not yet implemented.
+> **Status**: **Fase 1 MVP landed** on branch `feat/command-execution-mvp` (2026-04-11). Fase 2 and Fase 3 are still open.
 > **Tracks**: upstream issue #29, upstream PR #47 (both open).
 > **Fork context**: this document is the design reference for the `istefox/obsidian-mcp-tools` fork. It intentionally diverges from the upstream PR #47 approach where noted.
+>
+> **What Fase 1 delivered** (deviation from the original plan documented inline below):
+> - Two new MCP tools: `list_obsidian_commands` (read-only, always available) and `execute_obsidian_command` (gated).
+> - New plugin endpoint `POST /mcp-tools/command-permission/` (wired in `main.ts` alongside `/search/smart` and `/templates/execute`).
+> - In-memory per-process tumbling-window rate limiter, 100 calls/minute.
+> - Plugin settings UI at `features/command-permissions/components/CommandPermissionsSettings.svelte`: single master toggle, comma/newline allowlist textarea, live command browser (`app.commands.commands`) with one-click "Add" buttons, recent-invocations audit log (ring buffer, max 50).
+> - One deliberate simplification vs. the original plan: **single master toggle** instead of "master enable" + separate "killswitch". Rationale: one lever is easier to understand and the killswitch value was marginal given the allowlist already acts as a narrow gate.
+> - **Not** in Fase 1: the confirmation modal path (that's Fase 2) and categorized presets (Fase 3).
 
 ## Problem statement
 

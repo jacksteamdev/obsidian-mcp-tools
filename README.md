@@ -4,7 +4,7 @@
 [![Build status](https://img.shields.io/github/actions/workflow/status/jacksteamdev/obsidian-mcp-tools/release.yml)](https://github.com/jacksteamdev/obsidian-mcp-tools/actions)
 [![License](https://img.shields.io/github/license/jacksteamdev/obsidian-mcp-tools)](LICENSE)
 
-[Features](#features) | [Installation](#installation) | [Configuration](#configuration) | [Other MCP clients](#using-with-other-mcp-clients) | [Prompts](#using-prompts) | [Troubleshooting](#troubleshooting) | [Security](#security) | [Development](#development) | [Support](#support)
+[Features](#features) | [Installation](#installation) | [Configuration](#configuration) | [Other MCP clients](#using-with-other-mcp-clients) | [Prompts](#using-prompts) | [Command execution](#command-execution) | [Troubleshooting](#troubleshooting) | [Security](#security) | [Development](#development) | [Support](#support)
 
 > **🔄 Seeking Project Maintainers**
 > 
@@ -32,6 +32,7 @@ When connected to an MCP client like Claude Desktop, this plugin enables:
 - **Semantic Search**: AI assistants can search your vault based on meaning and context, not just keywords [^5]
 - **Template Integration**: Execute Obsidian templates through AI interactions, with dynamic parameters and content generation [^6]
 - **Prompt Library**: Author MCP prompts as markdown files in your vault's `Prompts/` folder, with parameters defined inline via Templater syntax. Your prompt library lives alongside your notes. See [Using prompts](#using-prompts) below.
+- **Command Execution** (opt-in): Authorize the agent to run specific Obsidian commands (e.g. `editor:toggle-bold`, `graph:open`) from a per-vault allowlist. Disabled by default; every invocation is audited. See [Command execution](#command-execution) below.
 
 All features require an MCP-compatible client like Claude Desktop, as this plugin provides the server component that enables these integrations. The plugin does not modify Obsidian's functionality directly - instead, it creates a secure bridge that allows AI applications to work with your vault in powerful ways.
 
@@ -208,6 +209,39 @@ Instead of frontmatter, you can drop an inline `#mcp-tools-prompt` hashtag anywh
 ### Where is the full reference?
 
 This section covers the 90% case. For the complete contract (folder naming, frontmatter schema, parameter parsing rules, execution flow, known limitations), see **[`docs/features/prompt-system.md`](docs/features/prompt-system.md)**.
+
+## Command execution
+
+The agent can run Obsidian commands on your behalf — the same entries you see in the command palette — but **only if you explicitly authorize them**. This feature is disabled by default and has no effect until you turn it on.
+
+### How it works
+
+Two MCP tools are always advertised to the client:
+
+- `list_obsidian_commands` — read-only discovery, always safe. Returns every command registered in the vault (core + plugins), optionally filtered by a substring. Use this first to find the `id` of a command you want to allow.
+- `execute_obsidian_command` — gated. Every call is checked against your allowlist. Calls that fall outside the allowlist return a permission-denied error without executing anything.
+
+On top of the allowlist, `execute_obsidian_command` is rate-limited to **100 calls per minute** (tumbling window, per server process, in-memory) to protect the vault from runaway loops.
+
+### Enabling it
+
+1. Open **Settings → Community plugins → MCP Tools → Command execution**.
+2. Tick **Enable MCP command execution**.
+3. Under **Browse available commands**, find commands you want to authorize and click **Add** next to each. You can also paste a comma- or newline-separated list into the textarea directly.
+4. Click **Save**. Changes apply immediately — no client restart needed.
+
+### What gets logged
+
+Every allow/deny decision is appended to a ring buffer of the last 50 invocations, visible under **Recent invocations** in the same settings section. The audit log includes the command id, the decision, the timestamp, and (for denied calls) the reason. The buffer is pruned automatically so `data.json` stays bounded.
+
+### Security model
+
+- **Deny by default.** The master toggle is off out of the box. An empty allowlist with the toggle on is still deny-all.
+- **No wildcards.** Allowlist entries must be exact command ids — there is no `editor:*` pattern.
+- **No auto-discovery dumps.** The agent must call `list_obsidian_commands` or the user must paste ids; the allowlist is never populated automatically.
+- **Per-vault.** The allowlist lives in each vault's plugin `data.json`. A different vault starts from zero.
+
+For the full threat model and the rationale behind these decisions, see **[`docs/design/issue-29-command-execution.md`](docs/design/issue-29-command-execution.md)**.
 
 ## Troubleshooting
 

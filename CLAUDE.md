@@ -172,7 +172,7 @@ Rules:
 
 Capabilities declared: **`tools`** and **`prompts`**. No MCP resources are exposed.
 
-### Tools (18 total)
+### Tools (20 total)
 
 **Vault file management** — `packages/mcp-server/src/features/local-rest-api/index.ts`:
 
@@ -211,6 +211,13 @@ Capabilities declared: **`tools`** and **`prompts`**. No MCP resources are expos
 | Tool | Purpose |
 |---|---|
 | `fetch` | Retrieve any URL and return Markdown (via Turndown) or raw HTML. Supports pagination (`maxLength`/`startIndex`) with built-in truncation hint. |
+
+**Command execution** — `features/commands/index.ts`:
+
+| Tool | Purpose |
+|---|---|
+| `list_obsidian_commands` | Read-only discovery. Returns every command registered in the vault (core + plugins) with optional substring filter. Always safe, no permission gate. |
+| `execute_obsidian_command` | Gated execution. Every call goes through a rate limiter (100/minute tumbling window) and then the plugin's `/mcp-tools/command-permission/` endpoint, which checks the master toggle + per-command allowlist. Disabled by default. |
 
 ### Prompts
 
@@ -270,7 +277,7 @@ Full spec lives in `.clinerules`. Highlights:
 
 - Framework: `bun:test` (`import { describe, expect, test } from "bun:test"`).
 - Tests live next to the code (`*.test.ts`).
-- **Counts as of 2026-04-11 fork state**: `mcp-server` 88 pass / 7 files; `obsidian-plugin` 66 pass / 7 files. Total **154 pass**.
+- **Counts as of 2026-04-11 fork state**: `mcp-server` 93 pass / 8 files; `obsidian-plugin` 108 pass / 8 files. Total **201 pass**.
 - Run a single file: `bun test src/features/fetch/services/markdown.test.ts`. Run a whole package: `cd packages/<name> && bun test`. Run check + tests across all packages: `bun run check` from the repo root, then `bun test` in each package (there is no monorepo-wide `bun test` fan-out today).
 - **Plugin test infrastructure** (added in the fork):
   - `packages/obsidian-plugin/bunfig.toml` — `[test] preload` registers a synthetic `"obsidian"` module via `src/test-setup.ts`, so test files can import production modules that reference `Plugin`, `Notice`, `FileSystemAdapter`, `TFile`, etc. The real npm `obsidian` package ships only `.d.ts` files; at production runtime Obsidian injects the module itself. Without this preload, any plugin test that transitively imports a file referencing those classes crashes at load with `Cannot find package 'obsidian'`.
@@ -409,7 +416,7 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 | Issue #60 | Documentation/support for Claude Code (CLI) | ✅ `aa1697a` |
 | Issue #59 | `getVaultFile()` cannot fetch audio files | ✅ `f6d004a` |
 | Issue #35 | Clarify instructions for non-Claude clients | ✅ `aa1697a` |
-| Issue #29 | Obsidian command execution support | open — needs security design review before code lands |
+| Issue #29 | Obsidian command execution support | ✅ **Fase 1 MVP** (`feat/command-execution-mvp`) — deny-by-default allowlist model. Two new MCP tools (`list_obsidian_commands`, `execute_obsidian_command`), plugin endpoint `POST /mcp-tools/command-permission/`, in-memory rate limiter (100/min), settings UI with live command browser + recent-invocations audit log (ring buffer, max 50). Fase 2 (long-polling confirmation modal for one-off commands) and Fase 3 (categorized presets) are still open. |
 | Issue #28 | Install MCP server outside of vault | ✅ `4552c18` (backend) + `ce8a4bd` (UI) — new default is a system path (`~/Library/Application Support/obsidian-mcp-tools/bin` on macOS, `~/.local/share/obsidian-mcp-tools/bin` on Linux, `%APPDATA%\obsidian-mcp-tools\bin` on Windows); legacy "Inside vault" opt-in preserved via plugin settings; existing users get a migration banner with a one-click confirmation dialog that downloads the new binary, rewrites the client config, and removes the old vault binary. Rollback-on-failure keeps state safe if the download dies mid-flight. New backend APIs: `detectLegacyVaultBinary()` and `migrateFromVaultToSystem()`. |
 | Issue #26 | Select which platform for the server binary (WSL) | ✅ `2121ecf` — server install reads `OBSIDIAN_SERVER_PLATFORM`/`OBSIDIAN_SERVER_ARCH` env vars **and** a `platformOverride` plugin setting (Advanced section in settings UI). getPlatform/getArch now accept an optional override argument; call sites read it from `plugin.loadData()`. Banner in the settings UI warns when the installed binary does not match the selected platform. |
 | PR #65 | feat: improve tool schema clarity for better LLM reliability | open |
@@ -443,7 +450,7 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 
 ### Still pending from Cluster G
 
-- **PR #47 / Issue #29** (Obsidian command execution via MCP) — **design review complete**, see `docs/design/issue-29-command-execution.md`. The fork diverges from upstream PR #47 and adopts a hybrid per-invocation-prompt-with-allowlist model (Option F in the design doc). Implementation is split into three phases; Fase 1 (MVP) is ~1 day of work. Not yet started — re-read the design doc before touching code.
+- **PR #47 / Issue #29** (Obsidian command execution via MCP) — **Fase 1 MVP landed** on `feat/command-execution-mvp`. The fork diverges from upstream PR #47 and adopts a hybrid per-invocation-prompt-with-allowlist model (Option F in the design doc). Implementation is split into three phases. Fase 1 (deny-by-default allowlist + audit log + rate limiter) is complete and merged. Open follow-ups: **Fase 2** (long-polling confirmation modal so the agent can request one-off permission for a command that is not on the allowlist) and **Fase 3** (categorized presets like "Editing", "Navigation" to lower the allowlist-bootstrap friction). Re-read `docs/design/issue-29-command-execution.md` before picking up either phase.
 
 ### Also pending from the fork's own discoveries
 
