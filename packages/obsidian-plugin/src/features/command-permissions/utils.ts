@@ -8,11 +8,98 @@ import type { CommandAuditEntry } from "./types";
 
 /**
  * Maximum number of audit log entries retained in the ring buffer.
- * The settings UI only reads from this buffer (Fase 2 will add a
- * viewer); the main goal is to keep data.json bounded while still
- * giving the user a window into recent activity.
+ * The settings UI displays the last N invocations; the main goal is
+ * to keep data.json bounded while still giving the user a window
+ * into recent activity.
  */
 export const AUDIT_LOG_MAX_ENTRIES = 50;
+
+/**
+ * Soft rate-limit threshold used by the Fase 2 confirmation modal
+ * to warn the user that the agent has been unusually busy. This is
+ * NOT enforcement — the server-side `rateLimit.ts` still drops calls
+ * above 100/min hard. The soft limit exists only to surface a visible
+ * "are you sure this is intentional?" nudge when a modal is shown.
+ */
+export const SOFT_RATE_LIMIT_PER_MINUTE = 30;
+
+/**
+ * Regex of command-id fragments that heuristically indicate a
+ * destructive operation (file deletion, settings reset, vault cleanup,
+ * etc.). Matches are word-boundary based and case-insensitive so they
+ * catch both `editor:delete-file` and `myPlugin:CleanUpDuplicates`.
+ *
+ * This is a nudge, not a gate — the user still has the final say via
+ * the modal. The point is to disable "Allow always" on matching
+ * commands so the user cannot silently add an unbounded command to
+ * their persistent allowlist without thinking about it.
+ */
+const DESTRUCTIVE_PATTERN =
+  /\b(delete|remove|uninstall|trash|clean(?:up)?|purge|drop|reset|clear|wipe)\b/i;
+
+/**
+ * True if the command id OR the human-readable name contains a word
+ * that heuristically suggests a destructive effect. The check runs
+ * against both because plugin authors sometimes hide destructive
+ * intent behind an innocuous id and a telltale name (or vice versa).
+ */
+export function isDestructiveCommand(
+  commandId: string,
+  commandName?: string,
+): boolean {
+  if (DESTRUCTIVE_PATTERN.test(commandId)) return true;
+  if (commandName && DESTRUCTIVE_PATTERN.test(commandName)) return true;
+  return false;
+}
+
+/**
+ * Rolling-window event counter used by the permission-check handler
+ * to display the Fase 2 soft rate-limit warning in the confirmation
+ * modal. Each `record()` pushes an event timestamp onto an internal
+ * array, and both read methods prune entries older than `windowMs`
+ * before answering. The counter is in-memory only — it resets when
+ * the plugin reloads, which matches the design intent (catch short
+ * bursts, not enforce long-term quotas).
+ *
+ * All methods accept an optional `now` argument so tests can drive
+ * time deterministically.
+ */
+export interface RuntimeRateCounter {
+  record(now?: number): void;
+  countInLastMinute(now?: number): number;
+  isSoftLimitExceeded(now?: number): boolean;
+}
+
+export function createRuntimeRateCounter(
+  windowMs: number = 60_000,
+  softLimit: number = SOFT_RATE_LIMIT_PER_MINUTE,
+): RuntimeRateCounter {
+  // Ordered oldest → newest. We only ever append and shift from the
+  // front, so the array is always sorted by time.
+  const timestamps: number[] = [];
+
+  function prune(now: number) {
+    const cutoff = now - windowMs;
+    while (timestamps.length > 0 && timestamps[0]! <= cutoff) {
+      timestamps.shift();
+    }
+  }
+
+  return {
+    record(now: number = Date.now()) {
+      timestamps.push(now);
+      prune(now);
+    },
+    countInLastMinute(now: number = Date.now()) {
+      prune(now);
+      return timestamps.length;
+    },
+    isSoftLimitExceeded(now: number = Date.now()) {
+      prune(now);
+      return timestamps.length > softLimit;
+    },
+  };
+}
 
 /**
  * Parse a comma-or-newline separated list of command ids as typed

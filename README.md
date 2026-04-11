@@ -219,16 +219,23 @@ The agent can run Obsidian commands on your behalf — the same entries you see 
 Two MCP tools are always advertised to the client:
 
 - `list_obsidian_commands` — read-only discovery, always safe. Returns every command registered in the vault (core + plugins), optionally filtered by a substring. Use this first to find the `id` of a command you want to allow.
-- `execute_obsidian_command` — gated. Every call is checked against your allowlist. Calls that fall outside the allowlist return a permission-denied error without executing anything.
+- `execute_obsidian_command` — gated. Every call is checked against your allowlist.
+  - **If the command is on your allowlist** → it runs immediately.
+  - **If it is not on your allowlist** (and the master toggle is ON) → a confirmation modal pops up in Obsidian with three buttons: **Deny**, **Allow once**, **Allow always**. The HTTP call long-polls for up to 30 seconds waiting for your decision. "Allow always" adds the command to your allowlist so future calls skip the modal.
+  - **If the master toggle is OFF** → every call is denied immediately. No modal, no prompt.
 
-On top of the allowlist, `execute_obsidian_command` is rate-limited to **100 calls per minute** (tumbling window, per server process, in-memory) to protect the vault from runaway loops.
+On top of the allowlist + confirmation flow, `execute_obsidian_command` is rate-limited to **100 calls per minute** (hard limit, server-side tumbling window) to protect the vault from runaway loops. The confirmation modal also surfaces a secondary **soft warning at 30 calls/minute**, visible to you as a red-bordered notice so you can abort a suspicious burst manually.
+
+### Destructive-command heuristic
+
+If the command id or its human name contains a word commonly associated with data loss (`delete`, `remove`, `uninstall`, `trash`, `clean`/`cleanup`, `purge`, `drop`, `reset`, `clear`, `wipe`), the confirmation modal shows a red warning and **disables the "Allow always" button**. You can still run the command via "Allow once" — but the heuristic nudges you to think twice before adding it to your persistent allowlist. This is intentionally a nudge, not a gate: plugin authors use words creatively, so the filter catches the obvious cases and lets everything else through.
 
 ### Enabling it
 
 1. Open **Settings → Community plugins → MCP Tools → Command execution**.
-2. Tick **Enable MCP command execution**.
-3. Under **Browse available commands**, find commands you want to authorize and click **Add** next to each. You can also paste a comma- or newline-separated list into the textarea directly.
-4. Click **Save**. Changes apply immediately — no client restart needed.
+2. Tick **Enable MCP command execution**. Save.
+3. From this point forward, whenever the agent invokes a command that is not on your allowlist, a modal will pop up asking for confirmation.
+4. If you prefer to pre-authorize commands up front (rather than hit a modal on first call), expand **Browse available commands** and click **Add** next to each command you trust. You can also paste a comma- or newline-separated list into the allowlist textarea directly. Save.
 
 ### What gets logged
 
