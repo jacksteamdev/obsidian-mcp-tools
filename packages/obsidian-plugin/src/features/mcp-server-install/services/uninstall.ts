@@ -37,15 +37,20 @@ export async function uninstallServer(plugin: Plugin): Promise<void> {
       // File doesn't exist, continue
     }
 
-    // Remove bin directory if empty
+    // Remove bin directory if empty. Tolerate both ENOTEMPTY (user
+    // dropped sidecar files in the dir) and ENOENT (the bin dir was
+    // never created, i.e. uninstall is being called on a vault that
+    // never ran "Install Server" — a legitimate no-op path that the
+    // settings UI relies on to reset state after a failed install).
     try {
       await fsp.rmdir(binDir);
       logger.info("Removed empty bin directory", { binDir });
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOTEMPTY") {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "ENOTEMPTY" && code !== "ENOENT") {
         throw error;
       }
-      // Directory not empty, leave it
+      // Directory not empty or never existed — nothing to do.
     }
 
     // Remove our entry from Claude config

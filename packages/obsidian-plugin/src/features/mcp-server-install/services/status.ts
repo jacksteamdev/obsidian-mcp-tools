@@ -62,7 +62,18 @@ async function resolveSymlinks(filepath: string): Promise<string> {
         }
       }
 
-      return path.join(...resolvedParts);
+      // `path.sep.split()` of an absolute POSIX path produces an array
+      // whose first element is `""`, not `"/"`. When we recompose with
+      // `path.join("", "foo", "bar")` the empty string is silently
+      // dropped and we get a relative-looking `"foo/bar"` — so callers
+      // that expect an absolute path (e.g. `ensureDirectory` before
+      // install) would mkdir relative to CWD instead of the vault.
+      // Prepend the separator back when we detect this case.
+      const joined = path.join(...resolvedParts);
+      if (resolvedParts[0] === "" && !joined.startsWith(path.sep)) {
+        return path.sep + joined;
+      }
+      return joined;
     }
 
     logger.error(`Failed to resolve symlink:`, {

@@ -32,9 +32,25 @@ mock.module("obsidian", () => {
 
   class Plugin {}
 
+  /**
+   * Configurable stub for Obsidian's FileSystemAdapter. Tests that
+   * need to anchor the plugin's vault at a real temp directory pass
+   * the path to the constructor:
+   *
+   *     import { FileSystemAdapter } from "obsidian";
+   *     const adapter = new FileSystemAdapter(tmpRoot);
+   *
+   * The production code never constructs a FileSystemAdapter itself
+   * — Obsidian injects one via `plugin.app.vault.adapter` — so the
+   * extra constructor argument is invisible to the prod build path.
+   */
   class FileSystemAdapter {
+    #basePath: string;
+    constructor(basePath: string = "/fake/vault") {
+      this.#basePath = basePath;
+    }
     getBasePath(): string {
-      return "/fake/vault";
+      return this.#basePath;
     }
   }
 
