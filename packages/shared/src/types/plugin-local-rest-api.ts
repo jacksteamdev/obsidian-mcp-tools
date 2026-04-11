@@ -185,10 +185,16 @@ export const ApiVaultDirectoryResponse = type({
  * POST /vault/{pathToFile}
  * Returns array of matching files and their results
  * Results are only returned for non-falsy matches
+ *
+ * NOTE: `frontmatter.tags` is optional because Obsidian emits the key only
+ * when the note actually declares tags in its YAML frontmatter. Notes with
+ * empty or missing frontmatter (very common for Templater templates) would
+ * otherwise fail ArkType validation and break execute_template /
+ * prompt loading.
  */
 export const ApiVaultFileResponse = type({
   frontmatter: {
-    tags: "string[]",
+    "tags?": "string[]",
     description: "string?",
   },
   content: "string",

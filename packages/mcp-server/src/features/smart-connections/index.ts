@@ -22,11 +22,17 @@ export function registerSmartConnectionsTools(tools: ToolRegistry) {
       },
     }).describe("Search for documents semantically matching a text string."),
     async ({ arguments: args }) => {
+      // Note: Content-Type must be application/json for the plugin-side
+      // handler to parse req.body via Express's bodyParser.json(). The
+      // default Content-Type in makeRequest is text/markdown (correct for
+      // the file-content endpoints), which would make the search handler
+      // see an empty req.body and return an error.
       const data = await makeRequest(
         LocalRestAPI.ApiSmartSearchResponse,
         `/search/smart`,
         {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(args),
         },
       );
