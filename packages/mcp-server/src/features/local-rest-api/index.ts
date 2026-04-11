@@ -306,7 +306,12 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       name: '"search_vault_simple"',
       arguments: {
         query: "string",
-        "contextLength?": "number",
+        "contextLength?": type("number>0").describe(
+          "Number of characters of surrounding context to include around each match.",
+        ),
+        "limit?": type("number>0").describe(
+          "Maximum number of files to return. Results are ordered by relevance score (highest first), so this effectively returns the top-N matches. Omit to return all matches — useful on large vaults to keep the response within the model's context window.",
+        ),
       },
     }).describe("Search for documents matching a text query."),
     async ({ arguments: args }) => {
@@ -327,8 +332,14 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
         },
       );
 
+      // Local REST API /search/simple/ has no native limit parameter,
+      // so we truncate client-side. Results are already ordered by
+      // relevance score (highest first) by the server.
+      const limited =
+        args.limit !== undefined ? data.slice(0, args.limit) : data;
+
       return {
-        content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        content: [{ type: "text", text: JSON.stringify(limited, null, 2) }],
       };
     },
   );
