@@ -50,6 +50,13 @@ const ApiPluginManifest = type({
  * Response from the root endpoint providing basic server details and authentication status
  * Content-Type: application/json
  * GET / - This is the only API request that does not require authentication
+ *
+ * NOTE: `certificateInfo` and `apiExtensions` are marked optional because
+ * Local REST API plugin v3.4.x stopped emitting them at the top level of the
+ * root response. Older v2.5.x installations still include them, so we accept
+ * both shapes. Keeping them required would make `get_server_info` (and every
+ * downstream call that runs through it) fail with an ArkType validation error
+ * on any recent plugin install.
  */
 export const ApiStatusResponse = type({
   status: "string",
@@ -60,11 +67,11 @@ export const ApiStatusResponse = type({
   },
   service: "string",
   authenticated: "boolean",
-  certificateInfo: {
+  "certificateInfo?": {
     validityDays: "number",
     regenerateRecommended: "boolean",
   },
-  apiExtensions: ApiPluginManifest.array(),
+  "apiExtensions?": ApiPluginManifest.array(),
 });
 
 /**
