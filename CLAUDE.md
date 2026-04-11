@@ -443,7 +443,7 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 
 ### Still pending from Cluster G
 
-- **PR #47 / Issue #29** (Obsidian command execution via MCP) — needs a **security design review** before any code lands. The tool would let an LLM invoke arbitrary Obsidian commands including destructive ones (`File: Delete file`). Requires policy decisions on whitelist/blacklist, user confirmation flows, and audit logging.
+- **PR #47 / Issue #29** (Obsidian command execution via MCP) — **design review complete**, see `docs/design/issue-29-command-execution.md`. The fork diverges from upstream PR #47 and adopts a hybrid per-invocation-prompt-with-allowlist model (Option F in the design doc). Implementation is split into three phases; Fase 1 (MVP) is ~1 day of work. Not yet started — re-read the design doc before touching code.
 
 ### Also pending from the fork's own discoveries
 
@@ -458,6 +458,7 @@ Run these in order. Type checking and tests verify code correctness; the inspect
 - `docs/project-architecture.md` — monorepo overview (aligned with `.clinerules`).
 - `docs/features/mcp-server-install.md` — installer feature spec (install flow, settings UI, Claude config writes, version management, error handling, uninstall).
 - `docs/features/prompt-requirements.md` — prompt system requirements.
+- `docs/design/issue-29-command-execution.md` — fork design review for Obsidian command execution (threat model, policy options, MCP tool surface, phased implementation plan). Authoritative reference when issue #29 / PR #47 is picked up.
 - `CONTRIBUTING.md` — community standards + release process.
 - `SECURITY.md` — SLSA provenance, vulnerability reporting (`jacksteamdev+security@gmail.com`).
 
