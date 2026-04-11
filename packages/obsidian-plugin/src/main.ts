@@ -11,6 +11,7 @@ import {
   type PromptArgAccessor,
   type SearchResponse,
 } from "shared";
+import { handleCommandPermissionRequest } from "./features/command-permissions";
 import { setup as setupCore } from "./features/core";
 import { setup as setupMcpServerInstall } from "./features/mcp-server-install";
 import {
@@ -59,6 +60,16 @@ export default class McpToolsPlugin extends Plugin {
       this.localRestApi.api
         .addRoute("/templates/execute")
         .post(this.handleTemplateExecution.bind(this));
+
+      // Command execution gate (issue #29). The MCP server calls
+      // this endpoint before every `execute_obsidian_command` to
+      // check the user's allowlist + enabled toggle. Deny-by-default:
+      // if the user has not opted in, every request returns "deny".
+      this.localRestApi.api
+        .addRoute("/mcp-tools/command-permission/")
+        .post((req: Request, res: Response) =>
+          handleCommandPermissionRequest(this, req, res),
+        );
 
       logger.info("MCP Tools Plugin loaded");
     });

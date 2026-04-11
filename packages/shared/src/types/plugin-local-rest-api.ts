@@ -296,6 +296,40 @@ export const ApiTemplateExecutionResponse = type({
   content: "string",
 });
 
+/**
+ * Request body for the command permission check endpoint exposed by
+ * this repo's Obsidian plugin (not Local REST API itself).
+ * POST /mcp-tools/command-permission/
+ *
+ * The MCP server sends this before every `execute_obsidian_command`
+ * call to ask the plugin whether the user has authorized the command.
+ * The plugin checks its allowlist (stored in plugin.saveData under
+ * `commandPermissions.allowlist`) plus the master enable toggle
+ * (`commandPermissions.enabled`) and responds with a decision.
+ */
+export const CommandPermissionRequest = type({
+  commandId: type("string>0").describe(
+    "The Obsidian command id the agent wants to execute, e.g. `editor:toggle-bold`",
+  ),
+});
+
+/**
+ * Response from the command permission check endpoint.
+ * See CommandPermissionRequest for context.
+ *
+ * `decision` values:
+ * - `allow` — the command is in the user's allowlist, proceed with execution
+ * - `deny` — the command is NOT in the allowlist, or command execution is
+ *   disabled entirely via the master toggle. The server should return an
+ *   MCP error to the client.
+ */
+export const CommandPermissionResponse = type({
+  decision: '"allow" | "deny"',
+  "reason?": type("string").describe(
+    "Optional human-readable explanation for the decision, included in error messages.",
+  ),
+});
+
 // Export types for TypeScript usage
 export type ApiErrorType = typeof ApiError.infer;
 export type ApiNoteJsonType = typeof ApiNoteJson.infer;
@@ -315,6 +349,10 @@ export type ApiTemplateExecutionParamsType =
   typeof ApiTemplateExecutionParams.infer;
 export type ApiTemplateExecutionResponseType =
   typeof ApiTemplateExecutionResponse.infer;
+export type CommandPermissionRequestType =
+  typeof CommandPermissionRequest.infer;
+export type CommandPermissionResponseType =
+  typeof CommandPermissionResponse.infer;
 
 // Additional API response types can be added here
 export const MIME_TYPE_OLRAPI_NOTE_JSON = "application/vnd.olrapi.note+json";
