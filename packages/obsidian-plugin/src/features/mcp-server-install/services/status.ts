@@ -90,7 +90,13 @@ export async function getInstallPath(
   const adapter = getFileSystemAdapter(plugin);
   if ("error" in adapter) return adapter;
 
-  const platform = getPlatform();
+  // Honor the user's platformOverride setting so the binary path
+  // check matches whatever was installed. If the user switched the
+  // override after a previous install, this ensures the old binary
+  // name (e.g. `mcp-server.exe`) is no longer considered "present"
+  // once the override points at a different OS.
+  const settings = await plugin.loadData();
+  const platform = getPlatform(settings?.platformOverride?.platform);
   const originalPath = path.join(
     adapter.getBasePath(),
     plugin.app.vault.configDir,

@@ -12,6 +12,8 @@ import {
   getArch,
   getDownloadUrl,
   getPlatform,
+  isArch,
+  isPlatform,
 } from "./install";
 
 describe("getDownloadUrl", () => {
@@ -60,6 +62,12 @@ describe("getDownloadUrl", () => {
 });
 
 describe("getPlatform", () => {
+  // Clean up any test-set env var so tests don't leak state into
+  // the rest of the suite.
+  afterEach(() => {
+    delete process.env.OBSIDIAN_SERVER_PLATFORM;
+  });
+
   test("returns one of the supported Platform literals for the current OS", () => {
     // Smoke test: the runtime platform must map to a value that
     // BINARY_NAME and CLAUDE_CONFIG_PATH both know about. Anything
@@ -69,9 +77,62 @@ describe("getPlatform", () => {
     const result = getPlatform();
     expect(PLATFORM_TYPES).toContain(result);
   });
+
+  test("honors an explicit override argument", () => {
+    // Priority 1: when the plugin passes an override (read from the
+    // user's `platformOverride` setting), it wins over both env var
+    // and auto-detect. Also covers the round-trip for every literal.
+    for (const platform of PLATFORM_TYPES) {
+      expect(getPlatform(platform)).toBe(platform);
+    }
+  });
+
+  test("honors OBSIDIAN_SERVER_PLATFORM env var when no override is passed", () => {
+    // Priority 2: env var as escape hatch for WSL / Bottles / wine
+    // scenarios where the user cannot easily toggle a plugin setting.
+    process.env.OBSIDIAN_SERVER_PLATFORM = "linux";
+    expect(getPlatform()).toBe("linux");
+
+    process.env.OBSIDIAN_SERVER_PLATFORM = "windows";
+    expect(getPlatform()).toBe("windows");
+
+    process.env.OBSIDIAN_SERVER_PLATFORM = "macos";
+    expect(getPlatform()).toBe("macos");
+  });
+
+  test("explicit override wins over OBSIDIAN_SERVER_PLATFORM env var", () => {
+    // If both are set, the explicit setting (plugin UI) beats the
+    // env var. This mirrors the priority chain documented on the
+    // getPlatform JSDoc.
+    process.env.OBSIDIAN_SERVER_PLATFORM = "windows";
+    expect(getPlatform("linux")).toBe("linux");
+  });
+
+  test("falls through to auto-detect when override is invalid", () => {
+    // A typo in the env var should not crash — it should silently
+    // degrade to the auto-detected platform, same as if the env var
+    // were unset.
+    process.env.OBSIDIAN_SERVER_PLATFORM = "not-a-platform";
+    const result = getPlatform();
+    expect(PLATFORM_TYPES).toContain(result);
+  });
+
+  test("ignores an explicit override that is not a valid Platform", () => {
+    // Defense in depth: even if a misbehaving caller passes a bogus
+    // string via the override argument (e.g. untyped JSON from
+    // plugin settings), the function must not return that string.
+    // We cast through `unknown` to simulate the lax-typing scenario.
+    const bogus = "bsd" as unknown as Parameters<typeof getPlatform>[0];
+    const result = getPlatform(bogus);
+    expect(PLATFORM_TYPES).toContain(result);
+  });
 });
 
 describe("getArch", () => {
+  afterEach(() => {
+    delete process.env.OBSIDIAN_SERVER_ARCH;
+  });
+
   test("returns an Arch literal matching the current process", () => {
     // os.arch() can return values like "ia32", "ppc64", etc., which
     // the codebase does not currently support. This test documents
@@ -79,6 +140,48 @@ describe("getArch", () => {
     // the assertion fails and flags the gap explicitly.
     const result = getArch();
     expect(ARCH_TYPES).toContain(result);
+  });
+
+  test("honors an explicit override argument", () => {
+    for (const arch of ARCH_TYPES) {
+      expect(getArch(arch)).toBe(arch);
+    }
+  });
+
+  test("honors OBSIDIAN_SERVER_ARCH env var when no override is passed", () => {
+    process.env.OBSIDIAN_SERVER_ARCH = "arm64";
+    expect(getArch()).toBe("arm64");
+
+    process.env.OBSIDIAN_SERVER_ARCH = "x64";
+    expect(getArch()).toBe("x64");
+  });
+
+  test("falls through to auto-detect when env var is invalid", () => {
+    process.env.OBSIDIAN_SERVER_ARCH = "ppc64";
+    const result = getArch();
+    expect(ARCH_TYPES).toContain(result);
+  });
+});
+
+describe("isPlatform / isArch", () => {
+  test("isPlatform accepts only the supported Platform literals", () => {
+    for (const platform of PLATFORM_TYPES) {
+      expect(isPlatform(platform)).toBe(true);
+    }
+    expect(isPlatform("bsd")).toBe(false);
+    expect(isPlatform("")).toBe(false);
+    expect(isPlatform(undefined)).toBe(false);
+    expect(isPlatform(null)).toBe(false);
+    expect(isPlatform(42)).toBe(false);
+  });
+
+  test("isArch accepts only the supported Arch literals", () => {
+    for (const arch of ARCH_TYPES) {
+      expect(isArch(arch)).toBe(true);
+    }
+    expect(isArch("ia32")).toBe(false);
+    expect(isArch("")).toBe(false);
+    expect(isArch(undefined)).toBe(false);
   });
 });
 
