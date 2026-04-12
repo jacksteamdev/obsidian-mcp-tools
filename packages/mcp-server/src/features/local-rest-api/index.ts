@@ -93,7 +93,7 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       name: '"patch_active_file"',
       arguments: LocalRestAPI.ApiPatchParameters,
     }).describe(
-      "Insert or modify content in the currently-open note relative to a heading, block reference, or frontmatter field.",
+      "Insert or modify content in the currently-open note relative to a heading, block reference, or frontmatter field. Use for surgical edits, section updates, or targeted replacements without rewriting the whole file. Equivalent to str_replace for the active Obsidian note.",
     ),
     async ({ arguments: args }) => {
       const headers = buildPatchHeaders(args);
@@ -339,7 +339,7 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
         filename: "string",
       }).and(LocalRestAPI.ApiPatchParameters),
     }).describe(
-      "Insert or modify content in a file relative to a heading, block reference, or frontmatter field.",
+      "Insert or modify content in a file relative to a heading, block reference, or frontmatter field. Use for surgical edits, section updates, or targeted replacements without rewriting the whole file. Equivalent to str_replace for Obsidian vault files.",
     ),
     async ({ arguments: args }) => {
       const headers = buildPatchHeaders(args);
