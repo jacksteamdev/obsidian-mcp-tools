@@ -1,6 +1,6 @@
 # Handoff — `istefox/obsidian-mcp-tools`
 
-> **Aggiornato 2026-04-13.** Documento di passaggio di consegne
+> **Aggiornato 2026-04-13 (sessione serale).** Documento di passaggio di consegne
 > tra macchine. Self-contained: dal clone iniziale al primo prompt
 > da mandare a Claude Code sul nuovo Mac, qui c'è tutto.
 >
@@ -30,10 +30,10 @@
 ### Repository
 - Branch attivo: **`main`**
 - Up to date con `myfork/main` su `https://github.com/istefox/obsidian-mcp-tools`
-- Ultimo commit (al momento di scrittura): **`673f265`** (questo handoff) sopra `e29cf7b` (merge Fase 2 #29 + race fix)
-- Working tree: clean (a parte 2 file `.bun-build` orfani in
-  `packages/mcp-server/` da una sessione precedente — non miei,
-  cancellabili a piacere, ~120 MB liberi)
+- Ultimo commit (al momento di scrittura): **`23f5362`** (`chore: ignore bun build artifacts`) sopra `f62c47f` (docs: slim CLAUDE.md) sopra `eff807a` (consolidate handoff)
+- Working tree: clean. I 2 file `.bun-build` orfani (~118 MB totali)
+  restano su disco ma ora sono gitignored — cancellabili a piacere
+  senza sporcare git status
 - Branch feature aperti: nessuno
 
 ### Health
@@ -266,6 +266,7 @@ In ordine cronologico inverso, con commit SHA su `myfork/main`:
 
 | Date approx | Lavoro | Commit/merge |
 |---|---|---|
+| 2026-04-13 | Rename cartella progetto a `Obsidian MCP.nosync` (iCloud exclusion), fix `core.hooksPath` stale in git config, gitignore `*.bun-build`, rimosso doc stale `docs/features/prompt-requirements.md` | `f62c47f`, `23f5362` |
 | 2026-04-12 | **#29 Fase 2 + race fix** — modal long-polling, soft rate warning, destructive heuristic, mutex per audit log | `de39e61`, `d134924`, merge `e29cf7b` |
 | 2026-04-11 | Fix build mcp-server (type-only imports in `plugin-templater.ts`) | `2c482a6`, merge `1582fb4` |
 | 2026-04-11 | **#29 Fase 1 MVP** — allowlist gating, audit log, rate limiter | `c2f4549`, merge `148d875` |
@@ -329,10 +330,9 @@ funzionale stabile, nessuna di queste è urgente):
   upstream è dormant, probabilmente niente di nuovo.
 
 ### E — Pulizia operativa
-- Cancellare i 2 file `.bun-build` orfani in
-  `packages/mcp-server/.18a5*.bun-build` (~120 MB di disco)
-- Considerare se aggiungere `*.bun-build` a `.gitignore` se non già
-  coperto (verificarlo prima)
+- ✅ `*.bun-build` aggiunto a `.gitignore` (commit `23f5362`, 2026-04-13)
+- ✅ `docs/features/prompt-requirements.md` rimosso (era stale, sostituito da `prompt-system.md`)
+- Rimasto: cancellare i 2 file `.bun-build` fisici in `packages/mcp-server/.18a5*.bun-build` (~118 MB). Opzionale, si rigenerano al prossimo build
 
 ### F — CI release.yml — esercitare per la prima volta
 - **Effort**: dipende. Se rotta serve fix
