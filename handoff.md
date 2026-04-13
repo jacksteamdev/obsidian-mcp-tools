@@ -30,7 +30,7 @@
 ### Repository
 - Branch attivo: **`main`**
 - Up to date con `myfork/main` su `https://github.com/istefox/obsidian-mcp-tools`
-- Ultimo commit (al momento di scrittura): **`23f5362`** (`chore: ignore bun build artifacts`) sopra `f62c47f` (docs: slim CLAUDE.md) sopra `eff807a` (consolidate handoff)
+- Ultimo commit (al momento di scrittura): **`d60e907`** (merge Fase 3 subtask 4/4 — presets). Fase 3 di #29 completa, tutti e 4 i merge su `myfork/main`.
 - Working tree: clean. I 2 file `.bun-build` orfani (~118 MB totali)
   restano su disco ma ora sono gitignored — cancellabili a piacere
   senza sporcare git status
@@ -40,7 +40,7 @@
 | | |
 |---|---|
 | `bun run check` (4 package) | ✅ passa |
-| Test obsidian-plugin | ✅ **126 pass / 0 fail / 9 file** |
+| Test obsidian-plugin | ✅ **179 pass / 0 fail / 12 file** (era 126 pre-Fase-3) |
 | Test mcp-server | ✅ **93 pass / 0 fail / 8 file** |
 | Plugin prod build | ✅ |
 | Server cross-compile (4 target: mac-arm64, mac-x64, linux, windows) | ✅ |
@@ -50,8 +50,7 @@
 Il fork ha tutto Cluster A-F chiuso e Cluster G praticamente chiuso:
 
 - **Cluster A-F** (bug fix upstream noti): tutti landed
-- **#29 (command execution)**: Fase 1 + Fase 2 landed; solo Fase 3
-  (polish) aperta
+- **#29 (command execution)**: **Fase 1 + 2 + 3 tutte landed** (Fase 3 completata 2026-04-13 sera, vedi sezione 5)
 - **#28** (install outside vault): completo
 - **#26** (platform override per WSL): completo
 - **#62, #61, #60, #59, #35**: tutti completi
@@ -266,6 +265,7 @@ In ordine cronologico inverso, con commit SHA su `myfork/main`:
 
 | Date approx | Lavoro | Commit/merge |
 |---|---|---|
+| 2026-04-13 sera | **#29 Fase 3 completa (4/4 subtask)**: (1) test suite modal+handler con Modal/svelte mock in test-setup.ts, (2) export CSV audit log da settings UI, (3) soft rate-limit configurabile via Advanced disclosure, (4) quick-add presets (Editing/Navigation/Search) curati e filtrati sul registry. **+53 test** (179 totali, era 126). | merge `4655e4b`, `fc00c4f`, `84e0a37`, `d60e907` |
 | 2026-04-13 | Rename cartella progetto a `Obsidian MCP.nosync` (iCloud exclusion), fix `core.hooksPath` stale in git config, gitignore `*.bun-build`, rimosso doc stale `docs/features/prompt-requirements.md` | `f62c47f`, `23f5362` |
 | 2026-04-12 | **#29 Fase 2 + race fix** — modal long-polling, soft rate warning, destructive heuristic, mutex per audit log | `de39e61`, `d134924`, merge `e29cf7b` |
 | 2026-04-11 | Fix build mcp-server (type-only imports in `plugin-templater.ts`) | `2c482a6`, merge `1582fb4` |
@@ -300,17 +300,12 @@ funzionale stabile, nessuna di queste è urgente):
   `.github/workflows/release.yml` funzioni davvero — nessuno l'ha
   testato dopo il fix `2c482a6`.
 
-### B — #29 Fase 3 (polish)
-- **Effort**: 2-4 ore
-- **Scope**:
-  1. Test automatizzati del flow modal — richiede mock di `Modal`
-     in `test-setup.ts` + harness spy-based per simulare click
-  2. Categorized presets ("Editing", "Navigation", "Search") nella
-     settings UI per ridurre attrito di bootstrap dell'allowlist
-  3. Rate limiter configurabile via Advanced disclosure
-  4. CSV export dell'audit log dalla settings UI
-- **Riferimento**: `docs/design/issue-29-command-execution.md` —
-  contiene il piano completo, leggere prima di iniziare
+### B — #29 Fase 3 (polish) — ✅ COMPLETATA 2026-04-13
+- ✅ Test automatizzati flow modal (mock `Modal` + svelte `mount`/`unmount` in `test-setup.ts`)
+- ✅ Categorized presets (Editing/Navigation/Search) in `presets.ts`
+- ✅ Rate limiter configurabile (Advanced disclosure, `commandPermissions.softRateLimit`)
+- ✅ CSV export audit log (utils `auditLogToCsv` + button)
+- Rimasti opzionali: README user-facing aggiornato + CLAUDE.md gotcha entry per il modello permessi (entrambi nice-to-have, non bloccanti)
 
 ### C — Decisione di maintainership / rebrand
 - **Effort**: ~30 minuti decisione + edit, poi tempo di pubblicazione
