@@ -155,6 +155,63 @@ export function appendAuditEntry(
 }
 
 /**
+ * RFC 4180 single-field CSV escape. Values containing a comma, a
+ * double quote, CR or LF are wrapped in double quotes; embedded
+ * double quotes are doubled. All other values pass through unchanged.
+ */
+function csvEscape(value: string): string {
+  if (/[",\r\n]/.test(value)) {
+    return '"' + value.replace(/"/g, '""') + '"';
+  }
+  return value;
+}
+
+/**
+ * Serialize an audit log to RFC 4180 CSV with a fixed header:
+ *
+ *     timestamp,commandId,decision,reason
+ *
+ * Rows are emitted in input order — the caller is responsible for
+ * sorting if chronological output is desired. The output terminates
+ * with CRLF on the final row so the file is well-formed regardless
+ * of how the receiving tool handles trailing newlines.
+ *
+ * The `reason` column is always present; rows without a reason get
+ * an empty value. Keeping the schema stable simplifies downstream
+ * automation.
+ */
+export function auditLogToCsv(
+  entries: readonly CommandAuditEntry[],
+): string {
+  const header = ["timestamp", "commandId", "decision", "reason"];
+  const rows: string[] = [header.map(csvEscape).join(",")];
+  for (const entry of entries) {
+    rows.push(
+      [
+        entry.timestamp,
+        entry.commandId,
+        entry.decision,
+        entry.reason ?? "",
+      ]
+        .map(csvEscape)
+        .join(","),
+    );
+  }
+  return rows.join("\r\n") + "\r\n";
+}
+
+/**
+ * Build the default download filename for an audit-log CSV export,
+ * stamped with the provided date in ISO YYYY-MM-DD form. Exposed so
+ * tests can pin the date without mocking the global clock.
+ */
+export function auditLogCsvFilename(now: Date = new Date()): string {
+  const iso = now.toISOString();
+  const datePart = iso.slice(0, 10); // YYYY-MM-DD
+  return `mcp-tools-audit-${datePart}.csv`;
+}
+
+/**
  * Centralized permission decision logic. Pure — takes the relevant
  * slice of settings plus the command id and returns the outcome that
  * the HTTP handler should respond with. Kept separate from the HTTP

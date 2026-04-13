@@ -3,6 +3,8 @@ import type { CommandAuditEntry } from "./types";
 import {
   AUDIT_LOG_MAX_ENTRIES,
   appendAuditEntry,
+  auditLogCsvFilename,
+  auditLogToCsv,
   createRuntimeRateCounter,
   decidePermission,
   formatAllowlist,
@@ -281,5 +283,81 @@ describe("createRuntimeRateCounter", () => {
     expect(counter.countInLastMinute(70_000)).toBe(0);
     counter.record(70_001);
     expect(counter.countInLastMinute(70_001)).toBe(1);
+  });
+});
+
+describe("auditLogToCsv", () => {
+  const entry = (
+    commandId: string,
+    decision: "allow" | "deny" = "allow",
+    reason?: string,
+  ): CommandAuditEntry => ({
+    timestamp: "2026-04-13T09:00:00.000Z",
+    commandId,
+    decision,
+    ...(reason ? { reason } : {}),
+  });
+
+  test("emits just the header row for an empty log", () => {
+    const csv = auditLogToCsv([]);
+    expect(csv).toBe("timestamp,commandId,decision,reason\r\n");
+  });
+
+  test("appends rows in input order with CRLF line terminators", () => {
+    const csv = auditLogToCsv([
+      entry("editor:toggle-bold", "allow"),
+      entry("graph:open", "deny", "Not in allowlist"),
+    ]);
+    expect(csv).toBe(
+      "timestamp,commandId,decision,reason\r\n" +
+        "2026-04-13T09:00:00.000Z,editor:toggle-bold,allow,\r\n" +
+        "2026-04-13T09:00:00.000Z,graph:open,deny,Not in allowlist\r\n",
+    );
+  });
+
+  test("quotes fields that contain a comma", () => {
+    // Reason text often contains commas — the output must be
+    // parseable by any RFC 4180 CSV reader.
+    const csv = auditLogToCsv([
+      entry("editor:toggle-bold", "deny", "Command, unauthorized"),
+    ]);
+    expect(csv).toContain('"Command, unauthorized"');
+  });
+
+  test("doubles embedded double quotes inside quoted fields", () => {
+    const csv = auditLogToCsv([
+      entry("editor:toggle-bold", "deny", 'Reason: "not allowed"'),
+    ]);
+    // Outer quotes wrap the field; inner quotes are doubled.
+    expect(csv).toContain('"Reason: ""not allowed"""');
+  });
+
+  test("quotes fields that contain CR or LF", () => {
+    const csv = auditLogToCsv([
+      entry("editor:toggle-bold", "deny", "Line 1\nLine 2"),
+    ]);
+    expect(csv).toContain('"Line 1\nLine 2"');
+  });
+
+  test("emits an empty string for missing reason", () => {
+    const csv = auditLogToCsv([entry("editor:toggle-bold", "allow")]);
+    // Allow rows have no reason — the column must be present but empty.
+    expect(csv).toContain(",allow,\r\n");
+  });
+});
+
+describe("auditLogCsvFilename", () => {
+  test("stamps the filename with YYYY-MM-DD derived from the provided date", () => {
+    const filename = auditLogCsvFilename(new Date("2026-04-13T15:30:00Z"));
+    expect(filename).toBe("mcp-tools-audit-2026-04-13.csv");
+  });
+
+  test("defaults to the current date when no argument is provided", () => {
+    // We only assert the prefix/suffix shape since the actual date
+    // depends on when the test runs.
+    const filename = auditLogCsvFilename();
+    expect(filename).toMatch(
+      /^mcp-tools-audit-\d{4}-\d{2}-\d{2}\.csv$/,
+    );
   });
 });

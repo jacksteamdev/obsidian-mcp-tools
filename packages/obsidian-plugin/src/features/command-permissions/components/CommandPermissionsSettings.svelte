@@ -5,6 +5,8 @@
   import type { CommandAuditEntry } from "../types";
   import {
     AUDIT_LOG_MAX_ENTRIES,
+    auditLogCsvFilename,
+    auditLogToCsv,
     formatAllowlist,
     parseAllowlistCsv,
   } from "../utils";
@@ -128,6 +130,32 @@
     if (Number.isNaN(date.getTime())) return iso;
     return date.toLocaleString();
   }
+
+  // Trigger a browser download of the audit log as CSV. Runs inside
+  // Electron's renderer (Obsidian is an Electron app), so the DOM
+  // Blob + anchor-click pattern is the portable choice — it does not
+  // require the user to pick a save location and works offline.
+  //
+  // The \uFEFF prefix is a UTF-8 BOM. Excel on Windows uses it to
+  // detect UTF-8 encoding; without it, non-ASCII characters in the
+  // reason column would render as mojibake. LibreOffice / Numbers /
+  // plain text editors ignore the BOM.
+  function exportAuditCsv(entries: readonly CommandAuditEntry[]): void {
+    const csv = auditLogToCsv(entries);
+    const blob = new Blob(["\uFEFF" + csv], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = auditLogCsvFilename();
+    // Safari requires the anchor to be in the DOM before the synthetic
+    // click; other browsers are more lenient but this works everywhere.
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 </script>
 
 <div class="command-permissions-settings">
@@ -216,6 +244,14 @@
         logged here.
       </p>
     {:else}
+      <div class="audit-actions">
+        <button
+          type="button"
+          on:click={() => exportAuditCsv(recentInvocations)}
+        >
+          Export CSV
+        </button>
+      </div>
       <ul class="audit-list">
         {#each [...recentInvocations].reverse() as entry, i (entry.timestamp + ":" + i)}
           <li class="audit-entry audit-{entry.decision}">
@@ -345,6 +381,12 @@
     color: var(--text-muted);
     font-size: 0.85em;
     margin-top: 0.5em;
+  }
+
+  .audit-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0.5em 0 0.25em 0;
   }
 
   .audit-list {
