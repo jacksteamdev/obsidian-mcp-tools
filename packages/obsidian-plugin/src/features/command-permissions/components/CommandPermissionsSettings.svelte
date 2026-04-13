@@ -2,6 +2,12 @@
   import type McpToolsPlugin from "$/main";
   import { Notice } from "obsidian";
   import { onMount } from "svelte";
+  import {
+    filterPresetAgainstRegistry,
+    mergeIntoAllowlist,
+    PRESETS,
+    type PresetCategory,
+  } from "../presets";
   import type { CommandAuditEntry } from "../types";
   import {
     AUDIT_LOG_MAX_ENTRIES,
@@ -43,6 +49,7 @@
     name: string;
   }
   let availableCommands: CommandDescriptor[] = [];
+  let commandRegistry: Record<string, CommandDescriptor> | undefined = undefined;
   let commandFilter = "";
 
   // Case-insensitive filter over id + name so power users can narrow
@@ -78,11 +85,49 @@
       }
     ).commands?.commands;
     if (registry) {
+      commandRegistry = registry;
       availableCommands = Object.values(registry)
         .map((c) => ({ id: c.id, name: c.name }))
         .sort((a, b) => a.id.localeCompare(b.id));
     }
   });
+
+  // Per-preset preview: how many of this preset's ids actually exist
+  // in the live registry. Drives the "Add all (N)" button label and
+  // lets us disable the button when the intersection is empty.
+  $: presetPreviews = PRESETS.map((preset) => ({
+    preset,
+    availableIds: filterPresetAgainstRegistry(preset, commandRegistry),
+  }));
+
+  /**
+   * Bulk-add every command in the preset that is present in the
+   * vault's registry. Updates the textarea only — the user still has
+   * to click Save to persist. Shows a Notice summarizing what changed
+   * so the action is never silent.
+   */
+  function applyPreset(preset: PresetCategory) {
+    const eligible = filterPresetAgainstRegistry(preset, commandRegistry);
+    if (eligible.length === 0) {
+      new Notice(
+        `No '${preset.label}' commands were found in this vault's registry.`,
+      );
+      return;
+    }
+    const current = parseAllowlistCsv(allowlistRaw);
+    const merged = mergeIntoAllowlist(current, eligible);
+    const addedCount = merged.length - current.length;
+    allowlistRaw = formatAllowlist(merged);
+    if (addedCount === 0) {
+      new Notice(
+        `All '${preset.label}' commands are already in the allowlist.`,
+      );
+    } else {
+      new Notice(
+        `Added ${addedCount} '${preset.label}' command${addedCount === 1 ? "" : "s"} to the allowlist. Click Save to persist.`,
+      );
+    }
+  }
 
   async function handleSave() {
     saving = true;
@@ -213,6 +258,37 @@
       {saving ? "Saving..." : "Save"}
     </button>
   </div>
+
+  <details class="presets">
+    <summary>Quick-add presets</summary>
+    <p class="presets-hint">
+      Bulk-authorize a curated set of common, non-destructive commands.
+      Clicking a preset adds only the commands that actually exist in
+      this vault; already-allowed commands are skipped. The change is
+      staged in the textarea above — click <strong>Save</strong> to
+      persist.
+    </p>
+    <ul class="preset-list">
+      {#each presetPreviews as entry (entry.preset.id)}
+        <li class="preset-entry">
+          <div class="preset-meta">
+            <span class="preset-label">{entry.preset.label}</span>
+            <span class="preset-description">{entry.preset.description}</span>
+          </div>
+          <button
+            type="button"
+            on:click={() => applyPreset(entry.preset)}
+            disabled={saving || entry.availableIds.length === 0}
+            title={entry.availableIds.length === 0
+              ? "None of these commands exist in this vault"
+              : `Add ${entry.availableIds.length} command${entry.availableIds.length === 1 ? "" : "s"} to the allowlist`}
+          >
+            Add all ({entry.availableIds.length})
+          </button>
+        </li>
+      {/each}
+    </ul>
+  </details>
 
   <details class="command-browser">
     <summary>
@@ -372,6 +448,50 @@
     cursor: pointer;
     color: var(--text-muted);
     font-size: 0.9em;
+  }
+
+  .presets-hint {
+    color: var(--text-muted);
+    font-size: 0.85em;
+    margin: 0.5em 0;
+  }
+
+  .preset-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .preset-entry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75em;
+    padding: 0.4em 0;
+    border-bottom: 1px solid var(--background-modifier-border);
+  }
+
+  .preset-entry:last-child {
+    border-bottom: none;
+  }
+
+  .preset-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .preset-label {
+    font-weight: 500;
+  }
+
+  .preset-description {
+    color: var(--text-muted);
+    font-size: 0.85em;
+  }
+
+  .preset-entry button {
+    flex-shrink: 0;
   }
 
   .command-browser .filter {
