@@ -180,7 +180,7 @@ Capabilities declared: **`tools`** and **`prompts`**. No MCP resources are expos
 | Tool | Purpose |
 |---|---|
 | `list_obsidian_commands` | Read-only discovery. Returns every command registered in the vault (core + plugins) with optional substring filter. Always safe, no permission gate. |
-| `execute_obsidian_command` | Gated execution. Every call goes through a rate limiter (100/minute tumbling window) and then the plugin's `/mcp-tools/command-permission/` endpoint, which checks the master toggle + per-command allowlist. Disabled by default. |
+| `execute_obsidian_command` | Gated execution. Every call goes through a rate limiter (100/minute tumbling window) and then the plugin's `/mcp-tools/command-permission/` endpoint, which checks the master toggle + per-command allowlist. Disabled by default. The plugin-side soft warning threshold (default 30/min) is user-configurable via the Advanced disclosure in settings (`commandPermissions.softRateLimit`). |
 
 ### Prompts
 
@@ -226,6 +226,7 @@ Active traps in the current tree. Historical bugs already fixed in the fork are 
 - **Smart Connections compatibility**: the plugin wrapper handles both v2.x (`window.SmartSearch`) and v3.0+ (`smartEnv.smart_sources`). Preserve both code paths when modifying.
 - **`execute_template.createFile`** is typed as the string `"true"|"false"` (not boolean) because older MCP clients serialize booleans as strings — explicit workaround in `features/templates/index.ts`, kept as belt-and-suspenders for SDK 1.29.0.
 - **`plugin.loadData()` / `plugin.saveData()` are NOT atomic** — default Obsidian persistence is two independent async calls. Any feature doing `load → modify → save` in response to concurrent events MUST serialize with a mutex. See `features/command-permissions/services/settingsLock.ts` for the canonical implementation + 35-way regression test.
+- **Command-permission policy invariants** — `features/command-permissions/` is the security boundary for `execute_obsidian_command`. Whenever you touch `permissionCheck.ts`, preserve these load-bearing properties: (1) **deny by default** — `enabled !== true` short-circuits to deny BEFORE any allowlist check; (2) **two-phase mutex** — Phase A (load + decide-or-detect-modal-needed + save-on-fast-path) holds the lock; modal wait runs OUTSIDE the lock; Phase B (re-load + persist final outcome) re-acquires it, so concurrent requests serialize their I/O without serializing user interaction; (3) **the destructive heuristic is a nudge, not a gate** — matching commands disable "Allow always" but "Allow once" still works; presets in `presets.ts` MUST exclude every word the regex catches; (4) **allowlist entries are exact ids** — no wildcard support, deliberate. The full threat model and option matrix lives in `docs/design/issue-29-command-execution.md` — read it before changing the policy shape.
 - **Every `from "obsidian"` import in `packages/shared/` must be `import type`.** The npm `obsidian` package ships only `.d.ts`; Obsidian injects the runtime module at plugin load. A value import survives `verbatimModuleSyntax` and fails `bun build --compile` with `Could not resolve "obsidian"`. The `packages/obsidian-plugin/` package is fine — value imports there are legitimate.
 
 ## Testing & CI
@@ -234,7 +235,7 @@ Active traps in the current tree. Historical bugs already fixed in the fork are 
 - Tests live next to the code (`*.test.ts`). Run a single file with `bun test <path>`; run a whole package with `cd packages/<name> && bun test`. There is no monorepo-wide fan-out today — run `bun run check` from the root, then `bun test` in each package.
 - **Plugin test infrastructure**:
   - `packages/obsidian-plugin/bunfig.toml` — `[test] preload` registers a synthetic `"obsidian"` module via `src/test-setup.ts`, so tests can import production modules that reference `Plugin`, `Notice`, `FileSystemAdapter`, `TFile`, etc.
-  - `packages/obsidian-plugin/src/test-setup.ts` — the module mock. `FileSystemAdapter` accepts an optional `basePath` for anchoring tests at a real temp directory. Production code never constructs it itself — Obsidian does — so the extra parameter is invisible to the ship build.
+  - `packages/obsidian-plugin/src/test-setup.ts` — the module mock. `FileSystemAdapter` accepts an optional `basePath` for anchoring tests at a real temp directory. Production code never constructs it itself — Obsidian does — so the extra parameter is invisible to the ship build. Also stubs `Modal` (shallow base class with `onOpen`/`onClose` plumbing) and the `svelte` module's `mount`/`unmount` as recorders — every call is published on `globalThis.__svelteMockCalls.{mount,unmount}` so tests can both inspect component props (including callback handles like `onDecision`) and assert mount/unmount pairing. Tests that use these helpers must reset `__svelteMockCalls` in `beforeEach` for isolation.
   - `packages/obsidian-plugin/.env.test` — fake `GITHUB_DOWNLOAD_URL` / `GITHUB_REF_NAME` for the build-time `environmentVariables()` macro. Bun auto-loads when `bun test` runs.
   - **Stubbing `os.homedir()`**: use `spyOn(os, "homedir").mockReturnValue(tmpRoot)` — Bun/Node cache HOME early, so runtime `process.env.HOME = …` is not reliable. See `config.test.ts` and `uninstall.test.ts`.
   - **Installer integration tests** use real shell scripts as fake binaries (tmpdir, `mode: 0o755`) instead of mocking `child_process.exec`. See `status.integration.test.ts`. macOS-guarded (shebang approach is Unix-only).
@@ -271,10 +272,11 @@ Upstream `jacksteamdev/obsidian-mcp-tools` is effectively dormant since 2025-07 
 Items still open upstream **and** not yet addressed in the fork:
 
 1. **Maintainership stance** — decide between upstream contribution (needs jacksteamdev buy-in) or permanent fork-and-rebrand (rename package, change `manifest.json` → `id`). Currently the fork still ships under the original `obsidian-mcp-tools` id.
-2. **Issue #29 / PR #47 Fase 3** — polish pass for command execution: categorized presets, automated modal tests (spy-based, Modal needs a live Obsidian runtime), configurable rate limits, CSV export of audit log. Fase 1 + 2 are live. Re-read `docs/design/issue-29-command-execution.md` before starting.
-3. **PR #44 (OAuth)** and **PR #20 (multi-vault)** — ambitious upstream PRs, not evaluated.
-4. **Binary content types for `get_vault_file`** — SDK 1.29.0 now supports native audio/image responses; commit `f6d004a` left a text short-circuit in place to keep the SDK bump's blast radius small. Can now be replaced.
-5. **Stale remote branches on `origin`** — only relevant if maintainership migrates.
+2. **PR #44 (OAuth)** and **PR #20 (multi-vault)** — ambitious upstream PRs, not evaluated.
+3. **Binary content types for `get_vault_file`** — SDK 1.29.0 now supports native audio/image responses; commit `f6d004a` left a text short-circuit in place to keep the SDK bump's blast radius small. Can now be replaced.
+4. **Stale remote branches on `origin`** — only relevant if maintainership migrates.
+
+(#29 Fase 1 + 2 + 3 all landed on `myfork/main` — see `git log --first-parent` for the four Fase 3 merge commits.)
 
 Everything else from prior planning docs has landed on `myfork/main` — check `git log` for SHAs.
 
