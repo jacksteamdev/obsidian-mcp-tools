@@ -67,6 +67,10 @@ web_modules/
 
 *.tsbuildinfo
 
+# Bun build artifacts (incremental + compiled binaries)
+
+*.bun-build
+
 # Optional npm cache directory
 
 .npm
