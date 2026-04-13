@@ -1,20 +1,18 @@
-# MCP Tools for Obsidian
+# MCP Connector for Obsidian
 
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/jacksteamdev/obsidian-mcp-tools)](https://github.com/jacksteamdev/obsidian-mcp-tools/releases/latest)
-[![Build status](https://img.shields.io/github/actions/workflow/status/jacksteamdev/obsidian-mcp-tools/release.yml)](https://github.com/jacksteamdev/obsidian-mcp-tools/actions)
-[![License](https://img.shields.io/github/license/jacksteamdev/obsidian-mcp-tools)](LICENSE)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/istefox/obsidian-mcp-connector)](https://github.com/istefox/obsidian-mcp-connector/releases/latest)
+[![Build status](https://img.shields.io/github/actions/workflow/status/istefox/obsidian-mcp-connector/release.yml)](https://github.com/istefox/obsidian-mcp-connector/actions)
+[![License](https://img.shields.io/github/license/istefox/obsidian-mcp-connector)](LICENSE)
 
 [Features](#features) | [Installation](#installation) | [Configuration](#configuration) | [Other MCP clients](#using-with-other-mcp-clients) | [Prompts](#using-prompts) | [Command execution](#command-execution) | [Troubleshooting](#troubleshooting) | [Security](#security) | [Development](#development) | [Support](#support)
 
-> **🔄 Seeking Project Maintainers**
-> 
-> This project is actively seeking dedicated maintainers to take over development and community management. The project will remain under the current GitHub account for Obsidian plugin store compliance, with new maintainers added as collaborators.
-> 
-> **Interested?** Join our [Discord community](https://discord.gg/q59pTrN9AA) or check our [maintainer requirements](CONTRIBUTING.md#maintainer-responsibilities).
-> 
-> **Timeline**: Applications open until **September 15, 2025**. Selection by **September 30, 2025**.
+> **About this fork**
+>
+> MCP Connector is the **community continuation** of [`jacksteamdev/obsidian-mcp-tools`](https://github.com/jacksteamdev/obsidian-mcp-tools), which has been dormant since July 2025 with the maintainer call closing without a successor. This fork is maintained by [Stefano Ferri (istefox)](https://github.com/istefox) and ships with bug-fix coverage for 21 of the 24 currently-open upstream issues, plus the full Issue #29 command-execution flow (allowlist + confirmation modal + audit log + presets).
+>
+> **Coming from upstream?** See [`docs/migration-from-upstream.md`](docs/migration-from-upstream.md) for the one-time switch.
 
-MCP Tools for Obsidian enables AI applications like Claude Desktop to securely access and work with your Obsidian vault through the Model Context Protocol (MCP). MCP is an open protocol that standardizes how AI applications can interact with external data sources and tools while maintaining security and user control. [^2]
+MCP Connector enables AI applications like Claude Desktop, Claude Code, and Cline to securely access and work with your Obsidian vault through the Model Context Protocol (MCP). MCP is an open protocol that standardizes how AI applications can interact with external data sources and tools while maintaining security and user control. [^2]
 
 This plugin consists of two parts:
 1. An Obsidian plugin that adds MCP capabilities to your vault
@@ -54,24 +52,43 @@ All features require an MCP-compatible client like Claude Desktop, as this plugi
 > [!Important]
 > This plugin requires a secure server component that runs locally on your computer. The server is distributed as a signed executable, with its complete source code available in `packages/mcp-server/`. For details about our security measures and code signing process, see the [Security](#security) section.
 
-1. Install the plugin from Obsidian's Community Plugins
-2. Enable the plugin in Obsidian settings
+There are two install paths depending on whether MCP Connector has finished community-store review yet:
+
+### Option A — Community plugin store (once approved)
+
+1. **Settings → Community plugins → Browse**, search **"MCP Connector"** by Stefano Ferri
+2. Install + Enable
 3. Open the plugin settings
-4. Click "Install Server" to download and configure the MCP server
+4. Click **"Install Server"** to download the MCP server binary and configure your client
 
-Clicking the install button will:
+### Option B — BRAT (available immediately)
 
-- Download the appropriate MCP server binary for your platform
-- Configure Claude Desktop to use the server
-- Set up necessary permissions and paths
+If the plugin isn't in the community store yet, install it via [BRAT](https://github.com/TfTHacker/obsidian42-brat):
+
+1. Install and enable the **Obsidian42 — BRAT** plugin from the community store
+2. **Settings → BRAT → Add Beta plugin**, paste `istefox/obsidian-mcp-connector`
+3. BRAT installs the latest GitHub release; enable **MCP Connector** in Community plugins
+4. Open the plugin settings → click **"Install Server"**
+
+### What "Install Server" does
+
+- Downloads the appropriate MCP server binary for your platform
+- Configures Claude Desktop to use the server (writes `claude_desktop_config.json` with the API key from your active vault's Local REST API plugin)
+- Sets up necessary permissions and paths
 
 ### Installation Locations
 
-- **Server Binary**: {vault}/.obsidian/plugins/obsidian-mcp-tools/bin/
+- **Plugin folder (in vault)**: `{vault}/.obsidian/plugins/mcp-tools-istefox/`
+- **Server Binary** (default — outside vault, see [Installation location](#installation-location) below):
+  - macOS: `~/Library/Application Support/obsidian-mcp-tools/bin/`
+  - Linux: `~/.local/share/obsidian-mcp-tools/bin/`
+  - Windows: `%APPDATA%\obsidian-mcp-tools\bin\`
 - **Log Files**:
-  - macOS: ~/Library/Logs/obsidian-mcp-tools
-  - Windows: %APPDATA%\obsidian-mcp-tools\logs
-  - Linux: ~/.local/share/obsidian-mcp-tools/logs
+  - macOS: `~/Library/Logs/obsidian-mcp-tools`
+  - Windows: `%APPDATA%\obsidian-mcp-tools\logs`
+  - Linux: `~/.local/share/obsidian-mcp-tools/logs`
+
+The binary install paths intentionally use the original `obsidian-mcp-tools` namespace (rather than `mcp-tools-istefox`) so the on-disk layout stays compatible with the upstream plugin. Migrating users keep their existing binary; fresh installers follow the same convention.
 
 ## Configuration
 
@@ -104,8 +121,10 @@ The Obsidian plugin only auto-configures Claude Desktop, but the MCP server itse
 
 After you click "Install Server" from the plugin settings, the binary is downloaded to:
 
-- **macOS / Linux**: `{vault}/.obsidian/plugins/obsidian-mcp-tools/bin/mcp-server`
-- **Windows**: `{vault}\.obsidian\plugins\obsidian-mcp-tools\bin\mcp-server.exe`
+- **macOS / Linux**: `~/Library/Application Support/obsidian-mcp-tools/bin/mcp-server` (or `~/.local/share/obsidian-mcp-tools/bin/mcp-server` on Linux)
+- **Windows**: `%APPDATA%\obsidian-mcp-tools\bin\mcp-server.exe`
+
+If you switched to the legacy "inside vault" install location, the binary lives at `{vault}/.obsidian/plugins/mcp-tools-istefox/bin/mcp-server` instead.
 
 Replace `{vault}` with the absolute path to your vault directory. You will need this absolute path when configuring a non-Claude-Desktop client, because clients launch the server as an external process.
 
@@ -125,7 +144,7 @@ The server is configured entirely through environment variables passed by the cl
 
 The server also accepts a `--port <number>` CLI flag as an alternative to `OBSIDIAN_PORT`. When both are set, the CLI flag wins.
 
-> The plugin also exposes a **Server binary platform** override in the settings UI (under _Advanced_ in the MCP Tools settings tab). It writes the same preference as `OBSIDIAN_SERVER_PLATFORM` / `OBSIDIAN_SERVER_ARCH` into the plugin's own data file. The setting UI takes precedence over the env vars when both are set.
+> The plugin also exposes a **Server binary platform** override in the settings UI (under _Advanced_ in the MCP Connector settings tab). It writes the same preference as `OBSIDIAN_SERVER_PLATFORM` / `OBSIDIAN_SERVER_ARCH` into the plugin's own data file. The setting UI takes precedence over the env vars when both are set.
 
 ### Example configuration
 
@@ -135,7 +154,7 @@ Most MCP clients expect a JSON config with a `command`, optional `args`, and an 
 {
   "mcpServers": {
     "obsidian-mcp-tools": {
-      "command": "/absolute/path/to/your-vault/.obsidian/plugins/obsidian-mcp-tools/bin/mcp-server",
+      "command": "/absolute/path/to/obsidian-mcp-tools/bin/mcp-server",
       "args": [],
       "env": {
         "OBSIDIAN_API_KEY": "your-api-key-here"
@@ -144,6 +163,10 @@ Most MCP clients expect a JSON config with a `command`, optional `args`, and an 
   }
 }
 ```
+
+The `command` path above is the default "outside vault" install location — `~/Library/Application Support/obsidian-mcp-tools/bin/mcp-server` on macOS, `~/.local/share/obsidian-mcp-tools/bin/mcp-server` on Linux, `%APPDATA%\obsidian-mcp-tools\bin\mcp-server.exe` on Windows. If you switched to "inside vault" mode, replace it with `{vault}/.obsidian/plugins/mcp-tools-istefox/bin/mcp-server` instead.
+
+The `mcpServers` key (`"obsidian-mcp-tools"` in the example) is just an arbitrary identifier the client uses to label this server in its UI — name it whatever you like. The plugin's "Install Server" button writes it as `obsidian-mcp-tools` for backward compatibility with users migrating from upstream.
 
 The exact config file location and the wrapping object shape vary by client:
 
@@ -232,7 +255,7 @@ If the command id or its human name contains a word commonly associated with dat
 
 ### Enabling it
 
-1. Open **Settings → Community plugins → MCP Tools → Command execution**.
+1. Open **Settings → Community plugins → MCP Connector → Command execution**.
 2. Tick **Enable MCP command execution**. Save.
 3. From this point forward, whenever the agent invokes a command that is not on your allowlist, a modal will pop up asking for confirmation.
 4. If you prefer to pre-authorize commands up front (rather than hit a modal on first call), you have three ways:
@@ -312,8 +335,10 @@ To verify a binary using the GitHub CLI:
 
 2. Verify the binary:
    ```bash
-   gh attestation verify --owner jacksteamdev <binary path or URL>
+   gh attestation verify --owner istefox <binary path or URL>
    ```
+
+   (For binaries downloaded from the upstream `jacksteamdev` releases — e.g. before you switched to this fork — substitute `--owner jacksteamdev` instead.)
 
 The verification will show:
 
@@ -385,14 +410,14 @@ We welcome genuine contributions but maintain strict community standards. Be res
 
 ## Support
 
-- 💬 [Join our Discord](https://discord.gg/q59pTrN9AA) for questions, discussions, and community support
-- [Open an issue](https://github.com/jacksteamdev/obsidian-mcp-tools/issues) for bug reports and feature requests
+- [Open an issue on this fork](https://github.com/istefox/obsidian-mcp-connector/issues) for bug reports and feature requests
+- The original upstream Discord is at https://discord.gg/q59pTrN9AA — note that the upstream maintainer has been inactive since July 2025; for help with **this fork specifically**, GitHub issues are the right channel
 
 **Please read our [Contributing Guidelines](CONTRIBUTING.md) before posting.** We maintain high community standards and have zero tolerance for toxic behavior.
 
 ## Changelog
 
-See [GitHub Releases](https://github.com/jacksteamdev/obsidian-mcp-tools/releases) for detailed changelog information.
+See [GitHub Releases on this fork](https://github.com/istefox/obsidian-mcp-connector/releases) for detailed changelog information.
 
 ## License
 
