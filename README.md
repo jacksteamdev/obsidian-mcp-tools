@@ -235,11 +235,21 @@ If the command id or its human name contains a word commonly associated with dat
 1. Open **Settings → Community plugins → MCP Tools → Command execution**.
 2. Tick **Enable MCP command execution**. Save.
 3. From this point forward, whenever the agent invokes a command that is not on your allowlist, a modal will pop up asking for confirmation.
-4. If you prefer to pre-authorize commands up front (rather than hit a modal on first call), expand **Browse available commands** and click **Add** next to each command you trust. You can also paste a comma- or newline-separated list into the allowlist textarea directly. Save.
+4. If you prefer to pre-authorize commands up front (rather than hit a modal on first call), you have three ways:
+   - **Quick-add presets** (fastest): expand **Quick-add presets** and click **Add all** next to **Editing**, **Navigation**, or **Search**. Each preset is a curated list of common, non-destructive built-ins; only commands that actually exist in your vault are added, and duplicates are skipped.
+   - **Browse available commands**: expand the browser, filter by id or name, and click **Add** next to each command you trust.
+   - **Paste directly** into the allowlist textarea — comma- or newline-separated.
+   Either way, click **Save** to persist.
+
+### Advanced settings
+
+Under the **Advanced** disclosure you can override the **soft rate-limit warning threshold** (default: 30 calls/minute). When the agent exceeds this rate, the confirmation modal surfaces a red banner so you can spot a runaway loop. The threshold is informational only — the MCP server's hard limit of 100/minute is compiled into the binary and is not configurable from the UI.
 
 ### What gets logged
 
 Every allow/deny decision is appended to a ring buffer of the last 50 invocations, visible under **Recent invocations** in the same settings section. The audit log includes the command id, the decision, the timestamp, and (for denied calls) the reason. The buffer is pruned automatically so `data.json` stays bounded.
+
+You can export the current buffer as CSV via the **Export CSV** button at the top of the Recent invocations list. The download uses the fixed schema `timestamp,commandId,decision,reason` and is RFC 4180 quoted, so it opens cleanly in Excel, Numbers, LibreOffice, or any standard CSV reader.
 
 ### Security model
 
