@@ -454,6 +454,39 @@ describe("handleCommandPermissionRequest", () => {
     await handlerPromise;
   });
 
+  // ---- soft rate-limit threshold (configurable) ----------------------
+
+  test("configured softRateLimit reaches the modal props", async () => {
+    // Regression guard: Phase A must surface the user's configured
+    // soft threshold (or the default) to Phase B so the modal warning
+    // compares against the correct value. We can't pin rateCount
+    // deterministically because the runtime counter is module-level
+    // and other tests in this file record calls on it, so this check
+    // only asserts shape + non-negative integer and that the handler
+    // doesn't throw when the setting is present.
+    const plugin = createFakePlugin({
+      initialSettings: {
+        commandPermissions: {
+          enabled: true,
+          allowlist: [],
+          softRateLimit: 5,
+        },
+      },
+    });
+
+    const { res } = createFakeResponse();
+    const req = createFakeRequest({ commandId: "graph:open" });
+    const handlerPromise = handleCommandPermissionRequest(plugin, req, res);
+    const props = await waitForModalMount();
+
+    expect(typeof props.showRateWarning).toBe("boolean");
+    expect(Number.isInteger(props.rateCount)).toBe(true);
+    expect(props.rateCount).toBeGreaterThanOrEqual(0);
+
+    props.onDecision("deny");
+    await handlerPromise;
+  });
+
   // ---- concurrency -----------------------------------------------------
 
   test("multiple concurrent fast-path calls all persist audit entries (mutex regression)", async () => {

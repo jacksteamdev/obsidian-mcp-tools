@@ -9,7 +9,10 @@ import {
   decidePermission,
   formatAllowlist,
   isDestructiveCommand,
+  normalizeSoftRateLimit,
   parseAllowlistCsv,
+  SOFT_RATE_LIMIT_MAX,
+  SOFT_RATE_LIMIT_MIN,
   SOFT_RATE_LIMIT_PER_MINUTE,
 } from "./utils";
 
@@ -343,6 +346,45 @@ describe("auditLogToCsv", () => {
     const csv = auditLogToCsv([entry("editor:toggle-bold", "allow")]);
     // Allow rows have no reason — the column must be present but empty.
     expect(csv).toContain(",allow,\r\n");
+  });
+});
+
+describe("normalizeSoftRateLimit", () => {
+  test("returns undefined for undefined input (fall back to default)", () => {
+    expect(normalizeSoftRateLimit(undefined)).toBeUndefined();
+  });
+
+  test("returns undefined for 0, negative, NaN, or Infinity", () => {
+    expect(normalizeSoftRateLimit(0)).toBeUndefined();
+    expect(normalizeSoftRateLimit(-5)).toBeUndefined();
+    expect(normalizeSoftRateLimit(Number.NaN)).toBeUndefined();
+    expect(normalizeSoftRateLimit(Number.POSITIVE_INFINITY)).toBeUndefined();
+  });
+
+  test("rounds fractional values to the nearest integer", () => {
+    expect(normalizeSoftRateLimit(42.4)).toBe(42);
+    expect(normalizeSoftRateLimit(42.6)).toBe(43);
+  });
+
+  test("clamps below SOFT_RATE_LIMIT_MIN", () => {
+    // Practical range starts at 1 — the input validator rounds
+    // before clamping, so 0.4 becomes 0 and returns undefined; any
+    // value that survives rounding gets clamped to at least MIN.
+    expect(normalizeSoftRateLimit(0.5)).toBe(SOFT_RATE_LIMIT_MIN);
+  });
+
+  test("clamps above SOFT_RATE_LIMIT_MAX", () => {
+    expect(normalizeSoftRateLimit(999_999)).toBe(SOFT_RATE_LIMIT_MAX);
+  });
+
+  test("passes values inside the valid range through unchanged", () => {
+    expect(normalizeSoftRateLimit(30)).toBe(30);
+    expect(normalizeSoftRateLimit(SOFT_RATE_LIMIT_MIN)).toBe(
+      SOFT_RATE_LIMIT_MIN,
+    );
+    expect(normalizeSoftRateLimit(SOFT_RATE_LIMIT_MAX)).toBe(
+      SOFT_RATE_LIMIT_MAX,
+    );
   });
 });
 

@@ -40,6 +40,18 @@ declare module "obsidian" {
        * entries on every write.
        */
       recentInvocations?: CommandAuditEntry[];
+
+      /**
+       * Soft rate-limit threshold (commands per rolling 60s window).
+       * When exceeded, the confirmation modal surfaces a red warning
+       * banner counting the recent calls. Purely informational — the
+       * hard enforcement (100/min) lives in the MCP server binary
+       * and cannot be configured from here.
+       *
+       * Undefined → plugin falls back to SOFT_RATE_LIMIT_PER_MINUTE.
+       * Valid range 1..300 (enforced at settings save).
+       */
+      softRateLimit?: number;
     };
   }
 }

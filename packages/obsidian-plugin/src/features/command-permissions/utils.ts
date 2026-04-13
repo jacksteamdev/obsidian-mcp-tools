@@ -20,8 +20,37 @@ export const AUDIT_LOG_MAX_ENTRIES = 50;
  * NOT enforcement — the server-side `rateLimit.ts` still drops calls
  * above 100/min hard. The soft limit exists only to surface a visible
  * "are you sure this is intentional?" nudge when a modal is shown.
+ *
+ * This is the default — users can override it via the Advanced
+ * disclosure in plugin settings (stored as `softRateLimit` on
+ * `commandPermissions`).
  */
 export const SOFT_RATE_LIMIT_PER_MINUTE = 30;
+
+/**
+ * Allowed range for the user-configurable soft rate limit. The lower
+ * bound (1) exists so a user can effectively force the warning to
+ * show on every modal; the upper bound (300) is a sanity cap — past
+ * it the warning becomes meaningless because the server-side hard
+ * limit of 100/min would have already rejected the call.
+ */
+export const SOFT_RATE_LIMIT_MIN = 1;
+export const SOFT_RATE_LIMIT_MAX = 300;
+
+/**
+ * Clamp a raw numeric input from the settings UI into the valid
+ * range. Returns `undefined` when the input is NaN or not a positive
+ * number, which the caller can interpret as "use the default".
+ */
+export function normalizeSoftRateLimit(
+  raw: number | undefined,
+): number | undefined {
+  if (raw === undefined || !Number.isFinite(raw) || raw <= 0) return undefined;
+  return Math.max(
+    SOFT_RATE_LIMIT_MIN,
+    Math.min(SOFT_RATE_LIMIT_MAX, Math.round(raw)),
+  );
+}
 
 /**
  * Regex of command-id fragments that heuristically indicate a

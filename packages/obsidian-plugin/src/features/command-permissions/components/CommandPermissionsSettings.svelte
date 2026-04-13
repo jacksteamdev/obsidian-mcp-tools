@@ -8,7 +8,11 @@
     auditLogCsvFilename,
     auditLogToCsv,
     formatAllowlist,
+    normalizeSoftRateLimit,
     parseAllowlistCsv,
+    SOFT_RATE_LIMIT_MAX,
+    SOFT_RATE_LIMIT_MIN,
+    SOFT_RATE_LIMIT_PER_MINUTE,
   } from "../utils";
 
   export let plugin: McpToolsPlugin;
@@ -18,6 +22,10 @@
   let enabled = false;
   let allowlistRaw = "";
   let saving = false;
+  // Empty string = "use default"; a number = custom override. The
+  // input is a <number>, but we bind it as a string to distinguish
+  // "blank field" (default) from "0" (invalid).
+  let softRateLimitRaw = "";
 
   // Ring buffer of recent invocations, loaded on mount and after every
   // save so the UI reflects the latest audit state.
@@ -56,6 +64,8 @@
     enabled = perms.enabled ?? false;
     allowlistRaw = formatAllowlist(perms.allowlist ?? []);
     recentInvocations = perms.recentInvocations ?? [];
+    softRateLimitRaw =
+      perms.softRateLimit !== undefined ? String(perms.softRateLimit) : "";
 
     // Snapshot the live command registry. We do this once on mount
     // rather than subscribing because the registry is stable for the
@@ -78,6 +88,10 @@
     saving = true;
     try {
       const allowlist = parseAllowlistCsv(allowlistRaw);
+      const softRateLimit =
+        softRateLimitRaw.trim() === ""
+          ? undefined
+          : normalizeSoftRateLimit(Number(softRateLimitRaw));
 
       const data = (await plugin.loadData()) ?? {};
       // Preserve the existing audit ring buffer — the handler owns
@@ -88,8 +102,14 @@
         ...previous,
         enabled,
         allowlist,
+        softRateLimit,
       };
       await plugin.saveData(data);
+      // Reflect the normalized value back into the input so the user
+      // sees what was actually persisted (e.g. "150.7" → "151",
+      // "9999" clamped to SOFT_RATE_LIMIT_MAX).
+      softRateLimitRaw =
+        softRateLimit !== undefined ? String(softRateLimit) : "";
 
       // Refresh the local copy of the ring buffer so the list of
       // recent invocations under the allowlist reflects anything that
@@ -231,6 +251,35 @@
         <p class="empty">No commands match your filter.</p>
       {/if}
     {/if}
+  </details>
+
+  <details class="advanced">
+    <summary>Advanced</summary>
+    <div class="advanced-body">
+      <label class="advanced-field">
+        <span class="advanced-label">
+          Soft rate-limit warning threshold
+          <span class="hint">
+            Commands per minute before the modal shows a "you're
+            invoking a lot of commands" warning. Leave blank to use
+            the default ({SOFT_RATE_LIMIT_PER_MINUTE}). Range: {SOFT_RATE_LIMIT_MIN}–{SOFT_RATE_LIMIT_MAX}.
+            This is informational only — the MCP server's hard limit
+            of 100/min is compiled into the binary and is not
+            configurable from here.
+          </span>
+        </span>
+        <input
+          type="number"
+          min={SOFT_RATE_LIMIT_MIN}
+          max={SOFT_RATE_LIMIT_MAX}
+          step="1"
+          bind:value={softRateLimitRaw}
+          placeholder={String(SOFT_RATE_LIMIT_PER_MINUTE)}
+          disabled={saving}
+          aria-label="Soft rate-limit warning threshold (commands per minute)"
+        />
+      </label>
+    </div>
   </details>
 
   <details class="audit-log">
@@ -381,6 +430,28 @@
     color: var(--text-muted);
     font-size: 0.85em;
     margin-top: 0.5em;
+  }
+
+  .advanced-body {
+    padding: 0.5em 0.25em 0.25em;
+  }
+
+  .advanced-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3em;
+  }
+
+  .advanced-label {
+    font-size: 0.9em;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2em;
+  }
+
+  .advanced-field input[type="number"] {
+    width: 8em;
+    font-family: var(--font-monospace);
   }
 
   .audit-actions {
