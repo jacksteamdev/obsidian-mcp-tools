@@ -198,11 +198,14 @@ function safeJson(
 /**
  * Result of the first lock phase. Either the decision is finalized
  * (fast path — no modal needed, audit already written) or the handler
- * must proceed to open a modal and run phase B afterward.
+ * must proceed to open a modal and run phase B afterward. The
+ * `needs-modal` case carries the effective soft rate-limit threshold
+ * read from settings (or the default) so we can compare against the
+ * in-memory counter outside the lock without a second loadData().
  */
 type PhaseAResult =
   | { kind: "done"; decision: "allow" | "deny"; reason?: string }
-  | { kind: "needs-modal" };
+  | { kind: "needs-modal"; softRateLimit: number };
 
 export async function handleCommandPermissionRequest(
   plugin: Plugin,
@@ -252,7 +255,10 @@ export async function handleCommandPermissionRequest(
         !inAllowlist;
 
       if (needsModal) {
-        return { kind: "needs-modal" };
+        return {
+          kind: "needs-modal",
+          softRateLimit: perms.softRateLimit ?? SOFT_RATE_LIMIT_PER_MINUTE,
+        };
       }
 
       // Fast path: write audit + save.
@@ -312,7 +318,7 @@ export async function handleCommandPermissionRequest(
       commandName,
     );
     const rateCount = runtimeRateCounter.countInLastMinute();
-    const showRateWarning = rateCount > SOFT_RATE_LIMIT_PER_MINUTE;
+    const showRateWarning = rateCount > phaseA.softRateLimit;
 
     logger.debug("Opening command permission modal", {
       commandId: parsed.commandId,
