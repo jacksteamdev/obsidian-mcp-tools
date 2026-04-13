@@ -21,8 +21,14 @@ if (currentBranch !== "main" && !process.env.FORCE) {
   process.exit(1);
 }
 
-// Bump project version
-const semverPart = Bun.argv[3] || "patch";
+// Bump project version. When invoked as `bun run version <part>`,
+// Bun's argv is [bunBinary, scriptPath, <part>] — the user-supplied
+// semver part lives at index 2, not 3. The previous code used
+// argv[3], which was always undefined under the documented call
+// convention, so every invocation silently fell back to "patch"
+// regardless of what the user typed (caught while preparing the
+// 0.3.0 cut: `bun run version minor` produced 0.2.28).
+const semverPart = Bun.argv[2] || "patch";
 const json = await Bun.file("./package.json").json();
 const [major, minor, patch] = json.version.split(".").map((s) => parseInt(s));
 json.version = bump([major, minor, patch], semverPart);
