@@ -3,7 +3,7 @@
   "name": "MCP Connector",
   "version": "0.3.0",
   "minAppVersion": "0.15.0",
-  "description": "Connect MCP-compatible clients (Claude Desktop, Claude Code, Cline) to your Obsidian vault with semantic search, templates, file management and gated command execution. Community continuation of jacksteamdev/obsidian-mcp-tools, maintained by Stefano Ferri.",
+  "description": "Connect MCP-compatible clients (Claude Desktop, Claude Code, Cline) to your vault with semantic search, templates, file management and gated command execution.",
   "author": "Stefano Ferri",
   "authorUrl": "https://github.com/istefox",
   "isDesktopOnly": true
