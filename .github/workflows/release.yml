@@ -69,7 +69,11 @@ jobs:
           allowUpdates: true
           omitName: true
           tag: ${{ github.ref_name }}
-          artifacts: "packages/obsidian-plugin/releases/obsidian-plugin-*.zip,main.js,manifest.json,styles.css,packages/mcp-server/dist/*"
+          # styles.css intentionally omitted — Svelte 5 inlines
+          # component CSS into main.js, no separate stylesheet is
+          # emitted by this build. ncipollo/release-action errors out
+          # if a literal (non-glob) artifact is missing.
+          artifacts: "packages/obsidian-plugin/releases/obsidian-plugin-*.zip,main.js,manifest.json,packages/mcp-server/dist/mcp-server-*"
           body: |
             ${{ steps.get_release_body.outputs.result }}
 
