@@ -60,6 +60,42 @@ mock.module("obsidian", () => {
 
   class App {}
 
+  /**
+   * Shallow stub of Obsidian's `Modal` base class. Exposes only what
+   * subclasses under test actually touch:
+   *
+   *   - `contentEl` — the DOM container where Svelte components are
+   *     mounted. We stub `empty()` (called in `onClose`) as a no-op.
+   *   - `open()` / `close()` — public entry points. They invoke the
+   *     subclass's `onOpen()` / `onClose()` hooks synchronously, which
+   *     is enough to exercise the lifecycle contract in tests. Real
+   *     Obsidian adds DOM transitions and focus management; neither
+   *     matters here.
+   *
+   * The `resolved`-guard semantics of `CommandPermissionModal` rely on
+   * `close()` triggering `onClose()` exactly once even when called
+   * multiple times, so we track that with a flag.
+   */
+  class Modal {
+    app: unknown;
+    contentEl: { empty: () => void } = { empty: () => {} };
+    private _closed = false;
+    constructor(app: unknown) {
+      this.app = app;
+    }
+    onOpen() {}
+    onClose() {}
+    open() {
+      this._closed = false;
+      this.onOpen();
+    }
+    close() {
+      if (this._closed) return;
+      this._closed = true;
+      this.onClose();
+    }
+  }
+
   return {
     Notice,
     Plugin,
@@ -67,5 +103,45 @@ mock.module("obsidian", () => {
     TFile,
     PluginSettingTab,
     App,
+    Modal,
   };
 });
+
+/**
+ * Mock Svelte's `mount`/`unmount` so we can exercise Obsidian Modal
+ * lifecycle without a real DOM runtime. The mock records every call
+ * on `globalThis.__svelteMockCalls` so tests can:
+ *
+ *   1. inspect the props passed to the component (including the
+ *      `onDecision` callback);
+ *   2. simulate a user click by invoking that callback directly;
+ *   3. assert that `unmount` was called with the same component ref
+ *      that `mount` returned.
+ *
+ * Tests should reset the recorder in `beforeEach` to keep per-test
+ * isolation (`(globalThis as any).__svelteMockCalls = { mount: [], unmount: [] }`).
+ */
+interface SvelteMockCalls {
+  mount: Array<{ component: unknown; options: { props?: unknown } }>;
+  unmount: Array<unknown>;
+}
+
+(globalThis as unknown as { __svelteMockCalls: SvelteMockCalls }).__svelteMockCalls = {
+  mount: [],
+  unmount: [],
+};
+
+mock.module("svelte", () => ({
+  mount: (component: unknown, options: { props?: unknown }) => {
+    const ref = { __mockRef: Symbol("svelte-mock-ref"), component, options };
+    (
+      globalThis as unknown as { __svelteMockCalls: SvelteMockCalls }
+    ).__svelteMockCalls.mount.push({ component, options });
+    return ref;
+  },
+  unmount: (ref: unknown) => {
+    (
+      globalThis as unknown as { __svelteMockCalls: SvelteMockCalls }
+    ).__svelteMockCalls.unmount.push(ref);
+  },
+}));
