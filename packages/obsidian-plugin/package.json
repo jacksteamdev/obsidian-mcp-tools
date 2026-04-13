@@ -1,6 +1,6 @@
 {
 	"name": "@obsidian-mcp-tools/obsidian-plugin",
-	"description": "The Obsidian plugin component for MCP Tools, enabling secure connections between Obsidian and Claude Desktop through the Model Context Protocol (MCP).",
+	"description": "Obsidian plugin component of MCP Connector — enabling secure connections between Obsidian and MCP clients (Claude Desktop, Claude Code, Cline) through the Model Context Protocol.",
 	"keywords": [
 		"MCP",
 		"Claude",
