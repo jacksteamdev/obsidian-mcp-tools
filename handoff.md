@@ -1,6 +1,6 @@
-# Handoff — `istefox/obsidian-mcp-tools`
+# Handoff — `istefox/obsidian-mcp-connector` (was `obsidian-mcp-tools`)
 
-> **Aggiornato 2026-04-13 (sessione serale).** Documento di passaggio di consegne
+> **Aggiornato 2026-04-13 (sessione notte — pubblicazione community).** Documento di passaggio di consegne
 > tra macchine. Self-contained: dal clone iniziale al primo prompt
 > da mandare a Claude Code sul nuovo Mac, qui c'è tutto.
 >
@@ -28,34 +28,59 @@
 ## 1. Stato attuale del fork
 
 ### Repository
+- **Repo rinominato 2026-04-13 notte:** `istefox/obsidian-mcp-tools` → **`istefox/obsidian-mcp-connector`**. GitHub mantiene il redirect HTTP del vecchio URL ma il git remote locale è già aggiornato.
+- **Plugin id rinominato:** `mcp-tools` → **`mcp-tools-istefox`** (perché l'id deve essere unico nel community store, e `mcp-tools` è ancora occupato dall'entry upstream).
+- **Display name del plugin:** "MCP Connector".
 - Branch attivo: **`main`**
-- Up to date con `myfork/main` su `https://github.com/istefox/obsidian-mcp-tools`
-- Ultimo commit (al momento di scrittura): **`d60e907`** (merge Fase 3 subtask 4/4 — presets). Fase 3 di #29 completa, tutti e 4 i merge su `myfork/main`.
-- Working tree: clean. I 2 file `.bun-build` orfani (~118 MB totali)
-  restano su disco ma ora sono gitignored — cancellabili a piacere
-  senza sporcare git status
-- Branch feature aperti: nessuno
+- **Remote setup canonico:**
+  - `origin` → `https://github.com/istefox/obsidian-mcp-connector.git` (push allowed, dove ship le release)
+  - `upstream` → `https://github.com/jacksteamdev/obsidian-mcp-tools.git` (read-only, per fetch + cherry-pick)
+  - `main` tracks `origin/main`
+- **Ultimo commit (al momento di scrittura):** **`2f99390`** (`0.3.1` version bump tag). Working tree clean.
+- I 2 file `.bun-build` orfani (~118 MB totali) restano su disco ma sono gitignored.
+
+### Release pubbliche
+| Versione | Data | Note |
+|---|---|---|
+| **`0.3.1`** | 2026-04-13 notte | LATEST — manifest description corretta per community-store rules (drop "Obsidian", drop maintainer-attribution suffix). Rebuild after store reviewer-bot feedback. |
+| `0.3.0` | 2026-04-13 notte | First public release. Brand "MCP Connector". Tag eliminato e re-emesso dopo un mishap del version script che aveva prodotto 0.2.28. |
+
+URL release: https://github.com/istefox/obsidian-mcp-connector/releases
 
 ### Health
 | | |
 |---|---|
 | `bun run check` (4 package) | ✅ passa |
-| Test obsidian-plugin | ✅ **179 pass / 0 fail / 12 file** (era 126 pre-Fase-3) |
-| Test mcp-server | ✅ **93 pass / 0 fail / 8 file** |
+| Test obsidian-plugin | ✅ **179 pass / 0 fail / 12 file** |
+| Test mcp-server | ✅ **94 pass / 0 fail / 8 file** (+1 regression #77 stasera) |
 | Plugin prod build | ✅ |
 | Server cross-compile (4 target: mac-arm64, mac-x64, linux, windows) | ✅ |
+| GitHub Actions release.yml | ✅ esercitata (run 0.3.0 + 0.3.1 entrambe verdi) |
 
 ### Funzionalità complete
 
 Il fork ha tutto Cluster A-F chiuso e Cluster G praticamente chiuso:
 
 - **Cluster A-F** (bug fix upstream noti): tutti landed
-- **#29 (command execution)**: **Fase 1 + 2 + 3 tutte landed** (Fase 3 completata 2026-04-13 sera, vedi sezione 5)
+- **#29 (command execution)**: **Fase 1 + 2 + 3 tutte landed** (Fase 3 completata 2026-04-13 sera)
 - **#28** (install outside vault): completo
 - **#26** (platform override per WSL): completo
+- **#77** (no-arg inputSchema, openai-codex compat): coperto (regression test stasera, fix latente in `normalizeInputSchema`)
 - **#62, #61, #60, #59, #35**: tutti completi
-- **Roadmap originale**: 11/12 chiusi; l'unico aperto (#11 — prune
-  branch upstream stale) non è risolvibile dal fork
+- **Roadmap originale**: 11/12 chiusi
+- **Coverage issue upstream aperte**: 21 di 24 risolte direttamente, +1 partial (#59), +2 probabilmente coperte da #28 (#27, #38). Solo 0 issue non risolte.
+
+### Distribuzione community
+- **PR community store aperta:** https://github.com/obsidianmd/obsidian-releases/pull/11919
+- Stato: **"Ready for review"** (validation passed dopo 2 iterazioni di fix). In attesa di revisione umana del team Obsidian (tipicamente 2-8 settimane).
+- **BRAT** già funzionante: utenti possono installare oggi puntando a `istefox/obsidian-mcp-connector`.
+
+### Vault locali
+Plugin symlinkato in due vault per dev/test:
+- `~/Obsidian/TEST/.obsidian/plugins/mcp-tools-istefox/` (era `mcp-tools/` — rinominato dopo l'id change)
+- `~/Obsidian/Lab/.obsidian/plugins/mcp-tools-istefox/` (vault "vero" dell'utente, configurato 2026-04-13 con Local REST API + binario in `~/Library/Application Support/obsidian-mcp-tools/bin/`, Claude Desktop config con `OBSIDIAN_API_KEY` di Lab)
+
+`data.json` è dentro il symlink target = nel repo. **TEST e Lab condividono lo stesso `data.json`** (effetto del symlink). Per separarli serve distribuire come zip vero e proprio invece che symlink.
 
 ---
 
@@ -87,42 +112,37 @@ brew install --cask obsidian
 ### 2.2 Clone del fork
 
 ```bash
-# Crea la cartella di lavoro (path a tua scelta, esempio coerente
-# con il Mac di casa):
-mkdir -p ~/Documents/Projects/Obsidian\ MCP
-cd ~/Documents/Projects/Obsidian\ MCP
+# Crea la cartella di lavoro:
+mkdir -p ~/Documents/Projects
+cd ~/Documents/Projects
 
 # HTTPS (richiede gh login):
-gh repo clone istefox/obsidian-mcp-tools
+gh repo clone istefox/obsidian-mcp-connector
 
 # Oppure SSH se preferisci:
-git clone git@github.com:istefox/obsidian-mcp-tools.git
+git clone git@github.com:istefox/obsidian-mcp-connector.git
 
-cd obsidian-mcp-tools
+cd obsidian-mcp-connector
 ```
 
 ### 2.3 Sistema i remote
 
-Quando cloni dalla tua fork, `origin` punta già a `istefox/...`. Per
-coerenza con il workflow attuale (in cui il remote si chiama
-`myfork`), rinomina:
+Quando cloni dalla tua fork, `origin` punta già a `istefox/obsidian-mcp-connector`. Aggiungi `upstream` per seguire `jacksteamdev`:
 
 ```bash
-git remote rename origin myfork
-
-# Opzionale — se vuoi anche seguire upstream (jacksteamdev) per
-# eventuali cherry-pick futuri:
 git remote add upstream https://github.com/jacksteamdev/obsidian-mcp-tools.git
 git fetch --all
 ```
 
 Verifica con `git remote -v`. Output atteso:
 ```
-myfork    https://github.com/istefox/obsidian-mcp-tools.git (fetch)
-myfork    https://github.com/istefox/obsidian-mcp-tools.git (push)
+origin    https://github.com/istefox/obsidian-mcp-connector.git (fetch)
+origin    https://github.com/istefox/obsidian-mcp-connector.git (push)
 upstream  https://github.com/jacksteamdev/obsidian-mcp-tools.git (fetch)
 upstream  https://github.com/jacksteamdev/obsidian-mcp-tools.git (push)
 ```
+
+> **NOTA STORICA:** prima della sessione del 2026-04-13 il fork si chiamava `obsidian-mcp-tools` e il remote del fork era `myfork`. La sessione di stasera ha rinominato il repo a `obsidian-mcp-connector` e ha riallineato i nomi remote alla convenzione standard (`origin` = il tuo fork, `upstream` = sorgente). Se trovi commit/script che fanno riferimento a `myfork`, sono pre-rename.
 
 ### 2.4 Install dipendenze
 
@@ -265,7 +285,10 @@ In ordine cronologico inverso, con commit SHA su `myfork/main`:
 
 | Date approx | Lavoro | Commit/merge |
 |---|---|---|
-| 2026-04-13 sera | **#29 Fase 3 completa (4/4 subtask)**: (1) test suite modal+handler con Modal/svelte mock in test-setup.ts, (2) export CSV audit log da settings UI, (3) soft rate-limit configurabile via Advanced disclosure, (4) quick-add presets (Editing/Navigation/Search) curati e filtrati sul registry. **+53 test** (179 totali, era 126). | merge `4655e4b`, `fc00c4f`, `84e0a37`, `d60e907` |
+| 2026-04-13 notte | **Pubblicazione community completa**: rebrand MCP Connector (id `mcp-tools-istefox`), repo rinominato `obsidian-mcp-connector`, README user-facing, migration guide, fix release pipeline (zip vuoto + version script argv bug + styles.css inesistente), release `0.3.0` + `0.3.1`, PR a `obsidianmd/obsidian-releases#11919` (validation passed). | merges `0028fd9`, `afc1a3c`, `b6d6f54`, `78e0854`, `8ce52aa`; tag `0.3.0` + `0.3.1` |
+| 2026-04-13 notte | Setup vault Lab con MCP Connector end-to-end (Local REST API, install server, Claude Desktop config con OBSIDIAN_API_KEY di Lab). Smoke test: Claude Desktop legge il vault Lab via MCP. | (config esterna, no commit) |
+| 2026-04-13 sera/notte | Regression test mirato per upstream issue #77 (`normalizeInputSchema` integrated path) | merge `c7c93be` |
+| 2026-04-13 sera | **#29 Fase 3 completa (4/4 subtask)**: (1) test suite modal+handler con Modal/svelte mock in test-setup.ts, (2) export CSV audit log da settings UI, (3) soft rate-limit configurabile via Advanced disclosure, (4) quick-add presets (Editing/Navigation/Search) curati e filtrati sul registry. **+53 test**. | merge `4655e4b`, `fc00c4f`, `84e0a37`, `d60e907` |
 | 2026-04-13 | Rename cartella progetto a `Obsidian MCP.nosync` (iCloud exclusion), fix `core.hooksPath` stale in git config, gitignore `*.bun-build`, rimosso doc stale `docs/features/prompt-requirements.md` | `f62c47f`, `23f5362` |
 | 2026-04-12 | **#29 Fase 2 + race fix** — modal long-polling, soft rate warning, destructive heuristic, mutex per audit log | `de39e61`, `d134924`, merge `e29cf7b` |
 | 2026-04-11 | Fix build mcp-server (type-only imports in `plugin-templater.ts`) | `2c482a6`, merge `1582fb4` |
@@ -287,54 +310,49 @@ git log --oneline                       # tutti i commit
 
 ## 6. Cosa resta aperto
 
-In ordine di priorità potenziale (decidi tu — il fork è in stato
-funzionale stabile, nessuna di queste è urgente):
+In ordine di priorità potenziale per le prossime sessioni:
 
-### A — Tag release `v0.2.27-istefox.1`
-- **Effort**: ~10 minuti (più tempo di esecuzione CI)
-- **Valore**: produce artefatti GitHub Release distribuibili,
-  sblocca installazione su altri vault senza dover buildare
-  localmente
-- **Note**: usare `bun run version` per coerenza atomica tra
-  `package.json`, `manifest.json`, `versions.json`. Verificare che
-  `.github/workflows/release.yml` funzioni davvero — nessuno l'ha
-  testato dopo il fix `2c482a6`.
+### A — Monitoraggio review PR community store
+- **PR**: https://github.com/obsidianmd/obsidian-releases/pull/11919
+- **Stato attuale**: "Ready for review", validation passed
+- **Tempistica review umana**: 2-8 settimane tipiche
+- **Cosa fare**: aspettare. Se ObsidianReviewBot o un maintainer chiede modifiche, rispondere con le iterazioni necessarie. Possibili request:
+  - Modifiche al README
+  - Modifiche al manifest
+  - Code review issues
+  - Supplementary docs
+- **Notifiche**: GitHub manda email su qualsiasi commento sulla PR
 
-### B — #29 Fase 3 (polish) — ✅ COMPLETATA 2026-04-13
-- ✅ Test automatizzati flow modal (mock `Modal` + svelte `mount`/`unmount` in `test-setup.ts`)
-- ✅ Categorized presets (Editing/Navigation/Search) in `presets.ts`
-- ✅ Rate limiter configurabile (Advanced disclosure, `commandPermissions.softRateLimit`)
-- ✅ CSV export audit log (utils `auditLogToCsv` + button)
-- Rimasti opzionali: README user-facing aggiornato + CLAUDE.md gotcha entry per il modello permessi (entrambi nice-to-have, non bloccanti)
+### B — Fase 4 outreach — annuncia il fork sulle issue upstream risolte
+- **Effort**: ~30 min totale (commento standard ripetuto)
+- **Scope**: commentare sulle 21 issue upstream risolte (#26, #28, #30, #31, #33, #35, #36, #37, #39, #40, #41, #59, #60, #61, #62, #63, #66, #67, #68, #71, #77) per dire "this is fixed in the community fork at istefox/obsidian-mcp-connector". Ogni autore originale riceve notifica → outreach efficace.
+- **Pattern del commento** (template salvato in memoria di sessione di stasera):
+  ```
+  For users still waiting on this — fixed in the community fork
+  at github.com/istefox/obsidian-mcp-connector
+  ([commit X], release vY.Z). Install via BRAT or wait for the
+  pending community-store entry (PR #11919).
+  ```
+- **Quando farlo**: meglio dopo che PR community store è merged (così l'utente può cliccare-e-installare direttamente nello store), MA va bene anche subito con BRAT come fallback.
 
-### C — Decisione di maintainership / rebrand
-- **Effort**: ~30 minuti decisione + edit, poi tempo di pubblicazione
-- **Scope**:
-  - Cambiare `manifest.json#id` (attualmente `mcp-tools`) per
-    evitare collisione con upstream nel community plugin store
-  - Aggiornare README per chiarire che è un fork attivo
-  - Eventuale cambio del nome del package npm/Bun
-- **Decisione posticipata**: non è stato ancora deciso se
-  positionare il fork come autonomo a lungo termine
+### C — Sync periodico con upstream
+- **Effort**: 5 min per il check, ore se ci sono cose da cherry-pick
+- **Scope**: `git fetch upstream && git log upstream/main --oneline -20` periodicamente. Storico: upstream è dormant, ma se il maintainer torna è bene saperlo.
 
-### D — Sync con upstream
-- **Effort**: 5 minuti per il check, ore se ci sono cose da
-  cherry-pickare
-- **Scope**: `git fetch upstream && git log upstream/main --oneline -20`
-  per vedere se è stato pushato qualcosa di interessante. Storico:
-  upstream è dormant, probabilmente niente di nuovo.
+### D — Pulizia operativa
+- ✅ `*.bun-build` gitignored
+- ✅ `docs/features/prompt-requirements.md` rimosso
+- Rimasto opzionale: cancellare i 2 file `.bun-build` fisici (~118 MB), si rigenerano al prossimo build
 
-### E — Pulizia operativa
-- ✅ `*.bun-build` aggiunto a `.gitignore` (commit `23f5362`, 2026-04-13)
-- ✅ `docs/features/prompt-requirements.md` rimosso (era stale, sostituito da `prompt-system.md`)
-- Rimasto: cancellare i 2 file `.bun-build` fisici in `packages/mcp-server/.18a5*.bun-build` (~118 MB). Opzionale, si rigenerano al prossimo build
+### E — Issue #59 full implementation (binary content types)
+- **Effort**: ~2 h
+- **Scope**: SDK MCP 1.29.0 supporta nativamente audio/image responses; `f6d004a` lasciò un text short-circuit. Sostituire con response native di tipo image/audio per `get_vault_file`. Beneficiari: utenti che vogliono che l'agente legga PDF, immagini, audio dal vault.
 
-### F — CI release.yml — esercitare per la prima volta
-- **Effort**: dipende. Se rotta serve fix
-- **Scope**: la CI release-on-tag non è mai stata triggerata sul
-  fork. Potrebbe avere problemi (env var mancanti, secret,
-  permission). Da provare con un pre-release tag (`v0.2.27-test.1`)
-  monouso.
+### F — Roadmap dopo il merge community store
+- Una volta che la PR `obsidianmd/obsidian-releases#11919` è merged:
+  - Aggiornare README rimuovendo "Once approved" e mettendo solo "Available in community store"
+  - Aggiornare migration-from-upstream.md indicando il community store come opzione preferita
+  - Considerare di aprire issues "good first issue" per attirare contributor (es. test Linux/Windows manuali, traduzioni, etc.)
 
 ---
 
