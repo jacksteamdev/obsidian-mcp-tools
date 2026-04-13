@@ -1,14 +1,15 @@
 /**
  * BDD specs for getLogFilePath — platform-specific branches.
  *
- * These tests use Bun's mock.module to simulate different OS platforms,
- * covering the win32, linux, and unsupported-platform branches that are
- * unreachable on the native test platform.
+ * These tests exercise the win32, linux, and unsupported-platform branches
+ * via the _platform parameter override, avoiding mock.module which leaks
+ * across test files in Bun's single-process CLI runner.
  */
 
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { homedir } from "os";
 import { resolve } from "path";
+import { getLogFilePath } from "./logger";
 
 /**
  * REQUIREMENT: getLogFilePath returns the correct OS-conventional log path
@@ -22,71 +23,56 @@ import { resolve } from "path";
  *      the wrong directory makes logs unfindable for users and support tools
  *
  * MOCK BOUNDARY:
- *     Mock:  os.platform() — process-level environment state
+ *     Mock:  nothing — uses the _platform parameter override
  *     Real:  getLogFilePath, os.homedir(), path.resolve()
- *     Never: mock getLogFilePath itself or path resolution
+ *     Never: mock.module("os") — leaks across files in Bun CLI runner
  */
 describe("getLogFilePath — platform-specific paths", () => {
-  test("returns Windows-style path on win32", async () => {
+  test("returns Windows-style path on win32", () => {
     /**
      * Given the OS platform is win32
-     * When getLogFilePath is called
+     * When getLogFilePath is called with _platform="win32"
      * Then the returned path follows Windows conventions (AppData/Local/Logs)
      */
 
-    // Given: platform is mocked to win32
-    mock.module("os", () => ({
-      platform: () => "win32",
-      homedir,
-    }));
-    const { getLogFilePath } = await import("./logger");
+    // Given: platform override is win32
 
     // When: the log file path is resolved
-    const result = getLogFilePath("test-app", "test.log");
+    const result = getLogFilePath("test-app", "test.log", "win32");
 
     // Then: the path follows Windows conventions
     const expected = resolve(homedir(), "AppData", "Local", "Logs", "test-app", "test.log");
     expect(result).toBe(expected);
   });
 
-  test("returns Linux-style path on linux", async () => {
+  test("returns Linux-style path on linux", () => {
     /**
      * Given the OS platform is linux
-     * When getLogFilePath is called
+     * When getLogFilePath is called with _platform="linux"
      * Then the returned path follows Linux conventions (.local/share/logs)
      */
 
-    // Given: platform is mocked to linux
-    mock.module("os", () => ({
-      platform: () => "linux",
-      homedir,
-    }));
-    const { getLogFilePath } = await import("./logger");
+    // Given: platform override is linux
 
     // When: the log file path is resolved
-    const result = getLogFilePath("test-app", "test.log");
+    const result = getLogFilePath("test-app", "test.log", "linux");
 
     // Then: the path follows Linux conventions
     const expected = resolve(homedir(), ".local", "share", "logs", "test-app", "test.log");
     expect(result).toBe(expected);
   });
 
-  test("throws for unsupported platforms", async () => {
+  test("throws for unsupported platforms", () => {
     /**
      * Given the OS platform is an unsupported value
-     * When getLogFilePath is called
+     * When getLogFilePath is called with _platform="freebsd"
      * Then it throws an error indicating the platform is unsupported
      */
 
-    // Given: platform is mocked to an unsupported value
-    mock.module("os", () => ({
-      platform: () => "freebsd",
-      homedir,
-    }));
-    const { getLogFilePath } = await import("./logger");
+    // Given: platform override is an unsupported value
 
     // When/Then: calling getLogFilePath throws
-    expect(() => getLogFilePath("test-app", "test.log")).toThrow(
+    expect(() => getLogFilePath("test-app", "test.log", "freebsd")).toThrow(
       "Unsupported operating system",
     );
   });

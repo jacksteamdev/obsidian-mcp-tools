@@ -7,11 +7,13 @@ import { dirname, resolve } from "path";
 /**
  * Determines the appropriate log directory path based on the current operating system.
  * @param appName - The name of the application to use in the log directory path.
+ * @param fileName - The name of the log file.
+ * @param _platform - Override for the OS platform (defaults to os.platform()).
  * @returns The full path to the log directory for the current operating system.
  * @throws {Error} If the current operating system is not supported.
  */
-export function getLogFilePath(appName: string, fileName: string) {
-  switch (platform()) {
+export function getLogFilePath(appName: string, fileName: string, _platform?: string) {
+  switch (_platform ?? platform()) {
     case "darwin": // macOS
       return resolve(homedir(), "Library", "Logs", appName, fileName);
 

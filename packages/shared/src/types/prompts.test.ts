@@ -1,16 +1,18 @@
 /**
- * BDD specs for buildTemplateArgumentsSchema.
+ * BDD specs for buildTemplateArgumentsSchema and PromptFrontmatterSchema.
  *
- * Covers: buildTemplateArgumentsSchema
+ * Covers: buildTemplateArgumentsSchema, PromptFrontmatterSchema (.narrow() validator)
  */
 
 // Public API surface (from packages/shared/src/types/prompts.ts):
 //   buildTemplateArgumentsSchema(args: PromptParameter[]) -> Type<Record<string, "string" | "string?">>
 //   Input: array of PromptParameter (name, optional description, optional required)
 //   Output: arktype Type that validates an object with string fields matching the parameters
+//   PromptFrontmatterSchema — validates frontmatter with tags containing 'mcp-tools-prompt'
 
+import { type } from "arktype";
 import { describe, expect, test } from "bun:test";
-import { buildTemplateArgumentsSchema } from "./prompts";
+import { buildTemplateArgumentsSchema, PromptFrontmatterSchema } from "./prompts";
 
 /**
  * REQUIREMENT: buildTemplateArgumentsSchema creates an arktype schema from
@@ -90,5 +92,74 @@ describe("buildTemplateArgumentsSchema", () => {
     // Then: an empty object validates successfully
     const result = schema({});
     expect(result).toEqual({});
+  });
+});
+
+/**
+ * REQUIREMENT: PromptFrontmatterSchema validates that frontmatter contains the
+ *              required 'mcp-tools-prompt' tag via a .narrow() constraint.
+ *
+ * WHO: The prompts feature, which identifies prompt templates by their frontmatter tags
+ * WHAT: 1. Frontmatter with the 'mcp-tools-prompt' tag validates successfully
+ *       2. Frontmatter without the tag fails validation
+ *       3. Frontmatter with additional tags alongside the prompt tag validates
+ * WHY: Without tag validation, non-prompt files could be misidentified as prompt
+ *      templates, causing confusing execution errors
+ *
+ * MOCK BOUNDARY:
+ *     Mock:  nothing — schema validation is pure computation
+ *     Real:  PromptFrontmatterSchema
+ *     Never: mock arktype internals
+ */
+describe("PromptFrontmatterSchema", () => {
+  test("accepts frontmatter containing the mcp-tools-prompt tag", () => {
+    /**
+     * Given frontmatter with tags including 'mcp-tools-prompt'
+     * When the schema validates the data
+     * Then validation succeeds and returns the input
+     */
+
+    // Given: frontmatter with the required tag
+    const input = { tags: ["mcp-tools-prompt"] };
+
+    // When: the schema validates
+    const result = PromptFrontmatterSchema(input);
+
+    // Then: it returns the valid data
+    expect(result).toEqual({ tags: ["mcp-tools-prompt"] });
+  });
+
+  test("rejects frontmatter without the mcp-tools-prompt tag", () => {
+    /**
+     * Given frontmatter with tags that do not include 'mcp-tools-prompt'
+     * When the schema validates the data
+     * Then validation fails
+     */
+
+    // Given: frontmatter missing the required tag
+    const input = { tags: ["some-other-tag"] };
+
+    // When: the schema validates
+    const result = PromptFrontmatterSchema(input);
+
+    // Then: validation fails (arktype returns an error, not the data)
+    expect(result instanceof type.errors).toBe(true);
+  });
+
+  test("accepts frontmatter with additional tags alongside the prompt tag", () => {
+    /**
+     * Given frontmatter with multiple tags including 'mcp-tools-prompt'
+     * When the schema validates the data
+     * Then validation succeeds
+     */
+
+    // Given: frontmatter with multiple tags
+    const input = { tags: ["blog-post", "mcp-tools-prompt", "draft"] };
+
+    // When: the schema validates
+    const result = PromptFrontmatterSchema(input);
+
+    // Then: it returns the valid data
+    expect(result).toEqual({ tags: ["blog-post", "mcp-tools-prompt", "draft"] });
   });
 });
