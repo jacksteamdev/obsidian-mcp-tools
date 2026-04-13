@@ -102,6 +102,32 @@ describe("normalizeInputSchema", () => {
   });
 });
 
+describe("ToolRegistry list() — issue #77 regression", () => {
+  test("every tool's inputSchema carries an explicit `properties` key, even no-arg tools", () => {
+    // Upstream issue #77 (filed 2026-04-13): strict MCP clients like
+    // openai-codex reject a tool whose inputSchema is `{ type: "object" }`
+    // without a `properties` field. The fix lives in normalizeInputSchema,
+    // which is invoked by ToolRegistry.list() for every tool. This test
+    // exercises the integrated path so we catch any regression where the
+    // wrapper is bypassed (e.g. a future refactor that emits the schema
+    // directly from arktype's toJsonSchema()).
+    const { tools } = buildRegistryWithTwoTools();
+
+    const listed = tools.list().tools;
+    expect(listed.length).toBeGreaterThan(0);
+
+    for (const tool of listed) {
+      const schema = tool.inputSchema as Record<string, unknown>;
+      expect(schema.type).toBe("object");
+      expect(schema).toHaveProperty("properties");
+      // The shape doesn't matter (could be `{}` for no-arg tools, or a
+      // populated record for tools with arguments) — the only invariant
+      // we enforce here is that the key is PRESENT.
+      expect(typeof schema.properties).toBe("object");
+    }
+  });
+});
+
 describe("ToolRegistry enable/disable", () => {
   test("list() hides a disabled tool", () => {
     const { tools, alphaSchema } = buildRegistryWithTwoTools();
