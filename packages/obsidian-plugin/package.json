@@ -7,7 +7,7 @@
 		"Chat"
 	],
 	"license": "MIT",
-	"author": "Jack Steam",
+	"author": "Stefano Ferri (fork of Jack Steam's obsidian-mcp-tools)",
 	"type": "module",
 	"main": "main.js",
 	"scripts": {
