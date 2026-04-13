@@ -2,6 +2,7 @@ import { makeRequest, type ToolRegistry } from "$/shared";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { type } from "arktype";
 import { LocalRestAPI } from "shared";
+import { buildPatchHeaders } from "./buildPatchHeaders";
 
 export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
   // GET Status
@@ -92,25 +93,10 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
       name: '"patch_active_file"',
       arguments: LocalRestAPI.ApiPatchParameters,
     }).describe(
-      "Insert or modify content in the currently-open note relative to a heading, block reference, or frontmatter field.",
+      "Insert or modify content in the currently-open note relative to a heading, block reference, or frontmatter field. Use for surgical edits, section updates, or targeted replacements without rewriting the whole file. Equivalent to str_replace for the active Obsidian note.",
     ),
     async ({ arguments: args }) => {
-      const headers: Record<string, string> = {
-        Operation: args.operation,
-        "Target-Type": args.targetType,
-        Target: args.target,
-        "Create-Target-If-Missing": "true",
-      };
-
-      if (args.targetDelimiter) {
-        headers["Target-Delimiter"] = args.targetDelimiter;
-      }
-      if (args.trimTargetWhitespace !== undefined) {
-        headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
-      }
-      if (args.contentType) {
-        headers["Content-Type"] = args.contentType;
-      }
+      const headers = buildPatchHeaders(args);
 
       const response = await makeRequest(
         LocalRestAPI.ApiContentResponse,
@@ -353,25 +339,10 @@ export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
         filename: "string",
       }).and(LocalRestAPI.ApiPatchParameters),
     }).describe(
-      "Insert or modify content in a file relative to a heading, block reference, or frontmatter field.",
+      "Insert or modify content in a file relative to a heading, block reference, or frontmatter field. Use for surgical edits, section updates, or targeted replacements without rewriting the whole file. Equivalent to str_replace for Obsidian vault files.",
     ),
     async ({ arguments: args }) => {
-      const headers: HeadersInit = {
-        Operation: args.operation,
-        "Target-Type": args.targetType,
-        Target: args.target,
-        "Create-Target-If-Missing": "true",
-      };
-
-      if (args.targetDelimiter) {
-        headers["Target-Delimiter"] = args.targetDelimiter;
-      }
-      if (args.trimTargetWhitespace !== undefined) {
-        headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
-      }
-      if (args.contentType) {
-        headers["Content-Type"] = args.contentType;
-      }
+      const headers = buildPatchHeaders(args);
 
       const response = await makeRequest(
         LocalRestAPI.ApiContentResponse,

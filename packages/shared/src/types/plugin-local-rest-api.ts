@@ -200,11 +200,12 @@ export const ApiVaultFileResponse = type({
  *
  * @property operation - Specifies how to modify the content: append (add after), prepend (add before), or replace existing content
  * @property targetType - Identifies what to modify: a section under a heading, a referenced block, or a frontmatter field
- * @property target - The identifier - either heading path (e.g. 'Heading 1::Subheading 1:1'), block reference ID, or frontmatter field name
+ * @property target - The identifier - either a fully-qualified heading path from the document root (e.g. 'Root Heading::Subheading::Leaf'), block reference ID, or frontmatter field name. For headings, the full path from the top-level heading is required; leaf-only names (e.g. 'Leaf') will not match and will return an invalid-target error. Non-ASCII characters and special characters (e.g. '/', '#') in heading names are URL-encoded automatically; provide the target as plain text.
  * @property targetDelimiter - The separator used in heading paths to indicate nesting (default '::')
  * @property trimTargetWhitespace - Whether to remove whitespace from target identifier before matching (default: false)
  * @property content - The actual content to insert, append, or use as replacement
  * @property contentType - Format of the content - use application/json for structured data like table rows or frontmatter values
+ * @property createTargetIfMissing - Whether to create the target heading if it does not exist (default: false). Set to true only for append/prepend operations.
  */
 export const ApiPatchParameters = type({
   operation: type("'append' | 'prepend' | 'replace'").describe(
@@ -214,7 +215,7 @@ export const ApiPatchParameters = type({
     "Identifies what to modify: a section under a heading, a referenced block, or a frontmatter field",
   ),
   target: type("string").describe(
-    "The identifier - either heading path (e.g. 'Heading 1::Subheading 1:1'), block reference ID, or frontmatter field name",
+    "The identifier - either a fully-qualified heading path from the document root (e.g. 'Root Heading::Subheading::Leaf'), block reference ID, or frontmatter field name. For headings, the full path from the top-level heading is required; leaf-only names (e.g. 'Leaf') will not match and will return an invalid-target error. Non-ASCII characters and special characters (e.g. '/', '#') are URL-encoded automatically; provide the target as plain text."
   ),
   "targetDelimiter?": type("string").describe(
     "The separator used in heading paths to indicate nesting (default '::')",
@@ -227,6 +228,9 @@ export const ApiPatchParameters = type({
   ),
   "contentType?": type("'text/markdown' | 'application/json'").describe(
     "Format of the content - use application/json for structured data like table rows or frontmatter values",
+  ),
+  "createTargetIfMissing?": type("boolean").describe(
+    "Whether to create the target heading if it does not exist (default: false). Set to true only for append/prepend operations.",
   ),
 });
 
