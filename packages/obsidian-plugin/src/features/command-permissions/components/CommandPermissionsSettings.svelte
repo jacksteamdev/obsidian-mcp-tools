@@ -133,10 +133,16 @@
     saving = true;
     try {
       const allowlist = parseAllowlistCsv(allowlistRaw);
+      // Svelte 5 + `<input type="number" bind:value>` coerces the
+      // bound variable to a number as soon as the user types, even
+      // though we declare it as `string`. Coerce defensively to
+      // string before trim() — handles initial empty string, a
+      // typed number, and the null/undefined "field cleared" case.
+      const softRateRaw = String(softRateLimitRaw ?? "").trim();
       const softRateLimit =
-        softRateLimitRaw.trim() === ""
+        softRateRaw === ""
           ? undefined
-          : normalizeSoftRateLimit(Number(softRateLimitRaw));
+          : normalizeSoftRateLimit(Number(softRateRaw));
 
       const data = (await plugin.loadData()) ?? {};
       // Preserve the existing audit ring buffer — the handler owns
