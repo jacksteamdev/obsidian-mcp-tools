@@ -34,6 +34,23 @@ describe("convertHtmlToMarkdown", () => {
     expect(result).toBe("[Link](https://other.com/page)");
   });
 
+  test("resolves bare relative URLs against base URL", () => {
+    /**
+     * Given HTML containing a link with a bare relative path (no leading '/')
+     * When convertHtmlToMarkdown is called
+     * Then the URL is resolved relative to the base URL's directory
+     */
+
+    // Given: a link with a bare relative path
+    const html = '<a href="../other-post">Other</a>';
+
+    // When: converted to markdown
+    const result = convertHtmlToMarkdown(html, baseUrl);
+
+    // Then: the relative path is resolved against the base URL
+    expect(result).toBe("[Other](https://example.com/other-post)");
+  });
+
   test("extracts article content when present", () => {
     const html = `
       <header>Skip this</header>

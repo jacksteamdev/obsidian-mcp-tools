@@ -46,4 +46,25 @@ describe("parseTemplateParameters", () => {
     PromptParameterSchema.array().assert(result);
     expect(result).toEqual([{ name: "name", description: "Enter your name" }]);
   });
+
+  test("skips template tags with unparseable code and continues parsing", () => {
+    /**
+     * Given content with a template tag containing syntax that cannot be parsed
+     * When parseTemplateParameters is called
+     * Then the malformed tag is skipped and subsequent valid tags are still parsed
+     */
+
+    // Given: a template with a syntax error followed by a valid parameter
+    const content = `
+      <% {{{invalid javascript %>
+      <% tp.mcpTools.prompt("title", "Enter title") %>
+    `;
+
+    // When: parameters are parsed
+    const result = parseTemplateParameters(content);
+
+    // Then: the malformed tag is skipped, valid parameter is still extracted
+    PromptParameterSchema.array().assert(result);
+    expect(result).toEqual([{ name: "title", description: "Enter title" }]);
+  });
 });
