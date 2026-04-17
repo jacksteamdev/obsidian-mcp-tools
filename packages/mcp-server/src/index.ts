@@ -26,13 +26,14 @@ async function main() {
 
 if (process.argv.includes("--version")) {
   try {
-    console.log(getVersion());
+    process.stdout.write(`${getVersion()}\n`);
   } catch (error) {
-    console.error(`Error getting version: ${error}`);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Error getting version: ${message}`);
     process.exit(1);
   }
 } else {
-  main().catch((error) => {
+  main().catch((error: unknown) => {
     console.error(error);
     process.exit(1);
   });

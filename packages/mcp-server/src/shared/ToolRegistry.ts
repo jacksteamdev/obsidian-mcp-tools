@@ -65,7 +65,7 @@ const imageResult = type({
   data: "string.base64",
   mimeType: "string",
 });
-const resultSchema = type({
+export const resultSchema = type({
   content: textResult.or(imageResult).array(),
   "isError?": "boolean",
 });
@@ -78,17 +78,14 @@ type ResultSchema = typeof resultSchema.infer;
  * that provides a list of available tools and a method to handle requests.
  */
 export class ToolRegistryClass<
-  TSchema extends Type<
-    {
-      name: string;
-      // `object` (not `Record<string, unknown>`) so that tools declaring
-      // `arguments: {}` — i.e. no-arg tools — still type-check. See the
-      // normalizeInputSchema helper below for why the empty-object form
-      // is preferred over the open-record form.
-      arguments?: object;
-    },
-    {}
-  >,
+  TSchema extends Type<{
+    name: string;
+    // `object` (not `Record<string, unknown>`) so that tools declaring
+    // `arguments: {}` — i.e. no-arg tools — still type-check. See the
+    // normalizeInputSchema helper below for why the empty-object form
+    // is preferred over the open-record form.
+    arguments?: object;
+  }>,
   THandler extends (
     request: TSchema["infer"],
     context: HandlerContext,
@@ -104,7 +101,9 @@ export class ToolRegistryClass<
     ) => ResultSchema | Promise<ResultSchema>,
   >(schema: Schema, handler: Handler) {
     if (this.has(schema)) {
-      throw new Error(`Tool already registered: ${schema.get("name")}`);
+      // @ts-expect-error We know the const property is present for a string
+      const name = schema.get("name").toJsonSchema().const as string;
+      throw new Error(`Tool already registered: ${name}`);
     }
     this.enable(schema);
     return super.set(
@@ -236,17 +235,14 @@ export class ToolRegistryClass<
 }
 
 export type ToolRegistry = ToolRegistryClass<
-  Type<
-    {
-      name: string;
-      // `object` (not `Record<string, unknown>`) so that tools declaring
-      // `arguments: {}` — i.e. no-arg tools — still type-check. See the
-      // normalizeInputSchema helper below for why the empty-object form
-      // is preferred over the open-record form.
-      arguments?: object;
-    },
-    {}
-  >,
+  Type<{
+    name: string;
+    // `object` (not `Record<string, unknown>`) so that tools declaring
+    // `arguments: {}` — i.e. no-arg tools — still type-check. See the
+    // normalizeInputSchema helper below for why the empty-object form
+    // is preferred over the open-record form.
+    arguments?: object;
+  }>,
   (
     request: {
       name: string;

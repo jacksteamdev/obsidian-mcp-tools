@@ -25,10 +25,10 @@ function buildRegistryWithTwoTools() {
     arguments: {},
   }).describe("Beta tool");
 
-  tools.register(alphaSchema, async () => ({
+  tools.register(alphaSchema, () => ({
     content: [{ type: "text", text: "alpha-ok" }],
   }));
-  tools.register(betaSchema, async () => ({
+  tools.register(betaSchema, () => ({
     content: [{ type: "text", text: "beta-ok" }],
   }));
 
@@ -117,7 +117,7 @@ describe("ToolRegistry list() — issue #77 regression", () => {
     expect(listed.length).toBeGreaterThan(0);
 
     for (const tool of listed) {
-      const schema = tool.inputSchema as Record<string, unknown>;
+      const schema = tool.inputSchema;
       expect(schema.type).toBe("object");
       expect(schema).toHaveProperty("properties");
       // The shape doesn't matter (could be `{}` for no-arg tools, or a
@@ -147,7 +147,7 @@ describe("ToolRegistry enable/disable", () => {
 
     // A disabled tool must be indistinguishable from an unregistered
     // one — otherwise `list()` and `dispatch()` would disagree.
-    expect(
+    await expect(
       tools.dispatch({ name: "alpha", arguments: {} }, fakeContext),
     ).rejects.toThrow(/Unknown tool: alpha/);
   });

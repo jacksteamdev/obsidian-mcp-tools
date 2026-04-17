@@ -92,9 +92,10 @@ export function registerFetchTool(tools: ToolRegistry, server: Server) {
         };
       } catch (error) {
         logger.error("Failed to fetch URL", { url: args.url, error });
+        const message = error instanceof Error ? error.message : String(error);
         throw new McpError(
           ErrorCode.InternalError,
-          `Failed to fetch ${args.url}: ${error}`,
+          `Failed to fetch ${args.url}: ${message}`,
         );
       }
     },

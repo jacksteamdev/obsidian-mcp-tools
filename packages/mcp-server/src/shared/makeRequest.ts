@@ -60,12 +60,11 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
  * @returns The response from the Obsidian API.
  */
 
-export async function makeRequest<
-  T extends
-  | Type<{}, {}>
-  | Type<null | undefined, {}>
-  | Type<{} | null | undefined, {}>,
->(schema: T, path: string, init?: RequestInit): Promise<T["infer"]> {
+export async function makeRequest<T extends Type>(
+  schema: T,
+  path: string,
+  init?: RequestInit,
+): Promise<T["infer"]> {
   const API_KEY = process.env.OBSIDIAN_API_KEY;
   if (!API_KEY) {
     logger.error("OBSIDIAN_API_KEY environment variable is required", {
