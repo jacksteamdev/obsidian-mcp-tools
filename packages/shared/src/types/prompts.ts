@@ -32,7 +32,9 @@ export type PromptMetadata = typeof PromptMetadataSchema.infer;
 
 export const PromptTemplateTag = type("'mcp-tools-prompt'");
 export const PromptFrontmatterSchema = type({
-  tags: type("string[]").narrow((arr) => arr.some(PromptTemplateTag.allows)),
+  tags: type("string[]").narrow((arr) =>
+    arr.some((tag) => PromptTemplateTag.allows(tag)),
+  ),
   "description?": type("string"),
 });
 export type PromptFrontmatter = typeof PromptFrontmatterSchema.infer;
@@ -52,7 +54,7 @@ export type PromptExecutionResult = typeof PromptExecutionResultSchema.infer;
 
 export function buildTemplateArgumentsSchema(
   args: PromptParameter[],
-): Type<Record<string, "string" | "string?">, {}> {
+): Type<Record<string, "string" | "string?">> {
   return type(
     Object.fromEntries(
       args.map((arg) => [arg.name, arg.required ? "string" : "string?"]),

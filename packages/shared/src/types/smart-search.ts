@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { SmartConnections } from "shared";
+import * as SmartConnections from "./plugin-smart-connections";
 
 const searchRequest = type({
   query: type("string>0").describe("A search phrase for semantic search"),
@@ -17,15 +17,14 @@ const searchRequest = type({
 });
 export const jsonSearchRequest = type("string.json.parse").to(searchRequest);
 
-const searchResponse = type({
-  results: type({
-    path: "string",
-    text: "string",
-    score: "number",
-    breadcrumbs: "string",
-  }).array(),
-});
-export type SearchResponse = typeof searchResponse.infer;
+export interface SearchResponse {
+  results: Array<{
+    path: string;
+    text: string;
+    score: number;
+    breadcrumbs: string;
+  }>;
+}
 
 export const searchParameters = type({
   query: "string",
