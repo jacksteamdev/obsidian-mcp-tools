@@ -1,4 +1,4 @@
-import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   ErrorCode,
   McpError,
@@ -9,7 +9,7 @@ import { formatMcpError } from "./formatMcpError.js";
 import { logger } from "./logger.js";
 
 interface HandlerContext {
-  server: Server;
+  server: McpServer;
 }
 
 /**

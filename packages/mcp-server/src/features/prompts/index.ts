@@ -4,7 +4,7 @@ import {
   makeRequest,
   parseTemplateParameters,
 } from "$/shared";
-import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   ErrorCode,
   GetPromptRequestSchema,
@@ -21,7 +21,8 @@ import {
 
 const PROMPT_DIRNAME = `Prompts`;
 
-export function setupObsidianPrompts(server: Server) {
+export function setupObsidianPrompts(mcpServer: McpServer) {
+  const server = mcpServer.server;
   server.setRequestHandler(ListPromptsRequestSchema, async () => {
     try {
       const { files } = await makeRequest(

@@ -1,5 +1,4 @@
 import { makeRequest, type ToolRegistry } from "$/shared";
-import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { type } from "arktype";
 import { LocalRestAPI } from "shared";
 
@@ -158,7 +157,7 @@ export function guessMimeType(name: string): string {
   return BINARY_EXTENSION_MIME_TYPES.get(ext) ?? "application/octet-stream";
 }
 
-export function registerLocalRestApiTools(tools: ToolRegistry, server: Server) {
+export function registerLocalRestApiTools(tools: ToolRegistry) {
   // GET Status
   tools.register(
     type({
