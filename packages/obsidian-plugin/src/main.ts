@@ -30,8 +30,7 @@ export default class McpToolsPlugin extends Plugin {
     installed: false,
   };
 
-  async getLocalRestApiKey(): Promise<string | undefined> {
-    // The API key is stored in the plugin's settings
+  getLocalRestApiKey(): string | undefined {
     return this.localRestApi.plugin?.settings?.apiKey;
   }
 
@@ -41,38 +40,44 @@ export default class McpToolsPlugin extends Plugin {
     await setupMcpServerInstall(this);
 
     // Check for required dependencies
-    lastValueFrom(loadLocalRestAPI(this)).then((localRestApi) => {
-      this.localRestApi = localRestApi;
+    lastValueFrom(loadLocalRestAPI(this))
+      .then((localRestApi) => {
+        this.localRestApi = localRestApi;
 
-      if (!this.localRestApi.api) {
-        new Notice(
-          `${this.manifest.name}: Local REST API plugin is required but not found. Please install it from the community plugins and restart Obsidian.`,
-          0,
-        );
-        return;
-      }
+        if (!this.localRestApi.api) {
+          new Notice(
+            `${this.manifest.name}: Local REST API plugin is required but not found. Please install it from the community plugins and restart Obsidian.`,
+            0,
+          );
+          return;
+        }
 
-      // Register endpoints
-      this.localRestApi.api
-        .addRoute("/search/smart")
-        .post(this.handleSearchRequest.bind(this));
+        // Register endpoints
+        this.localRestApi.api
+          .addRoute("/search/smart")
+          .post(this.handleSearchRequest.bind(this));
 
-      this.localRestApi.api
-        .addRoute("/templates/execute")
-        .post(this.handleTemplateExecution.bind(this));
+        this.localRestApi.api
+          .addRoute("/templates/execute")
+          .post(this.handleTemplateExecution.bind(this));
 
-      // Command execution gate (issue #29). The MCP server calls
-      // this endpoint before every `execute_obsidian_command` to
-      // check the user's allowlist + enabled toggle. Deny-by-default:
-      // if the user has not opted in, every request returns "deny".
-      this.localRestApi.api
-        .addRoute("/mcp-tools/command-permission/")
-        .post((req: Request, res: Response) =>
-          handleCommandPermissionRequest(this, req, res),
-        );
+        // Command execution gate (issue #29). The MCP server calls
+        // this endpoint before every `execute_obsidian_command` to
+        // check the user's allowlist + enabled toggle. Deny-by-default:
+        // if the user has not opted in, every request returns "deny".
+        this.localRestApi.api
+          .addRoute("/mcp-tools/command-permission/")
+          .post((req: Request, res: Response) =>
+            handleCommandPermissionRequest(this, req, res),
+          );
 
-      logger.info("MCP Tools Plugin loaded");
-    });
+        logger.info("MCP Tools Plugin loaded");
+      })
+      .catch((error: unknown) => {
+        logger.error("Failed to load Local REST API", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
   }
 
   private async handleTemplateExecution(req: Request, res: Response) {
@@ -180,7 +185,7 @@ export default class McpToolsPlugin extends Plugin {
       const smartSearch = dep.api;
       if (!smartSearch) {
         new Notice(
-          "Smart Search REST API Plugin: smart-connections plugin is required but not found. Please install it from the community plugins.",
+          "Smart Connections plugin is required but not found. Please install it from the community plugins.",
           0,
         );
         res.status(503).json({

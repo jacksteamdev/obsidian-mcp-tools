@@ -1,14 +1,14 @@
 import { Plugin } from "obsidian";
 import type { SetupResult } from "./types";
 
-export async function setup(plugin: Plugin): Promise<SetupResult> {
+export function setup(_plugin: Plugin): Promise<SetupResult> {
   try {
-    return { success: true };
+    return Promise.resolve({ success: true });
   } catch (error) {
-    return {
+    return Promise.resolve({
       success: false,
       error: error instanceof Error ? error.message : String(error),
-    };
+    });
   }
 }
 

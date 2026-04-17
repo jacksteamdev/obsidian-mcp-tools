@@ -28,20 +28,20 @@ export class McpToolsSettingTab extends PluginSettingTab {
   }
 
   hide(): void {
-    this.component && unmount(this.component);
+    if (this.component) {
+      void unmount(this.component);
+    }
   }
 }
 
-export async function setup(plugin: McpToolsPlugin): Promise<SetupResult> {
+export function setup(plugin: McpToolsPlugin): Promise<SetupResult> {
   try {
-    // Add settings tab to plugin
     plugin.addSettingTab(new McpToolsSettingTab(plugin.app, plugin));
-
-    return { success: true };
+    return Promise.resolve({ success: true });
   } catch (error) {
-    return {
+    return Promise.resolve({
       success: false,
       error: error instanceof Error ? error.message : String(error),
-    };
+    });
   }
 }

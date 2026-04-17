@@ -21,7 +21,7 @@
 
 import { mock } from "bun:test";
 
-mock.module("obsidian", () => {
+void mock.module("obsidian", () => {
   class Notice {
     constructor(_message?: string, _timeout?: number) {}
     setMessage(_message: string | DocumentFragment) {
@@ -131,7 +131,7 @@ interface SvelteMockCalls {
   unmount: [],
 };
 
-mock.module("svelte", () => ({
+void mock.module("svelte", () => ({
   mount: (component: unknown, options: { props?: unknown }) => {
     const ref = { __mockRef: Symbol("svelte-mock-ref"), component, options };
     (

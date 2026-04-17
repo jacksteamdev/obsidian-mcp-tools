@@ -41,18 +41,45 @@ declare const window: {
   SmartSearch?: SmartConnections.SmartSearch;
 } & Window;
 
+// Minimal shape of the Smart Connections v3.0+ plugin instance that we
+// rely on at runtime. Keeping it local (rather than exported) avoids
+// coupling the shared package to v3 specifics; the wrapper below
+// normalises v3 results back into the v2-compatible SmartSearch API.
+interface SmartSourcesLookupResult {
+  item: {
+    path: string;
+    name?: string;
+    key?: string;
+    breadcrumbs?: string;
+    link?: string;
+    size?: number;
+    read: () => Promise<string>;
+  };
+  score: number;
+}
+
+interface SmartConnectionsV3Plugin {
+  env?: {
+    smart_sources?: {
+      lookup: (params: {
+        hypotheticals: string[];
+        filter: Record<string, unknown>;
+      }) => Promise<SmartSourcesLookupResult[]>;
+    };
+  };
+}
+
 export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
   interval(200).pipe(
     takeUntil(timer(5000)),
     map((): Dependencies["smart-connections"] => {
       const smartConnectionsPlugin = plugin.app.plugins.plugins[
         "smart-connections"
-      ] as any;
+      ] as SmartConnectionsV3Plugin | undefined;
 
       // Check for Smart Connections v3.0+ (uses smart environment)
-      if (smartConnectionsPlugin?.env?.smart_sources) {
-        const smartEnv = smartConnectionsPlugin.env;
-
+      const smartSources = smartConnectionsPlugin?.env?.smart_sources;
+      if (smartSources) {
         // Create a compatibility wrapper that matches the old SmartSearch interface
         const api: SmartConnections.SmartSearch = {
           search: async (
@@ -61,7 +88,7 @@ export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
           ) => {
             try {
               // Use the new v3.0 lookup API
-              const results = await smartEnv.smart_sources.lookup({
+              const results = await smartSources.lookup({
                 hypotheticals: [search_text],
                 filter: {
                   limit: filter?.limit,
@@ -79,22 +106,25 @@ export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
               });
 
               // Transform results to match expected format
-              return results.map((result: any) => ({
+              return results.map((result) => ({
                 item: {
                   path: result.item.path,
                   name:
                     result.item.name ||
                     result.item.key?.split("/").pop() ||
-                    result.item.key,
+                    result.item.key ||
+                    result.item.path,
                   breadcrumbs: result.item.breadcrumbs || result.item.path,
                   read: () => result.item.read(),
-                  key: result.item.key,
+                  key: result.item.key ?? result.item.path,
                   file_path: result.item.path,
-                  link: result.item.link,
-                  size: result.item.size,
+                  link: result.item.link ?? "",
+                  size: result.item.size ?? 0,
                 },
                 score: result.score,
-              }));
+              })) as unknown as Awaited<
+                ReturnType<SmartConnections.SmartSearch["search"]>
+              >;
             } catch (error) {
               console.error("Smart Connections v3.0 search error:", error);
               return [];
@@ -108,7 +138,7 @@ export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
           required: false,
           installed: true,
           api,
-          plugin: smartConnectionsPlugin,
+          plugin: smartConnectionsPlugin as App["plugins"]["plugins"]["smart-connections"],
         };
       }
 
@@ -117,7 +147,7 @@ export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
 
       // Fallback to plugin system (fixes Linux/cross-platform detection issues)
       if (!legacyApi && smartConnectionsPlugin?.env) {
-        legacyApi = smartConnectionsPlugin.env;
+        legacyApi = smartConnectionsPlugin.env as unknown as SmartConnections.SmartSearch;
         // Cache it for future use
         window.SmartSearch = legacyApi;
       }
@@ -128,7 +158,7 @@ export const loadSmartSearchAPI = (plugin: McpToolsPlugin) =>
         required: false,
         installed: !!legacyApi,
         api: legacyApi,
-        plugin: smartConnectionsPlugin,
+        plugin: smartConnectionsPlugin as App["plugins"]["plugins"]["smart-connections"],
       };
     }),
     takeWhile((dependency) => !dependency.installed, true),

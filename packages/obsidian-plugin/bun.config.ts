@@ -42,7 +42,9 @@ const sveltePlugin: BunPlugin = {
 					contents: result.js.code,
 				};
 			} catch (error) {
-				throw new Error(`Error compiling Svelte component: ${error}`);
+				const message =
+					error instanceof Error ? error.message : String(error);
+				throw new Error(`Error compiling Svelte component: ${message}`);
 			}
 		});
 	},
@@ -103,7 +105,7 @@ async function build() {
 			process.exit(1);
 		}
 
-		console.log("Build successful");
+		console.warn("Build successful");
 	} catch (error) {
 		console.error("Build failed:", error);
 		process.exit(1);
@@ -114,9 +116,9 @@ async function watch() {
 	const watcher = fsp.watch(join(import.meta.dir, "src"), {
 		recursive: true,
 	});
-	console.log("Watching for changes...");
+	console.warn("Watching for changes...");
 	for await (const event of watcher) {
-		console.log(`Detected ${event.eventType} in ${event.filename}`);
+		console.warn(`Detected ${event.eventType} in ${event.filename}`);
 		await build();
 	}
 }

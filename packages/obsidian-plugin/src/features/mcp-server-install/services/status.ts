@@ -92,7 +92,7 @@ async function resolveSymlinks(filepath: string): Promise<string> {
         try {
           const resolvedPath = await fsp.realpath(partialPath);
           resolvedParts = resolvedPath.split(path.sep);
-        } catch (err) {
+        } catch {
           resolvedParts.push(part);
         }
       }
@@ -212,7 +212,7 @@ export async function getInstallationStatus(
 
   try {
     await fsp.access(installPath.path, fsp.constants.X_OK);
-  } catch (error) {
+  } catch {
     logger.error("Failed to get server version:", { installPath });
     return {
       state: "not installed",

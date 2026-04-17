@@ -116,7 +116,7 @@ export async function ensureDirectory(dirpath: string) {
     // Verify directory was created and is writable
     try {
       await fsp.access(dirpath, fs.constants.W_OK);
-    } catch (accessError) {
+    } catch {
       throw new Error(`Directory exists but is not writable: ${dirpath}`);
     }
   } catch (error) {

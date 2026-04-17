@@ -106,7 +106,7 @@ export class CommandPermissionModal extends Modal {
       this.resolveFn?.("deny");
     }
     if (this.component) {
-      unmount(this.component);
+      void unmount(this.component);
       this.component = undefined;
     }
     this.contentEl.empty();

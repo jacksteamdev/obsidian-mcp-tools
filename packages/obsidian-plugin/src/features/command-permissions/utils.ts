@@ -109,8 +109,10 @@ export function createRuntimeRateCounter(
 
   function prune(now: number) {
     const cutoff = now - windowMs;
-    while (timestamps.length > 0 && timestamps[0]! <= cutoff) {
+    let first = timestamps[0];
+    while (first !== undefined && first <= cutoff) {
       timestamps.shift();
+      first = timestamps[0];
     }
   }
 
