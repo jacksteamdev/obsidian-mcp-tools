@@ -23,6 +23,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), version
   longer produces `/vault/DevOps//` and the subsequent 404 from the
   Local REST API. Fixes upstream issue #37.
 
+### Changed
+- Extracted `buildPatchHeaders` and `normalizeAppendBody` from the
+  `patch_active_file` / `patch_vault_file` handlers as pure helpers,
+  and added regression tests for the URL-encoded `Target` header
+  (Cyrillic, CJK, accented + bracketed strings) and the trailing-
+  newline safeguard on `append`. No behavior change — this pins
+  the 0.3.0 fixes for upstream issues #30, #71, and #78 against
+  accidental regression.
+
 ## [0.3.2] — 2026-04-17
 
 ### Changed
@@ -56,6 +65,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), version
 - Release pipeline paths corrected so the cross-platform build workflow produces the expected artifacts.
 - Upstream issue #77 regression: tools with `arguments: {}` now emit `inputSchema` with an explicit `properties` key — fixes strict MCP clients such as `openai-codex`.
 - Smart Connections v3 compatibility (the wrapper now handles both `window.SmartSearch` in v2.x and `env.smart_sources` in v3+).
+- `patch_active_file` / `patch_vault_file`: resolve partial heading
+  names to full hierarchical paths (e.g. `"Section A"` →
+  `"Top Level::Section A"`) before issuing the PATCH, preventing
+  silent content corruption when the target sits under a parent
+  heading. Fixes upstream issues #30 and #71. (Shipped in the
+  0.3.0 cut via commit `d75e493`; credited retroactively here.)
+- `patch_active_file` / `patch_vault_file`: URL-encode the `Target`
+  and `Target-Delimiter` HTTP headers so non-ASCII heading names
+  (Cyrillic, CJK, emoji, accented characters) survive the HTTP
+  header grammar. Encoding happens after path resolution so the
+  indexer lookup still matches unencoded file content. Fixes
+  upstream issue #78.
+- `patch_active_file` / `patch_vault_file`: append content is now
+  normalized to end with `\n\n` so subsequent sections remain
+  visually separated instead of colliding (e.g. `**done**## Next`).
+- New `createTargetIfMissing` parameter on both patch tools lets
+  callers opt into strict mode (return an explicit error instead
+  of silently creating a new target at EOF when the lookup fails).
+  Defaults to `true` for upstream compatibility.
 
 ## Earlier
 

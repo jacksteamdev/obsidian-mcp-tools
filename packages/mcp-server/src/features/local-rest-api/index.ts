@@ -2,6 +2,66 @@ import { makeRequest, type ToolRegistry } from "$/shared";
 import { type } from "arktype";
 import { LocalRestAPI } from "shared";
 
+export type PatchOperation = "append" | "prepend" | "replace";
+
+export interface PatchHeadersInput {
+  operation: PatchOperation;
+  targetType: "heading" | "block" | "frontmatter";
+  targetDelimiter?: string;
+  trimTargetWhitespace?: boolean;
+  contentType?: "text/markdown" | "application/json";
+  createTargetIfMissing?: boolean;
+}
+
+/**
+ * Build the HTTP headers for a PATCH request to the Local REST API. The
+ * resolved `target` is URL-encoded so non-ASCII heading names (Cyrillic,
+ * CJK, emoji) and reserved characters survive the HTTP header grammar —
+ * the Local REST API decodes it server-side via decodeURIComponent.
+ *
+ * Encoding happens AFTER heading-path resolution so the indexer lookup
+ * still compares against plain strings. See issues #78 and #30/#71.
+ */
+export function buildPatchHeaders(
+  args: PatchHeadersInput,
+  resolvedTarget: string,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    Operation: args.operation,
+    "Target-Type": args.targetType,
+    Target: encodeURIComponent(resolvedTarget),
+    "Create-Target-If-Missing": String(args.createTargetIfMissing ?? true),
+  };
+
+  if (args.targetDelimiter) {
+    headers["Target-Delimiter"] = encodeURIComponent(args.targetDelimiter);
+  }
+  if (args.trimTargetWhitespace !== undefined) {
+    headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
+  }
+  if (args.contentType) {
+    headers["Content-Type"] = args.contentType;
+  }
+
+  return headers;
+}
+
+/**
+ * Ensure appended content ends with whitespace so the next section in the
+ * document remains visually separated. markdown-patch does not insert any
+ * separation on its own, so `**bold**` appended under a heading would
+ * collide with the following `## Next Heading` line.
+ */
+export function normalizeAppendBody(
+  content: string,
+  operation: PatchOperation,
+): string {
+  if (operation === "append" && !content.endsWith("\n")) {
+    return content + "\n\n";
+  }
+  return content;
+}
+
 /**
  * Parse markdown content and resolve a partial heading name to its full
  * hierarchical path as expected by the Local REST API `markdown-patch`
@@ -283,34 +343,8 @@ export function registerLocalRestApiTools(tools: ToolRegistry) {
         }
       }
 
-      // Step 2: ensure appended content has trailing whitespace so the
-      // next section in the document remains visually separated.
-      let body = args.content;
-      if (args.operation === "append" && !body.endsWith("\n")) {
-        body = body + "\n\n";
-      }
-
-      // Step 3: build headers. Target and Target-Delimiter are URL-encoded
-      // so non-ASCII headings (Japanese, emoji, special chars) and newlines
-      // survive the HTTP header layer intact. Encoding happens *after* path
-      // resolution — otherwise the indexer lookup would match an encoded
-      // string against unencoded file content.
-      const headers: Record<string, string> = {
-        Operation: args.operation,
-        "Target-Type": args.targetType,
-        Target: encodeURIComponent(resolvedTarget),
-        "Create-Target-If-Missing": String(args.createTargetIfMissing ?? true),
-      };
-
-      if (args.targetDelimiter) {
-        headers["Target-Delimiter"] = encodeURIComponent(args.targetDelimiter);
-      }
-      if (args.trimTargetWhitespace !== undefined) {
-        headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
-      }
-      if (args.contentType) {
-        headers["Content-Type"] = args.contentType;
-      }
+      const body = normalizeAppendBody(args.content, args.operation);
+      const headers = buildPatchHeaders(args, resolvedTarget);
 
       const response = await makeRequest(
         LocalRestAPI.ApiContentResponse,
@@ -624,27 +658,8 @@ export function registerLocalRestApiTools(tools: ToolRegistry) {
         }
       }
 
-      let body = args.content;
-      if (args.operation === "append" && !body.endsWith("\n")) {
-        body = body + "\n\n";
-      }
-
-      const headers: HeadersInit = {
-        Operation: args.operation,
-        "Target-Type": args.targetType,
-        Target: encodeURIComponent(resolvedTarget),
-        "Create-Target-If-Missing": String(args.createTargetIfMissing ?? true),
-      };
-
-      if (args.targetDelimiter) {
-        headers["Target-Delimiter"] = encodeURIComponent(args.targetDelimiter);
-      }
-      if (args.trimTargetWhitespace !== undefined) {
-        headers["Trim-Target-Whitespace"] = String(args.trimTargetWhitespace);
-      }
-      if (args.contentType) {
-        headers["Content-Type"] = args.contentType;
-      }
+      const body = normalizeAppendBody(args.content, args.operation);
+      const headers = buildPatchHeaders(args, resolvedTarget);
 
       const response = await makeRequest(
         LocalRestAPI.ApiContentResponse,
