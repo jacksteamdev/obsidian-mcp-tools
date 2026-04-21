@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  applySimpleSearchLimit,
   extractFileExtension,
   guessMimeType,
   isBinaryFilename,
@@ -141,5 +142,40 @@ describe("guessMimeType", () => {
   test("falls back to application/octet-stream for files without an extension", () => {
     expect(guessMimeType("README")).toBe("application/octet-stream");
     expect(guessMimeType(".env")).toBe("application/octet-stream");
+  });
+});
+
+describe("applySimpleSearchLimit — issue #62", () => {
+  // The /search/simple/ endpoint has no native `limit` parameter, so we
+  // slice client-side. On common search terms the server can return
+  // thousands of matches and overflow the MCP client's context window
+  // (Claude Desktop will write to a tool-result file, breaking flow).
+
+  test("returns the first N elements when limit is smaller than the array", () => {
+    const data = ["a", "b", "c", "d", "e"];
+    expect(applySimpleSearchLimit(data, 3)).toEqual(["a", "b", "c"]);
+  });
+
+  test("returns the data unchanged when limit is undefined", () => {
+    const data = [{ filename: "x.md" }, { filename: "y.md" }];
+    // Preserves the upstream default — don't silently truncate.
+    expect(applySimpleSearchLimit(data, undefined)).toBe(data);
+  });
+
+  test("returns all elements when limit exceeds array length", () => {
+    const data = [1, 2, 3];
+    expect(applySimpleSearchLimit(data, 10)).toEqual([1, 2, 3]);
+  });
+
+  test("returns an empty array when limit is 0", () => {
+    // The tool schema enforces `number>0`, but the helper itself must
+    // still behave sensibly if called directly with 0 — slice(0,0) → [].
+    expect(applySimpleSearchLimit([1, 2, 3], 0)).toEqual([]);
+  });
+
+  test("does not mutate the input array", () => {
+    const data = [1, 2, 3, 4, 5];
+    applySimpleSearchLimit(data, 2);
+    expect(data).toEqual([1, 2, 3, 4, 5]);
   });
 });

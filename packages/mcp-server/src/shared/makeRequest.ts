@@ -34,17 +34,70 @@ export function resolvePortFromArgs(argv: string[]): number | undefined {
   return undefined;
 }
 
-// Port resolution precedence (Unix-style): --port CLI flag takes top
-// priority, then OBSIDIAN_PORT env var, then the protocol default
-// (27124 HTTPS / 27123 HTTP). Host is still controlled separately by
-// OBSIDIAN_HOST for backward compatibility with the v0.2.26 setup.
-const USE_HTTP = process.env.OBSIDIAN_USE_HTTP === "true";
+/**
+ * Collapse runs of consecutive forward slashes in a request path to a
+ * single slash. Works around upstream issue #37: a caller-supplied
+ * directory name with a trailing slash (e.g. "DevOps/") combined with
+ * a hard-coded `/vault/` prefix produces `/vault/DevOps//`, which the
+ * Obsidian Local REST API rejects with 404.
+ *
+ * Only operates on the path portion. The protocol separator in
+ * BASE_URL (`https://`) is handled by the caller and never passes
+ * through this function.
+ *
+ * Exported for unit testing.
+ */
+export function normalizePath(path: string): string {
+  return path.replace(/\/{2,}/g, "/");
+}
+
+export interface ApiUrlParts {
+  host?: string;
+  port?: number;
+  useHttp?: boolean;
+}
+
+/**
+ * Parse a full `OBSIDIAN_API_URL` value (e.g. `https://10.0.0.1:27124`)
+ * into its host/port/protocol parts. Kept as a best-effort: returns
+ * `undefined` if the input is missing or malformed, or if the protocol
+ * is not `http`/`https`. Callers layer the result under the more
+ * specific `OBSIDIAN_HOST` / `OBSIDIAN_PORT` / `OBSIDIAN_USE_HTTP`
+ * overrides. Exported for unit testing.
+ */
+export function parseApiUrl(raw: string | undefined): ApiUrlParts | undefined {
+  if (!raw) return undefined;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+    const host = url.hostname || undefined;
+    const port = url.port ? parsePort(url.port) : undefined;
+    return { host, port, useHttp: url.protocol === "http:" };
+  } catch {
+    return undefined;
+  }
+}
+
+// Resolution precedence (most specific wins):
+// - Port:     --port CLI flag > OBSIDIAN_PORT > OBSIDIAN_API_URL port > default
+// - Host:     OBSIDIAN_HOST > OBSIDIAN_API_URL host > 127.0.0.1
+// - Protocol: OBSIDIAN_USE_HTTP (if set) > OBSIDIAN_API_URL protocol > https
+// OBSIDIAN_API_URL is a convenience alias: it only fills slots that
+// the more specific variables leave empty. This keeps drop-in
+// compatibility with upstream v0.2.x configurations (issue #66) without
+// breaking anyone who already uses the granular env vars.
+const API_URL_PARTS = parseApiUrl(process.env.OBSIDIAN_API_URL);
+const USE_HTTP_ENV = process.env.OBSIDIAN_USE_HTTP;
+const USE_HTTP =
+  USE_HTTP_ENV != null && USE_HTTP_ENV !== ""
+    ? USE_HTTP_ENV === "true"
+    : (API_URL_PARTS?.useHttp ?? false);
 const PROTOCOL = USE_HTTP ? "http" : "https";
 const DEFAULT_PORT = USE_HTTP ? 27123 : 27124;
 const ARG_PORT = resolvePortFromArgs(process.argv);
 const ENV_PORT = parsePort(process.env.OBSIDIAN_PORT);
-const PORT = ARG_PORT ?? ENV_PORT ?? DEFAULT_PORT;
-const HOST = process.env.OBSIDIAN_HOST || "127.0.0.1";
+const PORT = ARG_PORT ?? ENV_PORT ?? API_URL_PARTS?.port ?? DEFAULT_PORT;
+const HOST = process.env.OBSIDIAN_HOST || API_URL_PARTS?.host || "127.0.0.1";
 export const BASE_URL = `${PROTOCOL}://${HOST}:${PORT}`;
 
 // Disable TLS certificate validation for local self-signed certificates
@@ -73,7 +126,8 @@ export async function makeRequest<T extends Type>(
     throw new Error("OBSIDIAN_API_KEY environment variable is required");
   }
 
-  const url = `${BASE_URL}${path}`;
+  const safePath = normalizePath(path);
+  const url = `${BASE_URL}${safePath}`;
   const response = await fetch(url, {
     ...init,
     headers: {
@@ -85,7 +139,7 @@ export async function makeRequest<T extends Type>(
 
   if (!response.ok) {
     const error = await response.text();
-    const message = `${init?.method ?? "GET"} ${path} ${response.status}: ${error}`;
+    const message = `${init?.method ?? "GET"} ${safePath} ${response.status}: ${error}`;
     throw new McpError(ErrorCode.InternalError, message);
   }
 
@@ -104,7 +158,7 @@ export async function makeRequest<T extends Type>(
     });
     throw new McpError(
       ErrorCode.InternalError,
-      `${init?.method ?? "GET"} ${path} ${response.status}: ${validated.summary}`,
+      `${init?.method ?? "GET"} ${safePath} ${response.status}: ${validated.summary}`,
     );
   }
 
