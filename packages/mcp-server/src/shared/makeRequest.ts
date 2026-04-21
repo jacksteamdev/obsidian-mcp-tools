@@ -164,3 +164,54 @@ export async function makeRequest<T extends Type>(
 
   return validated;
 }
+
+export interface BinaryResponse {
+  bytes: Uint8Array;
+  mimeType: string | null;
+}
+
+/**
+ * Like `makeRequest`, but returns the raw response bytes instead of
+ * decoding the body as text or JSON. Used by `get_vault_file` for
+ * audio/image files that the MCP SDK 1.29.0 can carry natively via
+ * `image`/`audio` content blocks.
+ *
+ * Callers are responsible for size-gating before calling — a multi-
+ * hundred-megabyte download still allocates the full buffer here. The
+ * MCP tool handler should check the `Content-Length` header via a HEAD
+ * or pre-flight if it needs to guard against oversize payloads.
+ */
+export async function makeBinaryRequest(
+  path: string,
+  init?: RequestInit,
+): Promise<BinaryResponse> {
+  const API_KEY = process.env.OBSIDIAN_API_KEY;
+  if (!API_KEY) {
+    logger.error("OBSIDIAN_API_KEY environment variable is required", {
+      env: process.env,
+    });
+    throw new Error("OBSIDIAN_API_KEY environment variable is required");
+  }
+
+  const safePath = normalizePath(path);
+  const url = `${BASE_URL}${safePath}`;
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      ...init?.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    const message = `${init?.method ?? "GET"} ${safePath} ${response.status}: ${error}`;
+    throw new McpError(ErrorCode.InternalError, message);
+  }
+
+  const buffer = await response.arrayBuffer();
+  return {
+    bytes: new Uint8Array(buffer),
+    mimeType: response.headers.get("Content-Type"),
+  };
+}

@@ -1,4 +1,4 @@
-import { makeRequest, type ToolRegistry } from "$/shared";
+import { makeBinaryRequest, makeRequest, type ToolRegistry } from "$/shared";
 import { type } from "arktype";
 import { LocalRestAPI } from "shared";
 
@@ -215,6 +215,82 @@ export function guessMimeType(name: string): string {
   const ext = extractFileExtension(name);
   if (ext === null) return "application/octet-stream";
   return BINARY_EXTENSION_MIME_TYPES.get(ext) ?? "application/octet-stream";
+}
+
+/**
+ * Upper bound on the raw byte size of a binary file we will inline in
+ * the MCP tool result. Base64 encoding inflates the payload by ~33%, so
+ * a 10 MiB cap translates to roughly 13.3 MiB of transport-layer text.
+ * Files larger than this fall back to the text metadata response, which
+ * directs the agent to open the file via `show_file_in_obsidian` rather
+ * than burning the entire client context window on a single attachment.
+ */
+export const MAX_INLINE_BINARY_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Classify a file's mime type into an MCP SDK 1.29.0 content-block kind
+ * the server can return inline. Returns `"image"` or `"audio"` when the
+ * mime type maps to a native content block, or `null` for formats the
+ * SDK cannot carry (video, PDF, Office, archives) — those still use the
+ * text metadata fallback.
+ *
+ * Only the top-level mime type is inspected. `image/*` and `audio/*`
+ * both pass through regardless of the specific subtype; the MCP client
+ * is expected to ignore or render-as-best-it-can any exotic variants.
+ *
+ * Exported for unit testing.
+ */
+export function classifyBinaryMime(
+  mimeType: string | null | undefined,
+): "image" | "audio" | null {
+  if (!mimeType) return null;
+  const topLevel = mimeType.split(";", 1)[0].trim().toLowerCase();
+  if (topLevel.startsWith("image/")) return "image";
+  if (topLevel.startsWith("audio/")) return "audio";
+  return null;
+}
+
+/**
+ * Build the MCP text metadata block that directs an agent to open a
+ * non-inlinable binary file via `show_file_in_obsidian`. Used both for
+ * formats the SDK can't carry natively (video, PDF, Office, archives)
+ * and for audio/image files that exceed `MAX_INLINE_BINARY_BYTES`.
+ *
+ * Exported for unit testing.
+ */
+export function buildBinaryMetadataText(
+  filename: string,
+  mimeType: string,
+  reason: "unsupported_type" | "too_large",
+): string {
+  const hintByReason: Record<typeof reason, string> = {
+    unsupported_type:
+      "This file is binary (video, PDF, Office document, or archive) and cannot be returned as text content. Use show_file_in_obsidian to open it in the Obsidian UI.",
+    too_large:
+      "This file is too large to be returned inline (exceeds the 10 MiB cap to avoid overflowing the MCP client context window). Use show_file_in_obsidian to open it in the Obsidian UI.",
+  };
+  return JSON.stringify(
+    {
+      kind: "binary_file",
+      filename,
+      mimeType,
+      hint: hintByReason[reason],
+    },
+    null,
+    2,
+  );
+}
+
+/**
+ * Encode raw bytes as a base64 string suitable for the `data` field of
+ * an MCP `image` or `audio` content block. Uses `Buffer.from` under Bun
+ * / Node — both runtimes this server ships under provide the global
+ * `Buffer`, so this stays dependency-free.
+ *
+ * Exported for unit testing.
+ */
+export function encodeBytesAsBase64(bytes: Uint8Array): string {
+  return Buffer.from(bytes).toString("base64");
 }
 
 /**
@@ -538,26 +614,66 @@ export function registerLocalRestApiTools(tools: ToolRegistry) {
         "format?": '"markdown" | "json"',
       },
     }).describe(
-      "Get the content of a file from your vault. Text files (markdown, JSON, YAML, HTML, CSV, SVG, plain text) are returned directly. Binary files (audio, images, PDF, video, Office documents, archives) return a structured metadata response with a hint — their raw bytes are not exposed because the MCP SDK used by this server cannot carry non-text content. For binary files, use show_file_in_obsidian to open them in the Obsidian UI.",
+      "Get the content of a file from your vault. Text files (markdown, JSON, YAML, HTML, CSV, SVG, plain text) are returned directly. Audio and image files up to 10 MiB are returned inline as native MCP audio/image content blocks. Video, PDF, Office documents, archives, and oversize audio/image files return a structured metadata response directing you to open them via show_file_in_obsidian.",
     ),
     async ({ arguments: args }) => {
-      // Short-circuit binary files by extension. Local REST API cannot
-      // return binaries as text, and the MCP SDK pinned in this repo
-      // (1.0.4) does not support audio/video content types — so we
-      // return a structured metadata response that tells the agent
-      // to use show_file_in_obsidian instead of trying to read bytes.
-      // The detection is extension-based (no HEAD request) to avoid
-      // adding a roundtrip on the hot path for markdown reads.
+      // Binary file branch — extension-based detection, no HEAD request,
+      // so markdown reads keep their fast path with zero extra roundtrips.
       if (isBinaryFilename(args.filename)) {
-        const metadata = {
-          kind: "binary_file",
-          filename: args.filename,
-          mimeType: guessMimeType(args.filename),
-          hint: "This file is binary (audio, image, PDF, video, Office document, or archive) and cannot be returned as text content. Use show_file_in_obsidian to open it in the Obsidian UI.",
-        };
+        const mimeType = guessMimeType(args.filename);
+        const kind = classifyBinaryMime(mimeType);
+
+        // Video / PDF / Office / archive: MCP SDK 1.29.0 has no native
+        // content block that carries these, so we return the text
+        // metadata hint (same behavior as the 0.3.0 short-circuit).
+        if (kind === null) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: buildBinaryMetadataText(
+                  args.filename,
+                  mimeType,
+                  "unsupported_type",
+                ),
+              },
+            ],
+          };
+        }
+
+        const { bytes, mimeType: responseMime } = await makeBinaryRequest(
+          `/vault/${encodeURIComponent(args.filename)}`,
+        );
+
+        // Size-gate AFTER the fetch because Local REST API does not
+        // reliably report Content-Length ahead of time. If the file is
+        // larger than the inline cap, fall back to the text metadata
+        // hint so we do not blow the client's context window.
+        if (bytes.byteLength > MAX_INLINE_BINARY_BYTES) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: buildBinaryMetadataText(
+                  args.filename,
+                  mimeType,
+                  "too_large",
+                ),
+              },
+            ],
+          };
+        }
+
         return {
           content: [
-            { type: "text", text: JSON.stringify(metadata, null, 2) },
+            {
+              type: kind,
+              data: encodeBytesAsBase64(bytes),
+              // Prefer the server-reported Content-Type when the plugin
+              // knows it — falls back to the extension-based guess if
+              // the header is missing or malformed.
+              mimeType: responseMime ?? mimeType,
+            },
           ],
         };
       }

@@ -3,6 +3,28 @@
 All notable changes to **MCP Connector** (formerly `obsidian-mcp-tools`) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- `get_vault_file` now returns native MCP `image` and `audio` content
+  blocks for supported binary types (PNG, JPEG, GIF, WebP, SVG, BMP,
+  MP3, WAV, OGG, M4A, FLAC, AAC, WebM audio), so multimodal clients
+  can render them inline instead of receiving an opaque base64 blob
+  in a text response. Files above a 10 MiB inline cap, plus unsupported
+  types (video, PDF, Office, archives), still get a JSON metadata
+  object with the same API path / MIME fields as before, and a
+  machine-readable `hint` describing why the body was not inlined.
+  Builds on the 0.3.0 short-circuit for #59; lifts the text-only
+  fallback now that SDK 1.29.0 ships native binary content types.
+
+### Changed
+- Widened the `ToolRegistry` result schema to accept `audio` content
+  blocks alongside `text` and `image`, matching MCP SDK 1.29.0.
+- Added `makeBinaryRequest` in `shared/makeRequest.ts` for the new
+  binary code path — reuses the same auth and path-normalization
+  layer as `makeRequest` but returns raw bytes plus the upstream
+  `Content-Type` header instead of decoding as text/JSON.
+
 ## [0.3.3] — 2026-04-21
 
 ### Added

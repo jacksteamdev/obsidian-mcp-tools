@@ -83,8 +83,16 @@ const imageResult = type({
   data: "string.base64",
   mimeType: "string",
 });
+// Audio content block — added alongside image for MCP SDK 1.29.0's
+// native audio support (used by `get_vault_file` to stream audio bytes
+// without base64-ifying them into text). See issue #59.
+const audioResult = type({
+  type: '"audio"',
+  data: "string.base64",
+  mimeType: "string",
+});
 export const resultSchema = type({
-  content: textResult.or(imageResult).array(),
+  content: textResult.or(imageResult).or(audioResult).array(),
   "isError?": "boolean",
 });
 

@@ -1,9 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
   applySimpleSearchLimit,
+  buildBinaryMetadataText,
+  classifyBinaryMime,
+  encodeBytesAsBase64,
   extractFileExtension,
   guessMimeType,
   isBinaryFilename,
+  MAX_INLINE_BINARY_BYTES,
 } from "./index";
 
 describe("extractFileExtension", () => {
@@ -177,5 +181,145 @@ describe("applySimpleSearchLimit — issue #62", () => {
     const data = [1, 2, 3, 4, 5];
     applySimpleSearchLimit(data, 2);
     expect(data).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
+describe("classifyBinaryMime — issue #59 (native SDK content blocks)", () => {
+  // MCP SDK 1.29.0 can carry `image` and `audio` content blocks natively.
+  // Video / PDF / Office / archive have no matching content block so the
+  // server must keep returning the text metadata hint for those.
+
+  test("classifies image/* mime types as image", () => {
+    expect(classifyBinaryMime("image/png")).toBe("image");
+    expect(classifyBinaryMime("image/jpeg")).toBe("image");
+    expect(classifyBinaryMime("image/webp")).toBe("image");
+    expect(classifyBinaryMime("image/svg+xml")).toBe("image");
+    expect(classifyBinaryMime("image/x-icon")).toBe("image");
+  });
+
+  test("classifies audio/* mime types as audio", () => {
+    expect(classifyBinaryMime("audio/mpeg")).toBe("audio");
+    expect(classifyBinaryMime("audio/wav")).toBe("audio");
+    expect(classifyBinaryMime("audio/mp4")).toBe("audio");
+    expect(classifyBinaryMime("audio/ogg")).toBe("audio");
+    expect(classifyBinaryMime("audio/x-ms-wma")).toBe("audio");
+  });
+
+  test("returns null for video/PDF/Office/archive mime types", () => {
+    // These must fall through to the text metadata path. The SDK has no
+    // content block that carries video or document payloads inline.
+    expect(classifyBinaryMime("video/mp4")).toBeNull();
+    expect(classifyBinaryMime("video/quicktime")).toBeNull();
+    expect(classifyBinaryMime("application/pdf")).toBeNull();
+    expect(
+      classifyBinaryMime(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ),
+    ).toBeNull();
+    expect(classifyBinaryMime("application/zip")).toBeNull();
+    expect(classifyBinaryMime("application/octet-stream")).toBeNull();
+  });
+
+  test("returns null for missing or empty mime types", () => {
+    expect(classifyBinaryMime(null)).toBeNull();
+    expect(classifyBinaryMime(undefined)).toBeNull();
+    expect(classifyBinaryMime("")).toBeNull();
+  });
+
+  test("is case-insensitive on the top-level type", () => {
+    // HTTP Content-Type values arrive with variable casing depending on
+    // the server — `IMAGE/PNG` is equally valid per RFC 7231.
+    expect(classifyBinaryMime("IMAGE/PNG")).toBe("image");
+    expect(classifyBinaryMime("Audio/MPEG")).toBe("audio");
+  });
+
+  test("ignores trailing parameters like charset or boundary", () => {
+    // e.g. `image/svg+xml; charset=utf-8` from some servers.
+    expect(classifyBinaryMime("image/png; charset=binary")).toBe("image");
+    expect(classifyBinaryMime("audio/mpeg;")).toBe("audio");
+  });
+});
+
+describe("buildBinaryMetadataText — issue #59 fallback path", () => {
+  // Pins the exact shape of the text metadata that the handler emits when
+  // the mime type is not inline-able or the file exceeds the size cap.
+  // This is the only MCP-layer signal the agent has to know that it
+  // should open the file via show_file_in_obsidian rather than keep
+  // retrying get_vault_file.
+
+  test("produces a JSON payload with kind, filename, mimeType, and hint", () => {
+    const raw = buildBinaryMetadataText(
+      "movie.mp4",
+      "video/mp4",
+      "unsupported_type",
+    );
+    const parsed = JSON.parse(raw);
+    expect(parsed).toMatchObject({
+      kind: "binary_file",
+      filename: "movie.mp4",
+      mimeType: "video/mp4",
+    });
+    expect(typeof parsed.hint).toBe("string");
+    expect(parsed.hint).toContain("show_file_in_obsidian");
+  });
+
+  test("uses distinct hint text for the too_large reason", () => {
+    // Tell the agent apart the two failure modes: "this format cannot be
+    // inlined at all" vs "this file is too big to inline, even though
+    // the format would normally be supported". The hint strings diverge
+    // so an agent inspecting the payload can tell which case it hit.
+    const unsupported = JSON.parse(
+      buildBinaryMetadataText("x.mp4", "video/mp4", "unsupported_type"),
+    ) as { hint: string };
+    const tooLarge = JSON.parse(
+      buildBinaryMetadataText("x.mp3", "audio/mpeg", "too_large"),
+    ) as { hint: string };
+    expect(unsupported.hint).not.toEqual(tooLarge.hint);
+    expect(tooLarge.hint.toLowerCase()).toContain("large");
+  });
+
+  test("produces valid JSON that round-trips", () => {
+    // Pretty-printed output must still parse — regression guard against
+    // future refactors that might drop the JSON.stringify.
+    const raw = buildBinaryMetadataText("a.zip", "application/zip", "unsupported_type");
+    expect(() => JSON.parse(raw)).not.toThrow();
+  });
+});
+
+describe("encodeBytesAsBase64 — issue #59 inline-content payload", () => {
+  test("encodes an empty buffer as an empty string", () => {
+    expect(encodeBytesAsBase64(new Uint8Array(0))).toBe("");
+  });
+
+  test("encodes a small buffer to standard base64", () => {
+    // "hi!" → aGkh in standard base64.
+    const bytes = new Uint8Array([0x68, 0x69, 0x21]);
+    expect(encodeBytesAsBase64(bytes)).toBe("aGkh");
+  });
+
+  test("round-trips an arbitrary byte sequence", () => {
+    // Every byte value 0..255 — catches any attempt at utf-8
+    // re-interpretation that would corrupt binary payloads.
+    const original = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) original[i] = i;
+    const encoded = encodeBytesAsBase64(original);
+    const decoded = new Uint8Array(Buffer.from(encoded, "base64"));
+    expect(decoded).toEqual(original);
+  });
+
+  test("produces only characters from the base64 alphabet", () => {
+    const bytes = new Uint8Array(32);
+    for (let i = 0; i < 32; i++) bytes[i] = (i * 7 + 11) & 0xff;
+    const encoded = encodeBytesAsBase64(bytes);
+    expect(encoded).toMatch(/^[A-Za-z0-9+/]+=*$/);
+  });
+});
+
+describe("MAX_INLINE_BINARY_BYTES — issue #59 size cap", () => {
+  test("is set to 10 MiB", () => {
+    // Pin the constant so a future refactor doesn't silently raise the
+    // limit (which would let a large file blow the MCP client context
+    // budget) or lower it (which would regress legitimate audio reads).
+    expect(MAX_INLINE_BINARY_BYTES).toBe(10 * 1024 * 1024);
   });
 });
