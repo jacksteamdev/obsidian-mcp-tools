@@ -40,6 +40,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), version
   `execute_template` for tagless Templater templates (#41).
   Extracted `applySimpleSearchLimit` as a pure helper for symmetry
   with the other patch-handler extracts. No behavior change.
+- Audit pass over the 2026-04-11 cluster commits surfaced nine
+  additional upstream issues that were fixed during the 0.3.0 cut
+  but never credited in the CHANGELOG: #39 (`search_vault_smart`
+  Content-Type), #61 (disable individual tools via env var + UI),
+  #59 (binary-file short-circuit in `get_vault_file`), #35 + #60
+  (non-Claude-Desktop MCP client docs), #28 (install outside the
+  vault), #26 (platform override for binary selection), #31 + #36
+  (Linux installer path handling), #40 + #67 (configurable Local
+  REST API port). Credit entries added below under `0.3.0 Fixed`
+  with commit SHAs. No behavior change — the fixes have been in
+  production since 2026-04-11.
+- Added a regression pin for issue #39: the `search_vault_smart`
+  tool handler now has a test asserting the explicit
+  `Content-Type: application/json` header survives future refactors.
+  The plugin-side `/search/smart` endpoint only parses bodies whose
+  Content-Type matches `application/json`; losing the header would
+  silently reintroduce the "semantic search returns no results"
+  failure mode. No behavior change.
 
 ## [0.3.2] — 2026-04-17
 
@@ -119,6 +137,73 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), version
   array (was null)` and broke `execute_template` and prompt
   loading. Fixes upstream issue #41. (Shipped in the 0.3.0 cut
   via commit `0b39524`; credited retroactively here.)
+- `search_vault_smart`: explicit `Content-Type: application/json`
+  header on the POST to `/search/smart`. The default Content-Type
+  inherited from `makeRequest` is `text/markdown` (correct for
+  file-content endpoints, wrong for JSON-body endpoints); Express's
+  `bodyParser.json()` only parses bodies with an `application/json`
+  Content-Type, so the plugin handler was seeing an empty `req.body`
+  and rejecting every semantic search. Fixes upstream issue #39.
+  (Shipped in the 0.3.0 cut via commit `0b39524`; credited
+  retroactively here.)
+- New `OBSIDIAN_DISABLED_TOOLS` env var and plugin settings UI
+  let users opt out of specific MCP tools by name (comma-separated
+  list). Unknown names log warnings but do not abort startup. The
+  plugin-side UI writes the env var into
+  `claude_desktop_config.json` automatically so GUI-only users
+  don't have to hand-edit their MCP client config. Fixes upstream
+  issue #61. (Shipped in the 0.3.0 cut via commits `7ba5f3a` +
+  `7733bd8`; credited retroactively here.)
+- `get_vault_file` on a binary file (audio, image, video, PDF,
+  Office, archive) used to crash or return UTF-8-corrupted bytes.
+  It now short-circuits on binary filenames and returns a
+  structured `{ kind: "binary_file", mimeType, hint }` payload
+  directing the caller to `show_file_in_obsidian`. Extension-based
+  detection against ~45 common binary extensions; textual formats
+  (md, json, yaml, html, csv, txt, svg) remain on the normal read
+  path. Fixes upstream issue #59. (Shipped in the 0.3.0 cut via
+  commit `f6d004a`; credited retroactively here. Native SDK 1.29.0
+  audio/image responses are a separate follow-up.)
+- README documents setup for non-Claude-Desktop MCP clients
+  (Claude Code, Cline, Continue, Zed, generic clients) with
+  per-platform binary paths, the full env var table, and a
+  generic `mcpServers` config template. Fixes upstream issues #35
+  and #60. (Shipped in the 0.3.0 cut via commit `aa1697a`;
+  credited retroactively here.)
+- Install-location flexibility: users can now install the MCP
+  server binary outside the vault (the new default, placed under
+  the standard per-user application directory) or opt into the
+  legacy in-vault layout. A migration banner detects existing
+  in-vault binaries and offers a one-click move to the system
+  path, preserving the Claude Desktop config entry. Fixes upstream
+  issue #28. (Shipped in the 0.3.0 cut via commits `4552c18` +
+  `ce8a4bd`; credited retroactively here.)
+- Platform override for server-binary selection via an Advanced
+  setting in the plugin UI and `OBSIDIAN_SERVER_PLATFORM` /
+  `OBSIDIAN_SERVER_ARCH` env vars. Needed when Obsidian is running
+  under WSL, Bottles, wine, or another translation layer where
+  the auto-detected OS/arch does not match the client that will
+  launch the binary. Invalid values fall through to auto-detect
+  rather than throwing. Fixes upstream issue #26. (Shipped in the
+  0.3.0 cut via commit `2121ecf`; credited retroactively here.)
+- Linux installer path handling: POSIX-vs-Win32 absoluteness check
+  order corrected so a leading `/` is no longer mis-identified as
+  a Win32 drive root; the Claude Desktop Linux config path now
+  uses the correct capital-`C` / full filename
+  (`~/.config/Claude/claude_desktop_config.json`); and
+  realpath-induced duplicate path segments (common on iCloud
+  Drive / symlinked vault layouts) are collapsed before the
+  filesystem check. Fixes upstream issues #31 and #36. (Shipped
+  in the 0.3.0 cut via commit `67637f4`; credited retroactively
+  here. The same commit also addressed #37, credited separately
+  under 0.3.3.)
+- `OBSIDIAN_PORT` env var and `--port <value>` / `--port=<value>`
+  CLI flag let users point the MCP server at a non-default Local
+  REST API port. Precedence chain (highest first): CLI flag > env
+  var > protocol default (27124 HTTPS, 27123 HTTP). Needed for
+  multi-vault setups, WSL, and security-hardened deployments.
+  Fixes upstream issues #40 and #67. (Shipped in the 0.3.0 cut
+  via commit `04765b9`; credited retroactively here.)
 
 ## Earlier
 
