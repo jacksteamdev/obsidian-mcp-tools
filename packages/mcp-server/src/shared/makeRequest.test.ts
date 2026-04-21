@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { parsePort, resolvePortFromArgs } from "./makeRequest";
+import {
+  normalizePath,
+  parseApiUrl,
+  parsePort,
+  resolvePortFromArgs,
+} from "./makeRequest";
 
 describe("parsePort", () => {
   test("parses a valid port string", () => {
@@ -101,5 +106,92 @@ describe("resolvePortFromArgs", () => {
     expect(
       resolvePortFromArgs([...prefix, "--port-info", "9000"]),
     ).toBeUndefined();
+  });
+});
+
+describe("parseApiUrl", () => {
+  test("returns undefined for missing input", () => {
+    expect(parseApiUrl(undefined)).toBeUndefined();
+    expect(parseApiUrl("")).toBeUndefined();
+  });
+
+  test("parses a full https URL with explicit port", () => {
+    expect(parseApiUrl("https://10.0.0.1:27124")).toEqual({
+      host: "10.0.0.1",
+      port: 27124,
+      useHttp: false,
+    });
+  });
+
+  test("parses a full http URL with explicit port", () => {
+    expect(parseApiUrl("http://localhost:27123")).toEqual({
+      host: "localhost",
+      port: 27123,
+      useHttp: true,
+    });
+  });
+
+  test("omits port when the URL has none", () => {
+    // No explicit port: leave `port` undefined so the caller's default
+    // (27124 HTTPS / 27123 HTTP) still applies.
+    expect(parseApiUrl("https://obsidian.lan")).toEqual({
+      host: "obsidian.lan",
+      port: undefined,
+      useHttp: false,
+    });
+  });
+
+  test("rejects non-http(s) protocols", () => {
+    expect(parseApiUrl("ftp://10.0.0.1:27124")).toBeUndefined();
+    expect(parseApiUrl("file:///tmp/foo")).toBeUndefined();
+  });
+
+  test("rejects malformed input", () => {
+    expect(parseApiUrl("not a url")).toBeUndefined();
+    expect(parseApiUrl("://missing-scheme")).toBeUndefined();
+  });
+
+  test("rejects out-of-range ports", () => {
+    // `new URL` itself throws on ports above 65535 on modern runtimes;
+    // the catch path returns undefined. Either way the caller gets a
+    // safe fallback to the default port.
+    expect(parseApiUrl("https://host:70000")).toBeUndefined();
+  });
+});
+
+describe("normalizePath — issue #37", () => {
+  test("leaves a clean path untouched", () => {
+    expect(normalizePath("/vault/DevOps")).toBe("/vault/DevOps");
+  });
+
+  test("keeps a single trailing slash", () => {
+    // A single trailing slash is legitimate on list endpoints (e.g.
+    // GET /vault/ lists the vault root). We only collapse duplicates.
+    expect(normalizePath("/vault/DevOps/")).toBe("/vault/DevOps/");
+  });
+
+  test("collapses a double slash introduced by a trailing user input", () => {
+    // The original bug: caller sends directory="DevOps/" and the
+    // feature code concatenates it to the `/vault/` prefix, producing
+    // `/vault/DevOps//`, which the Local REST API rejects.
+    expect(normalizePath("/vault/DevOps//")).toBe("/vault/DevOps/");
+  });
+
+  test("collapses arbitrary runs of slashes", () => {
+    expect(normalizePath("/a///b////c/")).toBe("/a/b/c/");
+  });
+
+  test("collapses a leading double slash", () => {
+    expect(normalizePath("//foo")).toBe("/foo");
+  });
+
+  test("handles the root path", () => {
+    expect(normalizePath("/")).toBe("/");
+  });
+
+  test("handles an empty path", () => {
+    // Defensive: makeRequest never calls with an empty path today, but
+    // the function must not crash if a future caller does.
+    expect(normalizePath("")).toBe("");
   });
 });

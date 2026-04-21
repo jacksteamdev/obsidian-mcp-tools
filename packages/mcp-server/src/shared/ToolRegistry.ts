@@ -14,10 +14,12 @@ interface HandlerContext {
 
 /**
  * Ensure an MCP tool's `inputSchema` always carries an explicit
- * `properties` key (even when empty). Some non-Claude MCP clients —
+ * `properties` key (even when empty) and a well-formed
+ * `additionalProperties` value. Some non-Claude MCP clients —
  * notably Letta Cloud and several OpenAI-compatible bridges — reject
- * tool schemas that omit `properties`, which ArkType's JSON schema
- * emitter does when the argument type is effectively an open record.
+ * tool schemas that omit `properties`, or that set
+ * `additionalProperties: {}` (an empty-object schema, semantically
+ * equivalent to `true` but not accepted by strict validators).
  *
  * This is defense in depth on top of the per-feature fix of using
  * empty-object literals instead of `Record<string, unknown>`: if a
@@ -26,6 +28,8 @@ interface HandlerContext {
  *
  * Exported so it can be unit-tested without instantiating the whole
  * ToolRegistry.
+ *
+ * See upstream issues #63 (Letta Cloud) and #77 (openai-codex).
  */
 export function normalizeInputSchema(
   jsonSchema: unknown,
@@ -47,10 +51,24 @@ export function normalizeInputSchema(
     result.type = "object";
   }
 
-  // The core fix: guarantee `properties` is present, defaulting to an
-  // empty object for no-arg tools.
+  // Guarantee `properties` is present, defaulting to an empty object
+  // for no-arg tools (upstream #77).
   if (!("properties" in result)) {
     result.properties = {};
+  }
+
+  // Strip `additionalProperties: {}` — an empty-object schema is
+  // semantically equivalent to `additionalProperties: true` but is
+  // rejected by strict validators such as Letta Cloud (upstream #63).
+  // `true`, `false`, and genuine sub-schemas are left untouched.
+  const ap = result.additionalProperties;
+  if (
+    ap !== undefined &&
+    typeof ap === "object" &&
+    ap !== null &&
+    Object.keys(ap as Record<string, unknown>).length === 0
+  ) {
+    delete result.additionalProperties;
   }
 
   return result;

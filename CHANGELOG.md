@@ -3,6 +3,26 @@
 All notable changes to **MCP Connector** (formerly `obsidian-mcp-tools`) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.3.3] — 2026-04-21
+
+### Added
+- `OBSIDIAN_API_URL` env var support as a convenience alias that
+  parses into host / port / protocol. The more specific
+  `OBSIDIAN_HOST`, `OBSIDIAN_PORT` and `OBSIDIAN_USE_HTTP` variables
+  still take precedence when set, preserving drop-in compatibility
+  with upstream v0.2.x configurations. Fixes upstream issue #66.
+
+### Fixed
+- `normalizeInputSchema` now strips `additionalProperties: {}` (the
+  empty-object form emitted by some schema generators), which
+  strict MCP validators such as Letta Cloud reject with a 500.
+  `additionalProperties: true`, `false`, and genuine sub-schemas are
+  left untouched. Fixes upstream issue #63.
+- `makeRequest` collapses consecutive slashes in request paths, so a
+  caller-supplied directory with a trailing slash (`"DevOps/"`) no
+  longer produces `/vault/DevOps//` and the subsequent 404 from the
+  Local REST API. Fixes upstream issue #37.
+
 ## [0.3.2] — 2026-04-17
 
 ### Changed
@@ -42,6 +62,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), version
 Release history before the community-continuation rebrand lives in the upstream repository at
 [`jacksteamdev/obsidian-mcp-tools`](https://github.com/jacksteamdev/obsidian-mcp-tools) up to `0.2.27`.
 
+[0.3.3]: https://github.com/istefox/obsidian-mcp-connector/releases/tag/0.3.3
 [0.3.2]: https://github.com/istefox/obsidian-mcp-connector/releases/tag/0.3.2
 [0.3.1]: https://github.com/istefox/obsidian-mcp-connector/releases/tag/0.3.1
 [0.3.0]: https://github.com/istefox/obsidian-mcp-connector/releases/tag/0.3.0

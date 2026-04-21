@@ -100,6 +100,53 @@ describe("normalizeInputSchema", () => {
     expect(out.type).toBe("string");
     expect(out.properties).toEqual({});
   });
+
+  test("strips additionalProperties: {} (empty-object form) — issue #63", () => {
+    // Letta Cloud rejects `additionalProperties: {}` with a 500; the
+    // empty-object form is semantically the same as `true` but not
+    // spec-valid for strict validators. We drop it so the schema is
+    // interpreted as "no constraint on extras" by default.
+    const input = {
+      type: "object",
+      properties: {},
+      additionalProperties: {},
+    };
+    const out = normalizeInputSchema(input);
+    expect(out).toEqual({ type: "object", properties: {} });
+    expect("additionalProperties" in out).toBe(false);
+  });
+
+  test("preserves additionalProperties: true", () => {
+    const input = {
+      type: "object",
+      properties: {},
+      additionalProperties: true,
+    };
+    const out = normalizeInputSchema(input);
+    expect(out.additionalProperties).toBe(true);
+  });
+
+  test("preserves additionalProperties: false", () => {
+    const input = {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    };
+    const out = normalizeInputSchema(input);
+    expect(out.additionalProperties).toBe(false);
+  });
+
+  test("preserves a non-empty additionalProperties sub-schema", () => {
+    // A real sub-schema (anything with at least one key) is passed
+    // through — we only strip the semantically-empty object form.
+    const input = {
+      type: "object",
+      properties: {},
+      additionalProperties: { type: "string" },
+    };
+    const out = normalizeInputSchema(input);
+    expect(out.additionalProperties).toEqual({ type: "string" });
+  });
 });
 
 describe("ToolRegistry list() — issue #77 regression", () => {
