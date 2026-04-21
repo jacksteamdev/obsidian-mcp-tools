@@ -217,6 +217,22 @@ export function guessMimeType(name: string): string {
   return BINARY_EXTENSION_MIME_TYPES.get(ext) ?? "application/octet-stream";
 }
 
+/**
+ * Truncate simple-search results to the caller's requested maximum. The
+ * Local REST API `/search/simple/` endpoint has no native `limit` query
+ * parameter, so we slice client-side. Results are already ordered by
+ * relevance score (highest first) by the server, making this equivalent
+ * to a top-N cutoff. A `limit` of `undefined` returns the data unchanged.
+ *
+ * Exported so it can be unit-tested without network access. See issue #62.
+ */
+export function applySimpleSearchLimit<T>(
+  data: readonly T[],
+  limit: number | undefined,
+): readonly T[] {
+  return limit !== undefined ? data.slice(0, limit) : data;
+}
+
 export function registerLocalRestApiTools(tools: ToolRegistry) {
   // GET Status
   tools.register(
@@ -477,11 +493,7 @@ export function registerLocalRestApiTools(tools: ToolRegistry) {
         },
       );
 
-      // Local REST API /search/simple/ has no native limit parameter,
-      // so we truncate client-side. Results are already ordered by
-      // relevance score (highest first) by the server.
-      const limited =
-        args.limit !== undefined ? data.slice(0, args.limit) : data;
+      const limited = applySimpleSearchLimit(data, args.limit);
 
       return {
         content: [{ type: "text", text: JSON.stringify(limited, null, 2) }],

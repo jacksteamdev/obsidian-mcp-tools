@@ -31,6 +31,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), version
   newline safeguard on `append`. No behavior change — this pins
   the 0.3.0 fixes for upstream issues #30, #71, and #78 against
   accidental regression.
+- Extended the regression-test pin to cover three additional 0.3.0
+  fixes that were landed but never credited or test-covered:
+  client-side `limit` truncation on `search_vault_simple` (#62),
+  the optional `certificateInfo` / `apiExtensions` shape on the
+  Local REST API root response (#68), and the optional
+  `frontmatter.tags` on `ApiVaultFileResponse` that unblocks
+  `execute_template` for tagless Templater templates (#41).
+  Extracted `applySimpleSearchLimit` as a pure helper for symmetry
+  with the other patch-handler extracts. No behavior change.
 
 ## [0.3.2] — 2026-04-17
 
@@ -84,6 +93,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), version
   callers opt into strict mode (return an explicit error instead
   of silently creating a new target at EOF when the lookup fails).
   Defaults to `true` for upstream compatibility.
+- `search_vault_simple`: added an optional `limit` parameter that
+  truncates the result array client-side (the underlying Local
+  REST API `/search/simple/` endpoint has no native `limit` flag,
+  so we slice after receiving the response). Prevents context-
+  window overflow on common terms that match thousands of files,
+  which otherwise forces MCP clients into the "tool result stored
+  to a file" fallback and breaks conversational flow. Fixes
+  upstream issue #62. (Shipped in the 0.3.0 cut via commit
+  `539e115`; credited retroactively here.)
+- `ApiStatusResponse`: `certificateInfo` and `apiExtensions` are
+  now optional on the Local REST API `GET /` root response. The
+  plugin emits them only when the caller is authenticated, so
+  the MCP server's startup probe (which runs before auth is in
+  place for some flows) must still accept the trimmed body —
+  hard-requiring them made every MCP tool call fail with an
+  ArkType validation error on Local REST API v3.4.x. Fixes
+  upstream issue #68. (Shipped in the 0.3.0 cut via commit
+  `92b233c`; credited retroactively here.)
+- `ApiVaultFileResponse`: `frontmatter.tags` is now optional.
+  Obsidian emits the `tags` key only when the note's YAML
+  frontmatter actually declares one — very common for Templater
+  templates and freshly-created notes to lack it. The previous
+  hard requirement surfaced as `frontmatter.tags must be an
+  array (was null)` and broke `execute_template` and prompt
+  loading. Fixes upstream issue #41. (Shipped in the 0.3.0 cut
+  via commit `0b39524`; credited retroactively here.)
 
 ## Earlier
 
