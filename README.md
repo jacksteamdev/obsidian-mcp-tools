@@ -12,6 +12,8 @@
 >
 > More importantly: the architecture distributes a downloaded executable to users' machines. That model carries real risk today. AI tooling makes it trivially easy to submit pull requests — including malicious ones — and I do not have the bandwidth or the incentive to audit every contribution at the level this kind of project demands. The consequences of a supply chain attack landing on users are not a burden I'm willing to carry for a project that gives me zero ROI.
 >
+> **Current release**: the binaries in the latest release were built directly from source via GitHub Actions and carry SLSA provenance attestations — they have not been tampered with. The risk described above is about future contributions, not the current artifacts.
+>
 > **Current users**: migrate to a plugin that implements MCP over HTTP/SSE. That approach eliminates the need for local executables entirely.
 >
 > **Future alternatives**: links to community-maintained alternatives will be added here once they clear the official Obsidian review process. If you have built or know of one, DM me on [Discord](https://discord.gg/q59pTrN9AA) with the merged plugin store PR and a link to the project repository.
