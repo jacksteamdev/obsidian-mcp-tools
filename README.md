@@ -6,13 +6,15 @@
 
 [Features](#features) | [Installation](#installation) | [Configuration](#configuration) | [Troubleshooting](#troubleshooting) | [Security](#security) | [Development](#development) | [Support](#support)
 
-> **🔄 Seeking Project Maintainers**
-> 
-> This project is actively seeking dedicated maintainers to take over development and community management. The project will remain under the current GitHub account for Obsidian plugin store compliance, with new maintainers added as collaborators.
-> 
-> **Interested?** Join our [Discord community](https://discord.gg/q59pTrN9AA) or check our [maintainer requirements](CONTRIBUTING.md#maintainer-responsibilities).
-> 
-> **Timeline**: Applications open until **September 15, 2025**. Selection by **September 30, 2025**.
+> **⚠️ Project Unmaintained — Security Notice**
+>
+> This project is no longer maintained. I stopped using Obsidian, so there is no personal motivation to keep this going.
+>
+> More importantly: the architecture distributes a downloaded executable to users' machines. That model carries real risk today. AI tooling makes it trivially easy to submit pull requests — including malicious ones — and I do not have the bandwidth or the incentive to audit every contribution at the level this kind of project demands. The consequences of a supply chain attack landing on users are not a burden I'm willing to carry for a project that gives me zero ROI.
+>
+> **Current users**: migrate to a plugin that implements MCP over HTTP/SSE. That approach eliminates the need for local executables entirely.
+>
+> **Future alternatives**: links to community-maintained alternatives will be added here once they clear the official Obsidian review process. If you have built or know of one, DM me on [Discord](https://discord.gg/q59pTrN9AA) with the merged plugin store PR and a link to the project repository.
 
 MCP Tools for Obsidian enables AI applications like Claude Desktop to securely access and work with your Obsidian vault through the Model Context Protocol (MCP). MCP is an open protocol that standardizes how AI applications can interact with external data sources and tools while maintaining security and user control. [^2]
 

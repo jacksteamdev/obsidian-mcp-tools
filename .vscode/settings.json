@@ -2,9 +2,16 @@
   "workbench.colorCustomizations": {
     "activityBar.background": "#32167B",
     "titleBar.activeBackground": "#451FAC",
-    "titleBar.activeForeground": "#FAF9FE"
+    "titleBar.activeForeground": "#FAF9FE",
+    "titleBar.inactiveBackground": "#32167B",
+    "titleBar.inactiveForeground": "#1C0D48",
+    "statusBar.background": "#39198C",
+    "statusBar.foreground": "#FAF9FE",
+    "statusBar.debuggingBackground": "#39198C",
+    "statusBar.debuggingForeground": "#FAF9FE",
+    "statusBar.noFolderBackground": "#39198C",
+    "statusBar.noFolderForeground": "#FAF9FE"
   },
-  "typescript.tsdk": "node_modules/typescript/lib",
   "logViewer.watch": [
     "~/Library/Logs/obsidian-mcp-tools/mcp-server.log",
     "~/Library/Logs/obsidian-mcp-tools/obsidian-plugin.log",
