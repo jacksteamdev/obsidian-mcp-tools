@@ -30,14 +30,19 @@ async function resolveSymlinks(filepath: string): Promise<string> {
       let skipCount = 1; // Skip first segment by default
 
       // Handle the root segment differently for Windows vs POSIX
-      if (path.win32.isAbsolute(filepath)) {
+      // Check POSIX first: path.win32.isAbsolute() returns true for
+      // POSIX absolute paths (leading "/" is the current drive root in
+      // Win32), so checking it first would incorrectly push an empty
+      // string instead of "/" on Linux/macOS/WSL, producing a relative
+      // path that causes realpath to prepend CWD repeatedly.
+      if (path.posix.isAbsolute(filepath)) {
+        resolvedParts.push("/");
+      } else if (path.win32.isAbsolute(filepath)) {
         resolvedParts.push(parts[0]);
         if (parts[1] === "") {
           resolvedParts.push("");
           skipCount = 2; // Skip two segments for UNC paths
         }
-      } else if (path.posix.isAbsolute(filepath)) {
-        resolvedParts.push("/");
       } else {
         resolvedParts.push(parts[0]);
       }
