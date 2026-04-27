@@ -2,10 +2,37 @@ import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { type, type Type } from "arktype";
 import { logger } from "./logger";
 
-// Default to HTTPS port, fallback to HTTP if specified
+function parsePort(raw: string | undefined): number | undefined {
+  if (!raw || !/^\d+$/.test(raw)) {
+    return undefined;
+  }
+
+  const port = Number(raw);
+  return Number.isInteger(port) && port >= 1 && port <= 65535 ? port : undefined;
+}
+
+function resolvePortFromArgs(argv: string[]): number | undefined {
+  const portArg = argv.find((arg) => arg.startsWith("--port="));
+  if (portArg) {
+    return parsePort(portArg.split("=")[1]);
+  }
+
+  const portFlagIndex = argv.findIndex((arg) => arg === "--port");
+  if (portFlagIndex >= 0) {
+    return parsePort(argv[portFlagIndex + 1]);
+  }
+
+  return undefined;
+}
+
+// Default to HTTPS port, fallback to HTTP if specified.
+// Override order: --port > OBSIDIAN_PORT > protocol default.
 const USE_HTTP = process.env.OBSIDIAN_USE_HTTP === "true";
-const PORT = USE_HTTP ? 27123 : 27124;
 const PROTOCOL = USE_HTTP ? "http" : "https";
+const DEFAULT_PORT = USE_HTTP ? 27123 : 27124;
+const ARG_PORT = resolvePortFromArgs(process.argv);
+const ENV_PORT = parsePort(process.env.OBSIDIAN_PORT);
+const PORT = ARG_PORT ?? ENV_PORT ?? DEFAULT_PORT;
 const HOST = process.env.OBSIDIAN_HOST || "127.0.0.1";
 export const BASE_URL = `${PROTOCOL}://${HOST}:${PORT}`;
 
