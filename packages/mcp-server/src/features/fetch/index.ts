@@ -10,17 +10,21 @@ export function registerFetchTool(tools: ToolRegistry, server: Server) {
     type({
       name: '"fetch"',
       arguments: {
-        url: "string",
-        "maxLength?": type("number").describe("Limit response length."),
+        url: type("string").describe("The URL to fetch content from. REQUIRED."),
+        "maxLength?": type("number").describe(
+          "Limit response length. Optional.",
+        ),
         "startIndex?": type("number").describe(
-          "Supports paginated retrieval of content.",
+          "Supports paginated retrieval of content. Optional.",
         ),
         "raw?": type("boolean").describe(
-          "Returns raw HTML content if raw=true.",
+          "Returns raw HTML content if raw=true. Optional.",
         ),
       },
     }).describe(
-      "Reads and returns the content of any web page. Returns the content in Markdown format by default, or can return raw HTML if raw=true parameter is set. Supports pagination through maxLength and startIndex parameters.",
+      "Reads and returns the content of any web page. Returns the content in Markdown format by default, or can return raw HTML if raw=true parameter is set. Supports pagination through maxLength and startIndex parameters. " +
+        "IMPORTANT: The 'url' argument is required. " +
+        "Example: { url: 'https://example.com/page', maxLength: 5000 }",
     ),
     async ({ arguments: args }) => {
       logger.info("Fetching URL", { url: args.url });

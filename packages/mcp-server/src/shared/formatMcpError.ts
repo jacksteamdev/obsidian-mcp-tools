@@ -8,7 +8,10 @@ export function formatMcpError(error: unknown) {
 
   if (error instanceof type.errors) {
     const message = error.summary;
-    return new McpError(ErrorCode.InvalidParams, message);
+    const hint = message.includes("must be")
+      ? " HINT: Ensure all required parameters are included in the arguments object."
+      : "";
+    return new McpError(ErrorCode.InvalidParams, message + hint);
   }
 
   if (type({ message: "string" }).allows(error)) {
