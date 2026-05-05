@@ -2,12 +2,37 @@ import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { type, type Type } from "arktype";
 import { logger } from "./logger";
 
-// Default to HTTPS port, fallback to HTTP if specified
-const USE_HTTP = process.env.OBSIDIAN_USE_HTTP === "true";
-const PORT = USE_HTTP ? 27123 : 27124;
-const PROTOCOL = USE_HTTP ? "http" : "https";
-const HOST = process.env.OBSIDIAN_HOST || "127.0.0.1";
-export const BASE_URL = `${PROTOCOL}://${HOST}:${PORT}`;
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/$/, "");
+}
+
+interface BaseUrlEnv {
+  OBSIDIAN_BASE_URL?: string;
+  OBSIDIAN_HOST?: string;
+  OBSIDIAN_HTTP_PORT?: string;
+  OBSIDIAN_HTTPS_PORT?: string;
+  OBSIDIAN_USE_HTTP?: string;
+}
+
+export function resolveBaseUrl(env: BaseUrlEnv = process.env): string {
+  const baseUrl = env.OBSIDIAN_BASE_URL?.trim();
+  if (baseUrl) {
+    return trimTrailingSlash(baseUrl);
+  }
+
+  // Default to HTTPS, fallback to HTTP if specified. Custom ports allow
+  // multiple Obsidian vaults to expose separate Local REST API instances.
+  const useHttp = env.OBSIDIAN_USE_HTTP === "true";
+  const protocol = useHttp ? "http" : "https";
+  const host = env.OBSIDIAN_HOST || "127.0.0.1";
+  const port = useHttp
+    ? (env.OBSIDIAN_HTTP_PORT ?? "27123")
+    : (env.OBSIDIAN_HTTPS_PORT ?? "27124");
+
+  return `${protocol}://${host}:${port}`;
+}
+
+export const BASE_URL = resolveBaseUrl();
 
 // Disable TLS certificate validation for local self-signed certificates
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
