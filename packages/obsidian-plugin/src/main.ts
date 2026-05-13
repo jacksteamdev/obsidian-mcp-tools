@@ -20,8 +20,21 @@ import {
   type Dependencies,
 } from "./shared";
 import { logger } from "./shared/logger";
+import type { McpToolsPluginSettings } from "./types";
+
+export const DEFAULT_SETTINGS: McpToolsPluginSettings = {
+  localRestApi: {
+    host: "127.0.0.1",
+    useHttp: false,
+    httpPort: 27123,
+    httpsPort: 27124,
+    baseUrl: "",
+  },
+};
 
 export default class McpToolsPlugin extends Plugin {
+  settings = DEFAULT_SETTINGS;
+
   private localRestApi: Dependencies["obsidian-local-rest-api"] = {
     id: "obsidian-local-rest-api",
     name: "Local REST API",
@@ -34,7 +47,25 @@ export default class McpToolsPlugin extends Plugin {
     return this.localRestApi.plugin?.settings?.apiKey;
   }
 
+  async loadSettings() {
+    const data = await this.loadData();
+    this.settings = {
+      ...DEFAULT_SETTINGS,
+      ...data,
+      localRestApi: {
+        ...DEFAULT_SETTINGS.localRestApi,
+        ...data?.localRestApi,
+      },
+    };
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
+
   async onload() {
+    await this.loadSettings();
+
     // Initialize features in order
     await setupCore(this);
     await setupMcpServerInstall(this);

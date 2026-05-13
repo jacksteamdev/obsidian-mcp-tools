@@ -1,7 +1,7 @@
 import fsp from "fs/promises";
-import { Plugin } from "obsidian";
 import os from "os";
 import path from "path";
+import type McpToolsPlugin from "$/main";
 import { logger } from "$/shared/logger";
 import { CLAUDE_CONFIG_PATH } from "../constants";
 
@@ -12,6 +12,11 @@ interface ClaudeConfig {
       args?: string[];
       env?: {
         OBSIDIAN_API_KEY?: string;
+        OBSIDIAN_BASE_URL?: string;
+        OBSIDIAN_HOST?: string;
+        OBSIDIAN_HTTP_PORT?: string;
+        OBSIDIAN_HTTPS_PORT?: string;
+        OBSIDIAN_USE_HTTP?: string;
         [key: string]: string | undefined;
       };
     };
@@ -53,7 +58,7 @@ function getConfigPath(): string {
  * Updates the Claude Desktop config file with MCP server settings
  */
 export async function updateClaudeConfig(
-  plugin: Plugin,
+  plugin: McpToolsPlugin,
   serverPath: string,
   apiKey?: string
 ): Promise<void> {
@@ -78,10 +83,16 @@ export async function updateClaudeConfig(
     }
 
     // Update config with our server entry
+    const localRestApi = plugin.settings.localRestApi ?? {};
     config.mcpServers["obsidian-mcp-tools"] = {
       command: serverPath,
       env: {
         OBSIDIAN_API_KEY: apiKey,
+        OBSIDIAN_HOST: localRestApi.host,
+        OBSIDIAN_USE_HTTP: String(localRestApi.useHttp),
+        OBSIDIAN_HTTP_PORT: localRestApi.httpPort?.toString(),
+        OBSIDIAN_HTTPS_PORT: localRestApi.httpsPort?.toString(),
+        OBSIDIAN_BASE_URL: localRestApi.baseUrl || undefined,
       },
     };
 
