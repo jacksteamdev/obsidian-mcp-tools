@@ -40,7 +40,7 @@ All features require an MCP-compatible client like Claude Desktop, as this plugi
 
 - [Obsidian](https://obsidian.md/) v1.7.7 or higher
 - [Claude Desktop](https://claude.ai/download) installed and configured
-- [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) plugin installed and configured with an API key
+- [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) plugin v2.5.4 or higher, installed and configured with an API key
 
 ### Recommended
 
