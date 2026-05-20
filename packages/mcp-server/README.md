@@ -41,7 +41,12 @@ bun run build
 
 ### Configuration
 
-Server configuration is managed through Claude Desktop's config file:
+Server configuration is managed through Claude Desktop's config file.
+
+Port resolution order is:
+1. `--port <value>` or `--port=<value>` CLI argument
+2. `OBSIDIAN_PORT` environment variable
+3. Default local REST API port (`27124` for HTTPS, `27123` for HTTP)
 
 On macOS:
 
@@ -52,7 +57,8 @@ On macOS:
     "obsidian-mcp-tools": {
       "command": "/path/to/mcp-server",
       "env": {
-        "OBSIDIAN_API_KEY": "your-api-key"
+        "OBSIDIAN_API_KEY": "your-api-key",
+        "OBSIDIAN_PORT": "27124"
       }
     }
   }
