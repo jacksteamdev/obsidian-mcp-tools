@@ -4,7 +4,15 @@ import { logger } from "./logger";
 
 // Default to HTTPS port, fallback to HTTP if specified
 const USE_HTTP = process.env.OBSIDIAN_USE_HTTP === "true";
-const PORT = USE_HTTP ? 27123 : 27124;
+const DEFAULT_HTTP_PORT = 27123;
+const DEFAULT_HTTPS_PORT = 27124;
+const HTTP_PORT = process.env.OBSIDIAN_HTTP_PORT
+  ? parseInt(process.env.OBSIDIAN_HTTP_PORT, 10)
+  : DEFAULT_HTTP_PORT;
+const HTTPS_PORT = process.env.OBSIDIAN_HTTPS_PORT
+  ? parseInt(process.env.OBSIDIAN_HTTPS_PORT, 10)
+  : DEFAULT_HTTPS_PORT;
+const PORT = USE_HTTP ? HTTP_PORT : HTTPS_PORT;
 const PROTOCOL = USE_HTTP ? "http" : "https";
 const HOST = process.env.OBSIDIAN_HOST || "127.0.0.1";
 export const BASE_URL = `${PROTOCOL}://${HOST}:${PORT}`;
