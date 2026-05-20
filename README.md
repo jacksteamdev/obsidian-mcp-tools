@@ -99,6 +99,36 @@ If you encounter issues:
    - **Connection errors**: Verify Local REST API plugin is configured
    - **Permission errors**: Try reinstalling the server
 
+### MCP SuperAssistant and Other MCP Clients
+
+If you're using MCP SuperAssistant or another MCP client and see errors like "ENOENT" or "spawn ... failed":
+
+**Problem**: Some MCP clients don't properly resolve relative paths or tilde (`~`) in the server binary path.
+
+**Solution**: Use an absolute path in your MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "obsidian-mcp-tools": {
+      "command": "/Users/YourUsername/Documents/YourVault/.obsidian/plugins/obsidian-mcp-tools/bin/mcp-server",
+      "env": {
+        "OBSIDIAN_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+**For iCloud Drive paths on macOS**, expand the full path:
+- Bad: `~/Library/Mobile Documents/iCloud~md~obsidian/...`
+- Good: `/Users/YourUsername/Library/Mobile Documents/iCloud~md~obsidian/Documents/YourVault/.obsidian/plugins/obsidian-mcp-tools/bin/mcp-server`
+
+**To find your vault's absolute path**:
+1. Open Terminal (macOS/Linux) or Command Prompt (Windows)
+2. Navigate to your vault directory
+3. Run `pwd` (macOS/Linux) or `cd` (Windows) to see the full path
+
 ## Security
 
 ### Binary Distribution
