@@ -73,6 +73,8 @@ Clicking the install button will:
 
 ## Configuration
 
+### For Claude Desktop Users
+
 After clicking the "Install Server" button in the plugin settings, the plugin will automatically:
 
 1. Download the appropriate MCP server binary
@@ -81,6 +83,61 @@ After clicking the "Install Server" button in the plugin settings, the plugin wi
 4. Set up appropriate paths and permissions
 
 While the configuration process is automated, it requires your explicit permission to install the server binary and modify the Claude Desktop configuration. No additional manual configuration is required beyond this initial setup step.
+
+### For Other MCP Clients
+
+If you're using a different MCP-compatible client (not Claude Desktop), you'll need to manually configure your client to connect to the MCP server. Here's how:
+
+#### 1. Install the Server Binary
+
+First, install the plugin and click "Install Server" in the plugin settings. This downloads the MCP server binary to:
+- `{vault}/.obsidian/plugins/obsidian-mcp-tools/bin/mcp-server` (macOS/Linux)
+- `{vault}\.obsidian\plugins\obsidian-mcp-tools\bin\mcp-server.exe` (Windows)
+
+#### 2. Get Your API Key
+
+The server requires your Local REST API plugin's API key. Find it in:
+- Obsidian Settings → Community Plugins → Local REST API → Settings → API Key
+
+#### 3. Configure Your MCP Client
+
+Add the MCP server to your client's configuration file. The configuration format varies by client, but typically requires:
+
+**Required environment variables:**
+- `OBSIDIAN_API_KEY`: Your Local REST API plugin's API key
+- `OBSIDIAN_HOST`: (Optional) Default is `127.0.0.1`
+- `OBSIDIAN_USE_HTTP`: (Optional) Set to `"true"` to use HTTP instead of HTTPS
+- `OBSIDIAN_HTTP_PORT`: (Optional) Custom HTTP port (default: 27123)
+- `OBSIDIAN_HTTPS_PORT`: (Optional) Custom HTTPS port (default: 27124)
+
+**Example configuration for MCP clients:**
+
+```json
+{
+  "mcpServers": {
+    "obsidian-mcp-tools": {
+      "command": "/absolute/path/to/your/vault/.obsidian/plugins/obsidian-mcp-tools/bin/mcp-server",
+      "env": {
+        "OBSIDIAN_API_KEY": "your-local-rest-api-key-here"
+      }
+    }
+  }
+}
+```
+
+Replace `/absolute/path/to/your/vault/` with the actual absolute path to your Obsidian vault.
+
+#### 4. Common MCP Client Configuration Locations
+
+- **Claude Desktop**:
+  - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+  - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+  - Linux: `~/.config/Claude/claude_desktop_config.json`
+- **Other clients**: Consult your MCP client's documentation for configuration file location
+
+#### 5. Verify Installation
+
+Restart your MCP client after updating the configuration. The MCP server should appear in your client's available tools/servers list. You can test the connection by asking your AI assistant to list files in your vault or perform a search.
 
 ## Troubleshooting
 
