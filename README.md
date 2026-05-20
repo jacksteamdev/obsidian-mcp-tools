@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/jacksteamdev-obsidian-mcp-tools-badge.png)](https://mseep.ai/app/jacksteamdev-obsidian-mcp-tools)
+
 # MCP Tools for Obsidian
 
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/jacksteamdev/obsidian-mcp-tools)](https://github.com/jacksteamdev/obsidian-mcp-tools/releases/latest)
