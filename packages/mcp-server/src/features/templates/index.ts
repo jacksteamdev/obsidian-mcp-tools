@@ -14,10 +14,16 @@ export function registerTemplaterTools(tools: ToolRegistry) {
       arguments: LocalRestAPI.ApiTemplateExecutionParams.omit("createFile").and(
         {
           // should be boolean but the MCP client returns a string
-          "createFile?": type("'true'|'false'"),
+          "createFile?": type("'true'|'false'").describe(
+            "Whether to create a new file from the template. Optional.",
+          ),
         },
       ),
-    }).describe("Execute a Templater template with the given arguments"),
+    }).describe(
+      "Execute a Templater template with the given arguments. " +
+        "IMPORTANT: The 'name' argument is required. " +
+        "Example: { name: 'templates/daily-note.md', arguments: { title: 'My Title' }, createFile: 'true', targetPath: 'notes/output.md' }",
+    ),
     async ({ arguments: args }) => {
       // Get prompt content
       const data = await makeRequest(

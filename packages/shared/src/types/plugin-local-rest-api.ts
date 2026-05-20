@@ -258,13 +258,17 @@ export const ApiNoContentResponse = type("unknown").describe("No Content");
  * @property targetPath - The path to save the file; required if createFile is true
  */
 export const ApiTemplateExecutionParams = type({
-  name: type("string").describe("The full vault path to the template file"),
-  arguments: "Record<string, string>",
+  name: type("string").describe(
+    "The full vault path to the template file. REQUIRED.",
+  ),
+  arguments: type("Record<string, string>").describe(
+    "Key-value pairs of template parameters. The keys should match tp.mcpTools.prompt() calls in the template.",
+  ),
   "createFile?": type("boolean").describe(
-    "Whether to create a new file from the template",
+    "Whether to create a new file from the template. Optional.",
   ),
   "targetPath?": type("string").describe(
-    "Path to save the file; required if createFile is true",
+    "Path to save the file; required if createFile is true. Optional.",
   ),
 });
 

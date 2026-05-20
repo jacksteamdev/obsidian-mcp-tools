@@ -124,6 +124,16 @@ export class ToolRegistryClass<
     context: HandlerContext,
   ) => {
     try {
+      const argCount = params.arguments
+        ? Object.keys(params.arguments).length
+        : 0;
+      if (argCount === 0) {
+        logger.warn(`Tool "${params.name}" called with no arguments`, {
+          name: params.name,
+          arguments: params.arguments,
+        });
+      }
+
       for (const [schema, handler] of this.entries()) {
         if (schema.get("name").allows(params.name)) {
           const validParams = schema.assert(
