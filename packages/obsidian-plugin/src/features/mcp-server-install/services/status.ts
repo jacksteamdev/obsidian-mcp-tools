@@ -14,6 +14,64 @@ import { getPlatform } from "./install";
 const execAsync = promisify(exec);
 
 /**
+ * Removes duplicate consecutive path segments from a path.
+ * For example: /home/user/home/user/vault -> /home/user/vault
+ *
+ * @param filepath - The file path to normalize.
+ * @returns The normalized path without duplicate segments.
+ */
+function removeDuplicatePathSegments(filepath: string): string {
+  const parts = filepath.split(path.sep);
+  const normalized: string[] = [];
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+
+    // Skip empty parts except for the first one (root on POSIX)
+    if (part === "" && i !== 0) continue;
+
+    // Check if we're at the start of a potential duplicate sequence
+    if (i > 0 && part !== "") {
+      // Look ahead to see if we have a duplicate sequence
+      let isDuplicate = false;
+      const lookAhead = Math.min(normalized.length, parts.length - i);
+
+      for (let len = 1; len <= lookAhead; len++) {
+        const normalizedSlice = normalized.slice(-len);
+        const partsSlice = parts.slice(i, i + len);
+
+        if (JSON.stringify(normalizedSlice) === JSON.stringify(partsSlice)) {
+          // Found a duplicate sequence, skip these parts
+          i += len - 1;
+          isDuplicate = true;
+          break;
+        }
+      }
+
+      if (isDuplicate) continue;
+    }
+
+    normalized.push(part);
+  }
+
+  // Handle special case: if normalized array is empty or only contains empty string (root)
+  if (normalized.length === 0) {
+    return path.sep;
+  }
+  if (normalized.length === 1 && normalized[0] === "") {
+    return path.sep;
+  }
+
+  // Preserve leading slash for absolute paths
+  const result = path.join(...normalized);
+  if (normalized[0] === "" && !result.startsWith(path.sep)) {
+    return path.sep + result;
+  }
+
+  return result;
+}
+
+/**
  * Resolves the real path of the given file path, handling cases where the path is a symlink.
  *
  * @param filepath - The file path to resolve.
@@ -22,7 +80,8 @@ const execAsync = promisify(exec);
  */
 async function resolveSymlinks(filepath: string): Promise<string> {
   try {
-    return await fsp.realpath(filepath);
+    const resolved = await fsp.realpath(filepath);
+    return removeDuplicatePathSegments(resolved);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       const parts = path.normalize(filepath).split(path.sep);
@@ -53,7 +112,7 @@ async function resolveSymlinks(filepath: string): Promise<string> {
         }
       }
 
-      return path.join(...resolvedParts);
+      return removeDuplicatePathSegments(path.join(...resolvedParts));
     }
 
     logger.error(`Failed to resolve symlink:`, {
